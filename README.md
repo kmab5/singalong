@@ -4,21 +4,26 @@ An Android companion for floating lyrics over your music player. Personal app; m
 
 ## current phase
 
-P0 foundation source is implemented. **The final source has not been built or device-verified**, at the user's request. No installable P0 APK is claimed yet.
+P0–P3 source is implemented. **The source has not been built, linted or device-verified**, at the user's request. Tests are authored but unrun; no installable APK or passed milestone is claimed. See the [P1–P3 checkpoint](docs/validation/p1-p3-checkpoint.md).
 
 Included:
 
 - KMAB dark theme, bundled Inter variable/optical-display typography and PT Mono.
-- `now`, `library`, `history`, permission settings and design-preview screens.
+- Live reader, saved-library browsing, play history and settings.
 - Explicit music/overlay/notification permission flows.
 - User-started foreground service with a `specialUse` declaration on Android 14+.
-- Media-session diagnostics: player, song, artist, album, reported position and state.
+- Selected music apps, automatic player arbitration and manual session override.
+- Ten seconds of observed playing time qualifies a play; pauses, buffering and seeking do not add listened time.
+- Room history/lyric versions and DataStore preferences, including migration from P0 preferences.
+- LRCLIB lookup with conservative matching, attribution, offline cache, request pacing and bounded retries.
+- Plain/LRC parsing, playback interpolation, manual reading, version selection and saved timing adjustments.
 - Process-local tracking gate: persisted preference alone cannot restart observation.
-- A draggable, closable overlay with clearly labelled original sample text.
-- Notification actions to reopen the preview or stop the session.
-- Unit tests for restart/stop behavior and Compose navigation/permission tests for a later verification run.
+- Floating current lyrics, expanded/manual reading, drag/resize, text size and opacity settings.
+- Separate close, manual-minimize and 15-second automatic pause-minimize behavior.
+- Notification actions to reopen lyrics or stop tracking.
+- Behavior-focused unit, Room and Compose tests for a later verification run.
 
-This build **does not fetch lyrics, record history, select eligible players, synchronize lyrics or translate text**. Media diagnostics are transient and do not read notification messages. The sample panel is a layout feasibility preview, not song content. The subsequent phases add collection and real lyrics.
+Editing, imports, favorites, backup and translation remain later-phase work. No Genius/Musixmatch scraping or key-based provider is included. P0 sample panels remain design-preview source only; runtime screens display actual data or explicit empty/error states.
 
 ## build when verification resumes
 
@@ -49,14 +54,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - [Implementation tasks](docs/superpowers/plans/2026-11-01-singalong.md)
 - [Phases and checkpoints](docs/superpowers/plans/2026-11-01-development-phases.md)
 - [P0 status and phone checklist](docs/validation/platform-feasibility.md)
+- [P1–P3 implementation and pending checks](docs/validation/p1-p3-checkpoint.md)
 - [Provider feasibility](docs/validation/providers.md)
 - [Design baseline](docs/design/p0-visual-baseline.md)
 
 ## local data and permissions
 
-P0 persists only tracking preference and whether notification permission has been requested, in app-private preferences. Library persistence and DataStore migration belong to P1. Media snapshots stay in memory and clear when tracking stops. The application has no Internet, microphone, broad-storage or accessibility-service permission. Network research happened during development, not inside this app.
+Room stores recordings, qualified occurrence IDs, history summaries, immutable lyric-version payloads, selected versions and timing adjustments. DataStore stores setup and display preferences. Media snapshots and live authorization stay in memory. Internet/network-state permission supports lyric lookup; launcher queries support player selection. There is no microphone, broad-storage, all-packages or accessibility-service permission. Song title and artist are sent to LRCLIB when network lookup is needed. Wi-Fi-only downloads are optional.
 
-No boot receiver or sticky restart is used. The listener may be rebound by Android, but observation remains off in a fresh process until an activity opens. An overlay-only preview can run without music access; closing it also removes its foreground service if tracking is off. Screen-off closes the preview. Full P3 minimize/resume behavior is intentionally absent.
+No boot receiver or sticky restart is used. The listener may be rebound by Android, but observation remains off in a fresh process until an activity opens. Overlay visibility is not persisted. Screen-off/lock suppresses rendering without changing manual close/minimize decisions. Closing the panel leaves authorized collection running; stopping tracking ends the live session. Opening a saved song does not replace the live overlay song.
 
 ## assets
 

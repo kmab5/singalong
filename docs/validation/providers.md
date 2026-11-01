@@ -1,18 +1,18 @@
 # provider feasibility — p0
 
-Assessed 2026-11-01. This is a feasibility record, not a claim that a provider is integrated. The P0 app has no network permission or lyrics/translation client.
+Assessed 2026-11-01; updated during P1–P3 implementation. LRCLIB now has a source-level integration; runtime verification remains deferred. Translation is not implemented.
 
 ## LRCLIB
 
-**Disposition:** documented no-key access is a technical candidate for P2. Permanent-retention rights remain unverified; do not interpret the service's software license or open API as a license to all underlying lyrics. Provider retention is an explicit unresolved release gate, not silently approved.
+**Disposition:** implement LRCLIB for this personal offline app, consistent with its official downloader's stated purpose. The [official LRCGET README](https://github.com/tranxuanthang/lrcget#readme) describes downloading lyrics for an offline music library and identifies LRCGET as the official LRCLIB client. This supports the intended personal offline workflow; it is not a blanket copyright or redistribution license. Broader distribution/rights remain an unresolved release consideration.
 
-Read the current [official API documentation](https://lrclib.net/docs) through its [Markdown endpoint](https://lrclib.net/docs.md). It documents anonymous access, identifying User-Agent headers, sequential requests, pacing and honoring Retry-After. Registration is optional. We can identify this client as `Singalong/0.0.1 (https://github.com/kmab5/singalong)` without a key.
+Read the current [official API documentation](https://lrclib.net/docs) through its [Markdown endpoint](https://lrclib.net/docs.md). It documents anonymous access, identifying User-Agent headers, sequential requests, pacing and honoring Retry-After. Registration is optional. The client identifies itself as `Singalong/0.1.0 (https://github.com/kmab5/singalong)` without a key.
 
 The response contract includes plain/timed content, recording metadata, duration, an instrumental indicator and provider record ID. Match/search and error handling belong to P2; word-sync fields are outside the first release.
 
 A single read-only smoke request to `/api/search?track_name=Still%20Alive&artist_name=Jonathan%20Coulton` with an identifying User-Agent returned **HTTP 503** in this environment. No returned lyrics were stored or printed. This proves the need for an unavailable path; it does not establish sustained uptime or rule out a transient/network-edge failure.
 
-The documentation inspected did not establish a blanket perpetual storage license for lyric texts. LRCLIB offers database downloads and its companion downloader, but these are not proof of underlying copyright permissions. Before permanent automatic collection is enabled, establish a permitted retention basis or keep that integration gated. Imported/user-authored content provides an independent path for development/testing. Use synthetic lyrics in automated fixtures.
+The documentation inspected did not establish a blanket perpetual storage license for lyric texts. Each saved provider version retains its provider ID, source URL, attribution and the retention note `personal offline copy; no redistribution grant`. Automated fixtures use synthetic lyrics. No license to third-party lyric text is invented or bundled with this project. A successful live fetch and provider availability check still need to be recorded before claiming verified operation.
 
 No Genius/Musixmatch adapter is included. The approved no-key/no-paid constraint remains unchanged.
 
@@ -35,5 +35,5 @@ If integrated later: opt-in, disclose remote processing, respect quotas, validat
 ## checkpoint impact
 
 - Translation absence is explicitly acceptable and does not block M0.
-- LRCLIB is technically documented, but the smoke test failed transiently and retention is unresolved. Therefore the provider gate is **assessed, not passed**.
-- Android foundation code can be completed independently. Before a later phase claims automatic permanent lyrics collection, revisit this gate with evidence.
+- LRCLIB source integration follows the documented personal offline use case, but the earlier smoke request failed and no successful live integration run is claimed. The provider gate remains **assessed, not passed**.
+- Revisit current provider availability and any broader storage/distribution rights before a release beyond personal use.

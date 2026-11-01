@@ -15,6 +15,8 @@ private val Context.singalongSettings by preferencesDataStore(
 
 data class AppSettings(
     val ready: Boolean = false,
+    val translationEnabled: Boolean = false,
+    val translationSizeSp: Float = 16f,
     val trackingEnabled: Boolean = false,
     val allowedPlayers: Set<String> = emptySet(),
     val wifiOnly: Boolean = false,
@@ -30,6 +32,8 @@ data class AppSettings(
 class SettingsStore(context: Context, scope: CoroutineScope) {
     private val store = context.applicationContext.singalongSettings
     private object Keys {
+        val translation = booleanPreferencesKey("translation_enabled")
+        val translationSize = floatPreferencesKey("translation_size")
         val tracking = booleanPreferencesKey("tracking_enabled")
         val allowed = stringSetPreferencesKey("allowed_players")
         val wifi = booleanPreferencesKey("wifi_only")
@@ -43,7 +47,7 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
     }
     val state = store.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map { p ->
         AppSettings(
-            ready = true, trackingEnabled = p[Keys.tracking] ?: false,
+            ready = true, translationEnabled = p[Keys.translation] ?: false, translationSizeSp = (p[Keys.translationSize] ?: 16f).safe(14f, 24f, 16f), trackingEnabled = p[Keys.tracking] ?: false,
             allowedPlayers = p[Keys.allowed].orEmpty(), wifiOnly = p[Keys.wifi] ?: false,
             notificationRequested = p[Keys.notification] ?: false,
             textSizeSp = (p[Keys.size] ?: 22f).safe(16f, 36f, 22f),
@@ -55,6 +59,8 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
         )
     }.stateIn(scope, SharingStarted.Eagerly, AppSettings())
 
+    suspend fun translation(enabled: Boolean) { store.edit { it[Keys.translation] = enabled } }
+    suspend fun translationSize(value: Float) { store.edit { it[Keys.translationSize] = value.safe(14f, 24f, 16f) } }
     suspend fun tracking(enabled: Boolean) { store.edit { it[Keys.tracking] = enabled } }
     suspend fun notificationRequested() { store.edit { it[Keys.notification] = true } }
     suspend fun wifiOnly(enabled: Boolean) { store.edit { it[Keys.wifi] = enabled } }

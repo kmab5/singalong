@@ -4,7 +4,7 @@ An Android companion for floating lyrics over your music player. Personal app; m
 
 ## current phase
 
-P0–P3 source is implemented. **The source has not been built, linted or device-verified**, at the user's request. Tests are authored but unrun; no installable APK or passed milestone is claimed. See the [P1–P3 checkpoint](docs/validation/p1-p3-checkpoint.md).
+P0–P5 source is implemented, with P5 using the explicitly unavailable online-translation fallback. **The source has not been built, linted or device-verified**, at the user's request. Tests are authored but unrun; no installable APK or passed milestone is claimed. See the [P1–P3 checkpoint](docs/validation/p1-p3-checkpoint.md).
 
 Included:
 
@@ -23,7 +23,9 @@ Included:
 - Notification actions to reopen lyrics or stop tracking.
 - Behavior-focused unit, Room and Compose tests for a later verification run.
 
-Editing, imports, favorites, backup and translation remain later-phase work. No Genius/Musixmatch scraping or key-based provider is included. P0 sample panels remain design-preview source only; runtime screens display actual data or explicit empty/error states.
+P4 adds search, favorites, TXT/LRC import preview, personal timed/untimed editing, version selection, protected cleanup and JSON backup/restore. P5 adds opt-in translation settings, version-bound validated cache storage and subordinate English rendering; online translation is explicitly unavailable. No Genius/Musixmatch scraping or key-based provider is included. P0 sample panels remain design-preview source only; runtime screens display actual data or explicit empty/error states.
+
+See the [P4–P5 checkpoint](docs/validation/p4-p5-checkpoint.md) for backup semantics, translation research and pending validation.
 
 ## build when verification resumes
 

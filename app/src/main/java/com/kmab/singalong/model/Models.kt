@@ -61,4 +61,5 @@ data class LibraryEntry(
     val playCount: Long,
     val hasLyrics: Boolean,
     val lookupStatus: String,
+    val favorite: Boolean = false,
 )

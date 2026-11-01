@@ -37,22 +37,32 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
     val installed by container.players.collectAsStateWithLifecycle()
     val entries by container.entries.collectAsStateWithLifecycle()
     val override by container.tracking.overrideSession.collectAsStateWithLifecycle()
+    var tools by rememberSaveable { mutableStateOf(false) }
+    var toolsId by rememberSaveable { mutableStateOf<String?>(null) }
+    var search by rememberSaveable { mutableStateOf("") }
+    var favoritesOnly by rememberSaveable { mutableStateOf(false) }
     var destination by rememberSaveable { mutableStateOf("now") }
     var savedId by rememberSaveable { mutableStateOf<String?>(null) }
     var savedVersion by remember { mutableStateOf<LyricVersion?>(null) }
     var savedTitle by remember { mutableStateOf("") }
+    var savedTranslation by remember { mutableStateOf<com.kmab.singalong.translation.TranslationRecord?>(null) }
     var savedStatus by remember { mutableStateOf("loading") }
-    LaunchedEffect(savedId) {
-        savedVersion = null; savedStatus = "loading"; savedTitle = ""
+    LaunchedEffect(savedId, settings.translationEnabled, tools) {
+        savedVersion = null; savedTranslation = null; savedStatus = "loading"; savedTitle = ""
         savedId?.let { id ->
             savedTitle = container.library.recording(id)?.title.orEmpty()
             savedVersion = container.library.selectedVersion(id)
             savedStatus = container.library.storedStatus(id) ?: "not_found"
+            savedVersion?.let { savedTranslation = (container.translations.resolve(it, settings.translationEnabled, true, false) as? com.kmab.singalong.translation.TranslationResult.Available)?.record }
         }
     }
     DisposableEffect(destination, savedId) {
         container.readerVisible(destination == "now" && savedId == null)
         onDispose { container.readerVisible(false) }
+    }
+    if (tools) {
+        LibraryTools(container, toolsId) { tools = false; container.reader.request() }
+        return
     }
     BackHandler(savedId != null || destination == "settings") { if (savedId != null) savedId = null else destination = "now" }
     Scaffold(containerColor = SingalongColors.Background, bottomBar = {
@@ -71,9 +81,10 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
             state.message?.let { Text(it, color = SingalongColors.PurpleText, style = MaterialTheme.typography.bodyMedium) }
             if (savedId != null) {
                 TextButton(onClick = { savedId = null }) { Text("back to $destination") }
+                TextButton(onClick = { toolsId = savedId; tools = true }) { Text("versions, import & edit") }
                 Text(savedTitle, style = MaterialTheme.typography.headlineSmall)
                 Text("Saved copy · live floating lyrics continue separately", style = MaterialTheme.typography.labelSmall)
-                LyricsReader(ReaderState(status = savedStatus, version = savedVersion), Modifier.weight(1f), textSize = settings.textSizeSp,
+                LyricsReader(ReaderState(status = savedStatus, version = savedVersion, translation = if (settings.translationEnabled) savedTranslation else null), Modifier.weight(1f), textSize = settings.textSizeSp,
                     onRetry = {
                         val id = savedId
                         if (id != null) scope.launch {
@@ -100,7 +111,7 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                             }
                         }
                     }
-                    LyricsReader(reader, Modifier.weight(1f), textSize = settings.textSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request)
+                    LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.weight(1f), textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request)
                     ReaderControls(reader, container.reader::adjust)
                     if (reader.candidates.size > 1) {
                         var choose by remember { mutableStateOf(false) }
@@ -115,12 +126,20 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                 }
                 "library", "history" -> {
                     Text(if (destination == "library") "your words, saved." else "songs you come back to.", style = MaterialTheme.typography.headlineMedium)
-                    val rows = entries.filter { if (destination == "library") it.hasLyrics else it.playCount > 0 }
+                    Row {
+                        TextButton(onClick = { toolsId = null; tools = true }) { Text("add a song") }
+                        FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly }, label = { Text("favorites") })
+                    }
+                    OutlinedTextField(search, { search = it }, label = { Text("Search title or artist") }, modifier = Modifier.fillMaxWidth())
+                    val rows = entries.filter { (if (destination == "library") it.hasLyrics else it.playCount > 0) &&
+                        (!favoritesOnly || it.favorite) && (it.recording.title + " " + it.recording.artists.joinToString()).contains(search, true) }
                     if (rows.isEmpty()) Text("Play a song for ten seconds to start your collection.", color = SingalongColors.Muted)
                     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(rows, key = { it.recording.id }) { entry ->
                             Surface(color = SingalongColors.Surface, modifier = Modifier.fillMaxWidth().clickable { savedId = entry.recording.id }) {
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    TextButton(onClick = { scope.launch { container.library.favorite(entry.recording.id, !entry.favorite) } }) { Text(if (entry.favorite) "★ favorited" else "favorite") }
+                                    if (entry.hasLyrics) Text("saved offline", style = MaterialTheme.typography.labelSmall)
                                     Text(entry.recording.title, style = MaterialTheme.typography.titleMedium)
                                     Text(entry.recording.artists.joinToString(), color = SingalongColors.Muted)
                                     if (destination == "history") Text("${entry.playCount} plays · ${entry.lastPlayedAtMs?.let { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it)) }.orEmpty()}", style = MaterialTheme.typography.labelSmall)
@@ -145,6 +164,12 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                         item { Row(verticalAlignment = Alignment.CenterVertically) { Switch(settings.wifiOnly, container::wifiOnly); Text("Download only on Wi-Fi", Modifier.padding(start = 12.dp)) } }
                         item { Text("Lyric size"); Slider(settings.textSizeSp, container::textSize, valueRange = 16f..36f) }
                         item { Text("Panel opacity"); Slider(settings.opacity, container::opacity, valueRange = 0.85f..1f) }
+                        item { BackupControls(container) }
+                        item { Text("English translations", style = MaterialTheme.typography.titleLarge)
+                            Row(verticalAlignment = Alignment.CenterVertically) { Switch(settings.translationEnabled, container::translation); Text("Show English subtext", Modifier.padding(start = 12.dp)) }
+                            Text("Translation text size"); Slider(settings.translationSizeSp, container::translationSize, valueRange = 14f..24f)
+                            Text("Unavailable · no free online provider has been approved for this build. Original lyrics always remain available. A future opt-in service would send opened lyrics online and save aligned translations with their version.", style = MaterialTheme.typography.bodyMedium)
+                        }
                         item { Text("music apps", style = MaterialTheme.typography.titleLarge); OutlinedTextField(query, { query = it }, label = { Text("Search installed apps") }, modifier = Modifier.fillMaxWidth()) }
                         items(apps.filter { it.label.contains(query, true) || it.packageName.contains(query, true) }, key = { it.packageName }) { app ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

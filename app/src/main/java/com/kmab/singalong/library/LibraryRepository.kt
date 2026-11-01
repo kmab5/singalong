@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
+import com.kmab.singalong.backup.*
+import com.kmab.singalong.translation.*
 
 interface LyricsStore {
     suspend fun selectedVersion(recordingId: String): LyricVersion?
@@ -15,17 +17,18 @@ interface LyricsStore {
 }
 
 interface ReaderStore {
+    suspend fun selectedVersion(recordingId: String): LyricVersion?
     suspend fun versions(recordingId: String): List<LyricVersion>
     suspend fun selectVersion(recordingId: String, versionId: String)
     suspend fun adjustment(versionId: String): AdjustmentEntity
     suspend fun adjust(value: AdjustmentEntity)
 }
 
-class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, ReaderStore {
+class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, ReaderStore, TranslationStore {
     private val dao = database.libraryDao()
     private val json = Json { ignoreUnknownKeys = true }
     val entries = dao.observeLibrary().map { rows -> rows.map { row ->
-        LibraryEntry(row.recording.toModel(), row.recording.lastPlayedAtMs, row.recording.playCount, row.hasLyrics, row.recording.lookupStatus)
+        LibraryEntry(row.recording.toModel(), row.recording.lastPlayedAtMs, row.recording.playCount, row.hasLyrics, row.recording.lookupStatus, row.recording.favorite)
     } }
 
     suspend fun resolveRecording(incoming: Recording, previousId: String? = null): Recording = database.withTransaction {
@@ -41,6 +44,74 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
     }
 
     suspend fun recording(id: String): Recording? = dao.recording(id)?.toModel()
+    override suspend fun translation(versionId: String): TranslationRecord? = dao.translation(versionId)?.let { json.decodeFromString(it.contentJson) }
+    override suspend fun saveTranslation(record: TranslationRecord) {
+        val version = requireNotNull(dao.version(record.versionId)).let { json.decodeFromString<LyricVersion>(it.contentJson) }
+        require(TranslationRepository.valid(version, record))
+        dao.translation(TranslationEntity(record.versionId, json.encodeToString(record)))
+    }
+    suspend fun favorite(id: String, value: Boolean) = dao.favorite(id, value)
+    suspend fun clearHistory() = dao.clearHistory()
+    suspend fun savePersonal(version: LyricVersion) = database.withTransaction {
+        require(version.origin != LyricOrigin.PROVIDER)
+        requireNotNull(dao.recording(version.recordingId))
+        dao.upsertLyrics(LyricEntity(version.id, version.recordingId, json.encodeToString(version)))
+        dao.select(SelectionEntity(version.recordingId, version.id))
+        dao.lookupStatus(version.recordingId, "available")
+    }
+    suspend fun clearDownloads(preserveFavorites: Boolean = true) = database.withTransaction {
+        dao.allRecordings().filterNot { preserveFavorites && it.favorite }.forEach { recording ->
+            versions(recording.id).filter { it.origin == LyricOrigin.PROVIDER }.forEach { dao.deleteVersion(it.id) }
+            val remaining = versions(recording.id)
+            if (dao.selected(recording.id) == null) remaining.firstOrNull()?.let { dao.select(SelectionEntity(recording.id, it.id)) }
+            dao.lookupStatus(recording.id, if (remaining.isEmpty()) "not_requested" else "available")
+        }
+    }
+    suspend fun exportBackup(): BackupDocument = database.withTransaction {
+        BackupDocument(songs = dao.allRecordings().map { r ->
+            val versions = versions(r.id)
+            BackupSong(r.toModel(), r.playCount, r.lastPlayedAtMs, r.favorite, versions, dao.selected(r.id)?.id,
+                versions.map { adjustment(it.id) }.map { BackupAdjustment(it.versionId, it.delayMs, it.allowUncertainSync) }, versions.mapNotNull { translation(it.id) })
+        })
+    }
+    /** Validate before opening the transaction. Existing selections and adjustments always win. */
+    suspend fun restore(document: BackupDocument): Int {
+        BackupCodec.validate(document)
+        return database.withTransaction {
+            var added = 0
+            document.songs.forEach { song ->
+                val originalId = song.recording.id
+                val byId = dao.recording(originalId)
+                val matching = if (byId == null) dao.candidates(RecordingIdentity.normalize(song.recording.title)).filter { RecordingIdentity.compatible(it.toModel(), song.recording) }.singleOrNull() else null
+                val targetId = matching?.id ?: if (byId != null && !RecordingIdentity.compatible(byId.toModel(), song.recording))
+                    UUID.nameUUIDFromBytes(json.encodeToString(song.recording).toByteArray()).toString() else originalId
+                val existing = dao.recording(targetId)
+                if (existing == null) added++
+                val model = song.recording.copy(id = targetId)
+                val row = existing ?: model.toEntity(null)
+                dao.upsert(row.copy(playCount = maxOf(row.playCount, song.plays),
+                    lastPlayedAtMs = listOfNotNull(row.lastPlayedAtMs, song.lastPlayed).maxOrNull(), favorite = if (existing != null) row.favorite else song.favorite))
+                val mapped = mutableMapOf<String, String>()
+                song.versions.forEach { source ->
+                    var version = source.copy(recordingId = targetId)
+                    val conflict = dao.version(version.id)
+                    if (conflict != null && json.decodeFromString<LyricVersion>(conflict.contentJson) != version)
+                        version = version.copy(id = UUID.nameUUIDFromBytes(json.encodeToString(version).toByteArray()).toString())
+                    mapped[source.id] = version.id
+                    if (dao.version(version.id) == null) { dao.upsertLyrics(LyricEntity(version.id, targetId, json.encodeToString(version))); added++ }
+                }
+                if (dao.selected(targetId) == null) song.selected?.let { mapped[it] }?.let { dao.select(SelectionEntity(targetId, it)) }
+                song.adjustments.forEach { a -> mapped[a.versionId]?.let { id ->
+                    if (dao.adjustment(id) == null) dao.adjust(AdjustmentEntity(id, a.delayMs, a.allowUncertainSync))
+                } }
+                song.translations.forEach { t -> mapped[t.versionId]?.let { id ->
+                    if (dao.translation(id) == null) saveTranslation(t.copy(versionId = id))
+                } }
+                if (versions(targetId).isNotEmpty()) dao.lookupStatus(targetId, "available")
+            }
+            added
+        }
+    }
 
     suspend fun recordQualifiedPlay(recordingId: String, occurrenceId: String, playedAtMs: Long) = database.withTransaction {
         if (dao.insertOccurrence(OccurrenceEntity(occurrenceId, recordingId)) != -1L) dao.incrementPlay(recordingId, playedAtMs)
@@ -74,6 +145,6 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
     private fun RecordingEntity.toModel() = Recording(id, title, json.decodeFromString(artistsJson), album, durationMs, versionLabel)
     private fun Recording.toEntity(existing: RecordingEntity?) = RecordingEntity(
         id, title, RecordingIdentity.normalize(title), json.encodeToString(artists), album, durationMs, versionLabel,
-        existing?.lastPlayedAtMs, existing?.playCount ?: 0, existing?.lookupStatus ?: "not_requested",
+        existing?.lastPlayedAtMs, existing?.playCount ?: 0, existing?.lookupStatus ?: "not_requested", existing?.favorite ?: false,
     )
 }

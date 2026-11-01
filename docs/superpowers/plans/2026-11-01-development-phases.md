@@ -1,6 +1,6 @@
 # singalong — development phases and checkpoints
 
-Status: P0–P3 source implemented; build, lint, test execution and device verification deferred by the user. P4–P6 not started. Updated 2026-11-01. See [P1–P3 checkpoint](../../validation/p1-p3-checkpoint.md).
+Status: P0–P5 source implemented (P5 online translation unavailable); build, lint, test execution and device verification deferred by the user. P6 not started. Updated 2026-11-01. See [P1–P3 checkpoint](../../validation/p1-p3-checkpoint.md).
 
 This roadmap sequences the [implementation tasks](2026-11-01-singalong.md) against the [confirmed design](../specs/2026-11-01-singalong-design.md). It adds delivery checkpoints without changing confirmed product behavior.
 
@@ -165,8 +165,8 @@ This is the first meaningful user-experience review. Record usability findings a
 | M1 collection | Source implemented; acceptance pending | Qualification/arbitration/database tests authored, not run; player smoke test pending |
 | M2 reader | Source implemented; acceptance pending | Matching/parser/timing/cache/HTTP/stale-result tests authored, not run; live checks pending |
 | M3 floating prototype | Source implemented; acceptance pending | State and reader tests authored, not run; APK and physical overlay walkthrough pending |
-| M4 personal library | Not started | Editing invariants, import, atomic/idempotent restore |
-| M5 translation/design | Not started | Provider disposition, cache tests, accessibility screenshots |
+| M4 personal library | Source implemented; acceptance pending | Editing invariants, import, atomic/idempotent restore |
+| M5 translation/design | Source implemented with unavailable online adapter; acceptance pending | Provider disposition, cache tests, accessibility screenshots |
 | M6 personal release | Not started | Full checks, primary-device evidence, APK/checksum, matrix |
 
 ## Effort planning

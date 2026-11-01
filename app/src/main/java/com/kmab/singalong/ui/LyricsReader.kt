@@ -28,7 +28,7 @@ fun lookupMessage(status: String) = when (status) {
 
 @Composable
 fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boolean = false, textSize: Float = 22f,
-    onFollow: (Boolean) -> Unit = {}, onRetry: () -> Unit = {}) {
+    translationSize: Float = 16f, onFollow: (Boolean) -> Unit = {}, onRetry: () -> Unit = {}) {
     val version = state.version
     if (version == null) {
         Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -55,15 +55,23 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                     ?: version.lines.getOrNull(state.moment.index)?.text?.ifBlank { "Instrumental" } ?: "Waiting for the first line"
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.width(3.dp).height(28.dp).background(SingalongColors.Purple))
-                    Text(text, fontSize = textSize.sp, lineHeight = (textSize * 1.4f).sp)
+                    Column {
+                        Text(text, fontSize = textSize.sp, lineHeight = (textSize * 1.4f).sp)
+                        version.lines.getOrNull(state.moment.index)?.id?.let { state.translation?.lines?.get(it) }?.let {
+                            Text(it, fontSize = translationSize.sp, lineHeight = (translationSize * 1.5f).sp, color = SingalongColors.Muted)
+                        }
+                    }
                 }
             }
         } else LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             itemsIndexed(version.lines, key = { _, line -> line.id }) { index, line ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.width(3.dp).height(28.dp).background(if (state.canSync && state.following && index == state.moment.index) SingalongColors.Purple else androidx.compose.ui.graphics.Color.Transparent))
+                    Column {
                     Text(line.text.ifBlank { "♪" }, fontSize = textSize.sp, lineHeight = (textSize * 1.4f).sp,
                         color = if (state.canSync && state.following && index != state.moment.index) SingalongColors.Muted else SingalongColors.Text)
+                    state.translation?.lines?.get(line.id)?.let { Text(it, fontSize = translationSize.sp, lineHeight = (translationSize * 1.5f).sp, color = SingalongColors.Muted) }
+                    }
                 }
             }
         }

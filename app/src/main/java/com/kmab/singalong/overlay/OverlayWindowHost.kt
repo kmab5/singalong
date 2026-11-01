@@ -108,7 +108,7 @@ class OverlayWindowHost(private val context: Context, private val container: App
                             IconButton(onClick = container::minimizePanel) { Icon(Icons.Outlined.Minimize, "Minimize lyrics") }
                             IconButton(onClick = container::closePanel) { Icon(Icons.Outlined.Close, "Close lyrics") }
                         }
-                        LyricsReader(reader, Modifier.weight(1f), compact = !panel.expanded, textSize = settings.textSizeSp,
+                        LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.weight(1f), compact = !panel.expanded, textSize = settings.textSizeSp, translationSize = settings.translationSizeSp,
                             onFollow = container.reader::follow, onRetry = container.reader::request)
                         Row(Modifier.fillMaxWidth()) {
                             Text(reader.version?.sourceName ?: "singalong", Modifier.weight(1f).padding(12.dp), style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)

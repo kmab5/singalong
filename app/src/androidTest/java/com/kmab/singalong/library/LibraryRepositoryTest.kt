@@ -39,4 +39,40 @@ class LibraryRepositoryTest {
         repository.saveCandidates(song, listOf(personal.copy(id = "provider", origin = LyricOrigin.PROVIDER, contentHash = "hash2")))
         assertEquals("personal", repository.selectedVersion(song.id)?.id)
     }
+    @Test fun backupRestoreIsIdempotentAndInvalidBackupDoesNotMutate() = runTest {
+        val song = repository.resolveRecording(Recording("raw", "Backup fixture", listOf("Artist"), null, null))
+        repository.recordQualifiedPlay(song.id, "one", 10)
+        val personal = com.kmab.singalong.editor.LyricsEditor.import(song.id, "Synthetic original")
+        repository.savePersonal(personal)
+        val document = repository.exportBackup()
+        assertEquals(0, repository.restore(document))
+        assertEquals(0, repository.restore(document))
+        assertEquals(document, repository.exportBackup())
+        try { repository.restore(document.copy(schema = 99)); fail("Expected validation failure") } catch (_: IllegalArgumentException) { }
+        assertEquals(document, repository.exportBackup())
+    }
+    @Test fun clearingDownloadsPreservesPersonalVersionsAndFavorites() = runTest {
+        val song = repository.resolveRecording(Recording("raw", "Cleanup fixture", listOf("Artist"), null, null))
+        val personal = com.kmab.singalong.editor.LyricsEditor.import(song.id, "Synthetic original")
+        repository.savePersonal(personal)
+        repository.saveCandidates(song, listOf(personal.copy(id = "download", origin = LyricOrigin.PROVIDER)))
+        repository.favorite(song.id, true)
+        repository.clearDownloads()
+        assertEquals(2, repository.versions(song.id).size)
+        repository.favorite(song.id, false)
+        repository.clearDownloads()
+        assertEquals(listOf(personal), repository.versions(song.id))
+        repository.clearHistory()
+        assertEquals(personal, repository.selectedVersion(song.id))
+    }
+    @Test fun failedRestoreRollsBackEarlierRecordingWrites() = runTest {
+        val before = repository.exportBackup()
+        val recording = Recording("restore", "Rollback fixture", listOf("Artist"), null, null)
+        val version = com.kmab.singalong.editor.LyricsEditor.import(recording.id, "Synthetic words")
+        val backup = com.kmab.singalong.backup.BackupDocument(songs = listOf(
+            com.kmab.singalong.backup.BackupSong(recording, 1, 1, false, listOf(version), version.id)))
+        db.openHelper.writableDatabase.execSQL("CREATE TRIGGER fail_restore BEFORE INSERT ON lyrics BEGIN SELECT RAISE(ABORT, 'injected restore failure'); END")
+        try { repository.restore(backup); fail("Expected injected failure") } catch (_: android.database.sqlite.SQLiteException) { }
+        assertEquals(before, repository.exportBackup())
+    }
 }

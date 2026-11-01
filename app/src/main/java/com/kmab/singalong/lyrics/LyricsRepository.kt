@@ -33,7 +33,7 @@ class LyricsRepository(private val store: LyricsStore, private val provider: Lyr
             }
             store.setLookupStatus(recording.id, result.status)
             if (recent.size > 256) recent.clear()
-            recent[recording.id] = (nowMs() + (result.retryAfterMs ?: if (result.status in listOf("not_found", "instrumental")) 3_600_000 else 30_000)) to result
+            if (result.version == null) recent[recording.id] = (nowMs() + (result.retryAfterMs ?: if (result.status in listOf("not_found", "instrumental")) 3_600_000 else 30_000)) to result
             result
         }
 }

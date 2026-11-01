@@ -16,6 +16,7 @@ data class RecordingEntity(
     val lastPlayedAtMs: Long? = null,
     val playCount: Long = 0,
     val lookupStatus: String = "not_requested",
+    @ColumnInfo(defaultValue = "0") val favorite: Boolean = false,
 )
 
 @Entity(tableName = "occurrences", foreignKeys = [ForeignKey(entity = RecordingEntity::class, parentColumns = ["id"], childColumns = ["recordingId"], onDelete = ForeignKey.CASCADE)], indices = [Index("recordingId")])
@@ -35,12 +36,21 @@ data class AdjustmentEntity(@PrimaryKey val versionId: String, val delayMs: Long
 
 data class LibraryRow(@Embedded val recording: RecordingEntity, val hasLyrics: Boolean)
 
+@Entity(tableName = "translations", foreignKeys = [ForeignKey(entity = LyricEntity::class, parentColumns = ["id"], childColumns = ["versionId"], onDelete = ForeignKey.CASCADE)])
+data class TranslationEntity(@PrimaryKey val versionId: String, val contentJson: String)
+
 @Dao
 interface LibraryDao {
     @Query("SELECT r.*, EXISTS(SELECT 1 FROM lyrics l WHERE l.recordingId = r.id) AS hasLyrics FROM recordings r ORDER BY r.lastPlayedAtMs DESC, r.title COLLATE NOCASE")
     fun observeLibrary(): Flow<List<LibraryRow>>
     @Query("SELECT * FROM recordings WHERE id = :id") suspend fun recording(id: String): RecordingEntity?
     @Query("SELECT * FROM recordings WHERE normalizedTitle = :title") suspend fun candidates(title: String): List<RecordingEntity>
+    @Query("SELECT * FROM translations WHERE versionId = :id") suspend fun translation(id: String): TranslationEntity?
+    @Upsert suspend fun translation(value: TranslationEntity)
+    @Query("SELECT * FROM recordings") suspend fun allRecordings(): List<RecordingEntity>
+    @Query("UPDATE recordings SET favorite = :value WHERE id = :id") suspend fun favorite(id: String, value: Boolean)
+    @Query("UPDATE recordings SET playCount = 0, lastPlayedAtMs = NULL") suspend fun clearHistory()
+    @Query("DELETE FROM lyrics WHERE id = :id") suspend fun deleteVersion(id: String)
     @Upsert suspend fun upsert(recording: RecordingEntity)
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertOccurrence(value: OccurrenceEntity): Long
     @Query("UPDATE recordings SET playCount = playCount + 1, lastPlayedAtMs = CASE WHEN lastPlayedAtMs IS NULL OR lastPlayedAtMs < :at THEN :at ELSE lastPlayedAtMs END WHERE id = :id")
@@ -55,10 +65,12 @@ interface LibraryDao {
     @Upsert suspend fun adjust(value: AdjustmentEntity)
 }
 
-@Database(entities = [RecordingEntity::class, OccurrenceEntity::class, LyricEntity::class, SelectionEntity::class, AdjustmentEntity::class], version = 1, exportSchema = true)
+@Database(entities = [RecordingEntity::class, OccurrenceEntity::class, LyricEntity::class, SelectionEntity::class, AdjustmentEntity::class, TranslationEntity::class], version = 2, exportSchema = true)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
     companion object {
-        fun open(context: Context) = Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, "singalong.db").build()
+        fun open(context: Context) = Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, "singalong.db").addMigrations(object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) { db.execSQL("ALTER TABLE recordings ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0"); db.execSQL("CREATE TABLE IF NOT EXISTS translations (versionId TEXT NOT NULL PRIMARY KEY, contentJson TEXT NOT NULL, FOREIGN KEY(versionId) REFERENCES lyrics(id) ON DELETE CASCADE)") }
+        }).build()
     }
 }

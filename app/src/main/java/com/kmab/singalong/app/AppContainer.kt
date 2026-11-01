@@ -37,7 +37,8 @@ class AppContainer(private val context: Context) {
     private val repository = LyricsRepository(library, provider)
     private val collectionJobs = mutableMapOf<String, Job>()
     val tracking = TrackingCoordinator(scope, observer, settings.state, library, SystemClock::elapsedRealtime, System::currentTimeMillis, ::collectLyrics)
-    val reader = ReaderCoordinator(scope, tracking.current, library, repository, ::networkAllowed, SystemClock::elapsedRealtime)
+    val translations = com.kmab.singalong.translation.TranslationRepository(library)
+    val reader = ReaderCoordinator(scope, tracking.current, library, repository, ::networkAllowed, SystemClock::elapsedRealtime, translations) { settings.state.value.translationEnabled }
     private val mutablePanel = MutableStateFlow(OverlayState())
     val panel = mutablePanel.asStateFlow()
     private val mutablePlayers = MutableStateFlow<List<PlayerApp>>(emptyList())
@@ -105,6 +106,8 @@ class AppContainer(private val context: Context) {
     fun allowPlayer(packageName: String, allowed: Boolean) { scope.launch { settings.allowPlayer(packageName, allowed) } }
     fun wifiOnly(enabled: Boolean) { scope.launch { settings.wifiOnly(enabled) } }
     fun notificationRequested() { scope.launch { settings.notificationRequested() } }
+    fun translation(enabled: Boolean) { scope.launch { settings.translation(enabled); reader.request() } }
+    fun translationSize(value: Float) { scope.launch { settings.translationSize(value) } }
     fun textSize(value: Float) { scope.launch { settings.textSize(value) } }
     fun opacity(value: Float) { scope.launch { settings.opacity(value) } }
     fun geometry(x: Float, y: Float, width: Float, height: Float) { scope.launch { settings.geometry(x, y, width, height) } }
@@ -126,6 +129,19 @@ class AppContainer(private val context: Context) {
     fun expandPanel() { mutablePanel.update { it.copy(expanded = !it.expanded) } }
     fun chooseSession(id: String?) = tracking.chooseSession(id)
     suspend fun lookupSaved(id: String): LookupResult? = library.recording(id)?.let { repository.lookup(it, ::networkAllowed) }
+    suspend fun manualLookup(id: String, title: String, artist: String, album: String): String {
+        val recording = requireNotNull(library.recording(id))
+        if (!networkAllowed()) return "offline"
+        val query = recording.copy(title = title.trim(), artists = listOf(artist.trim()), album = album.ifBlank { null }, durationMs = null)
+        require(query.title.isNotBlank() && artist.isNotBlank()) { "Enter title and artist to search." }
+        return when (val result = provider.search(query)) {
+            is ProviderResult.Failed -> result.reason
+            is ProviderResult.Songs -> {
+                val candidates = LyricsMatcher.versions(query, result.songs).map { it.copy(id = it.id + ":manual", confidence = MatchConfidence.UNCERTAIN) }
+                if (candidates.isEmpty()) "not_found" else { library.saveCandidates(recording, candidates); "available" }
+            }
+        }
+    }
     private fun startService(action: String) {
         try { ContextCompat.startForegroundService(context, Intent(context, TrackingService::class.java).setAction(action)) }
         catch (_: IllegalStateException) { startFailed("Open Singalong and try again to start the background session.") }

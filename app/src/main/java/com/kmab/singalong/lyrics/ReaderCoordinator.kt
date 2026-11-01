@@ -2,11 +2,13 @@ package com.kmab.singalong.lyrics
 
 import com.kmab.singalong.library.ReaderStore
 import com.kmab.singalong.model.*
+import com.kmab.singalong.translation.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 data class ReaderState(
     val snapshot: PlaybackSnapshot? = null,
+    val translation: TranslationRecord? = null,
     val status: String = "idle",
     val version: LyricVersion? = null,
     val candidates: List<LyricVersion> = emptyList(),
@@ -30,6 +32,8 @@ class ReaderCoordinator(
     private val repository: LyricsRepository,
     private val networkAllowed: () -> Boolean,
     private val elapsedMs: () -> Long,
+    private val translations: TranslationRepository? = null,
+    private val translationEnabled: () -> Boolean = { false },
 ) {
     private val mutableState = MutableStateFlow(ReaderState())
     val state = mutableState.asStateFlow()
@@ -66,6 +70,14 @@ class ReaderCoordinator(
     }
     fun tracking(active: Boolean) { tracking = active; if (!active) { fetch?.cancel(); fetch = null } }
     fun visible(visible: Boolean) { demand.value = visible; if (visible) request() }
+    fun refreshLocal() {
+        fetch?.cancel()
+        val id = state.value.snapshot?.recording?.id ?: return
+        fetch = scope.launch {
+            val version = library.selectedVersion(id)
+            if (state.value.snapshot?.recording?.id == id) load(LookupResult(if (version == null) "not_found" else "available", version))
+        }
+    }
     fun request() {
         val recording = state.value.snapshot?.recording ?: return
         if (fetch?.isActive == true) return
@@ -85,7 +97,9 @@ class ReaderCoordinator(
         val version = result.version
         val adjustment = version?.let { library.adjustment(it.id) }
         val candidates = library.versions(id)
-        if (state.value.snapshot?.recording?.id == id) mutableState.update { it.copy(status = result.status, version = version,
+        val translated = version?.let { translations?.resolve(it, translationEnabled(), demand.value, networkAllowed()) }
+        val translation = (translated as? TranslationResult.Available)?.record
+        if (state.value.snapshot?.recording?.id == id) mutableState.update { it.copy(status = result.status, version = version, translation = translation,
             candidates = candidates, delayMs = adjustment?.delayMs ?: 0, allowUncertainSync = adjustment?.allowUncertainSync ?: false) }
     }
     fun select(version: LyricVersion) { scope.launch {

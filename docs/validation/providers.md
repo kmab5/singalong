@@ -18,6 +18,8 @@ No Genius/Musixmatch adapter is included. The approved no-key/no-paid constraint
 
 ## online translation
 
+P5 update: official usage/terms/hosting pages were rechecked. No qualifying online adapter was established; the production provider explicitly returns unavailable. Version-bound cache validation and English subtext rendering are implemented for valid saved records. See [P4–P5 checkpoint](p4-p5-checkpoint.md). No source lyrics were sent to a translation service.
+
 **Disposition:** unavailable in P0. MyMemory is a candidate for later evaluation, not a promised integration. Translation remains non-blocking for the personal release.
 
 ### MyMemory

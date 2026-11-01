@@ -14,6 +14,8 @@ import com.kmab.singalong.model.PlaybackObserver
 import com.kmab.singalong.model.PlaybackSnapshot
 import com.kmab.singalong.model.PlaybackStatus
 import com.kmab.singalong.model.Recording
+import com.kmab.singalong.library.RecordingIdentity
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -29,6 +31,7 @@ class AndroidPlaybackObserver(
     override val sessions = mutableSessions.asStateFlow()
     private val controllers = linkedMapOf<MediaSession.Token, Pair<MediaController, MediaController.Callback>>()
     private var started = false
+    private val observedRecordings = mutableMapOf<MediaSession.Token, Recording>()
     private val sessionListener = MediaSessionManager.OnActiveSessionsChangedListener { attach(it.orEmpty()) }
 
     // Enabled notification listeners may read sessions without privileged
@@ -51,6 +54,7 @@ class AndroidPlaybackObserver(
         started = false
         controllers.values.forEach { (controller, callback) -> controller.unregisterCallback(callback) }
         controllers.clear()
+        observedRecordings.clear()
         mutableSessions.value = emptyList()
     }
 
@@ -58,11 +62,13 @@ class AndroidPlaybackObserver(
         if (!started) return
         controllers.values.forEach { (controller, callback) -> controller.unregisterCallback(callback) }
         controllers.clear()
+        observedRecordings.keys.retainAll(next.map { it.sessionToken }.toSet())
         next.forEach { controller ->
             val callback = object : MediaController.Callback() {
                 override fun onMetadataChanged(metadata: MediaMetadata?) = publish()
                 override fun onPlaybackStateChanged(state: PlaybackState?) = publish()
                 override fun onSessionDestroyed() {
+                    observedRecordings.remove(controller.sessionToken)
                     controllers.remove(controller.sessionToken)?.let { it.first.unregisterCallback(it.second) }
                     publish()
                 }
@@ -89,25 +95,28 @@ class AndroidPlaybackObserver(
                 else -> PlaybackStatus.UNKNOWN
             }
             PlaybackSnapshot(
-                // Process-only diagnostic ID. P1 supplies durable recording identity.
                 sessionId = controller.sessionToken.hashCode().toString(),
                 packageName = controller.packageName,
-                playerName = runCatching {
+                playerName = try {
                     val info = context.packageManager.getApplicationInfo(controller.packageName, 0)
                     context.packageManager.getApplicationLabel(info).toString()
-                }.getOrDefault(controller.packageName),
-                recording = title?.let {
-                    Recording(
-                        id = "${controller.packageName}:$it:$artist",
+                } catch (_: android.content.pm.PackageManager.NameNotFoundException) { controller.packageName },
+                recording = title?.takeIf(String::isNotBlank)?.let {
+                    val incoming = Recording(
+                        id = UUID.randomUUID().toString(),
                         title = it,
-                        artists = listOfNotNull(artist),
+                        artists = listOfNotNull(artist?.takeIf(String::isNotBlank)),
                         album = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM),
                         durationMs = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION)?.takeIf { d -> d > 0 },
                     )
+                    val old = observedRecordings[controller.sessionToken]
+                    val stable = if (old != null && RecordingIdentity.sameObservation(old, incoming)) RecordingIdentity.enrich(old, incoming) else incoming
+                    observedRecordings[controller.sessionToken] = stable
+                    stable
                 },
                 status = status,
                 positionMs = playback?.position?.takeIf { it >= 0 },
-                observedAtMs = playback?.lastPositionUpdateTime ?: 0,
+                observedAtMs = playback?.lastPositionUpdateTime?.takeIf { it > 0 } ?: android.os.SystemClock.elapsedRealtime(),
                 speed = playback?.playbackSpeed ?: 0f,
             )
         }

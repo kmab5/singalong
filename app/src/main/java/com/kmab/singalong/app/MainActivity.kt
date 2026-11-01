@@ -11,11 +11,9 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kmab.singalong.ui.FoundationActions
 import com.kmab.singalong.ui.FoundationScreen
 import com.kmab.singalong.ui.PermissionStatus
@@ -36,17 +34,12 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             SingalongTheme {
-                val state by container.state.collectAsStateWithLifecycle()
-                val sessions by container.observer.sessions.collectAsStateWithLifecycle()
                 FoundationScreen(
-                    state, sessions, permissions.value,
+                    container, permissions.value,
                     FoundationActions(
                         musicAccess = { openSettings(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
                         overlayAccess = { openSettings(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri())) },
                         notificationAccess = ::requestNotifications,
-                        startTracking = container::enableTracking,
-                        stopTracking = container::disableTracking,
-                        showPreview = container::showOverlayPreview,
                     ),
                 )
             }
@@ -57,11 +50,21 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         refreshPermissions()
         container.onAppOpened()
+        container.activityVisible(true)
+        if (intent.action == ACTION_SHOW_LYRICS) {
+            container.showLyrics()
+            intent.action = null
+        }
     }
 
     override fun onResume() {
         super.onResume()
         refreshPermissions()
+    }
+
+    override fun onStop() {
+        container.activityVisible(false)
+        super.onStop()
     }
 
     private fun refreshPermissions() {
@@ -73,11 +76,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestNotifications() {
-        val preference = getSharedPreferences("foundation", MODE_PRIVATE)
         if (Build.VERSION.SDK_INT >= 33 && !permissions.value.notifications &&
-            !preference.getBoolean("notification_requested", false)
+            !container.settings.state.value.notificationRequested
         ) {
-            preference.edit().putBoolean("notification_requested", true).apply()
+            container.notificationRequested()
             notificationRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             openSettings(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
@@ -91,4 +93,11 @@ class MainActivity : ComponentActivity() {
             container.message("Open Android settings and find Singalong to change this permission.")
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == ACTION_SHOW_LYRICS) { container.showLyrics(); intent.action = null }
+    }
+    companion object { const val ACTION_SHOW_LYRICS = "com.kmab.singalong.SHOW_LYRICS" }
 }

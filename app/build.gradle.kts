@@ -1,9 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+}
+
+val releaseSigning = Properties().apply {
+    val credentials = rootProject.file("signing.properties")
+    if (credentials.exists()) credentials.inputStream().use { load(it) }
 }
 
 android {
@@ -18,6 +25,15 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
+    signingConfigs {
+        create("release") {
+            releaseSigning.getProperty("storeFile")?.let { storeFile = rootProject.file(it) }
+            storePassword = releaseSigning.getProperty("storePassword")
+            keyAlias = releaseSigning.getProperty("keyAlias")
+            keyPassword = releaseSigning.getProperty("keyPassword")
+        }
+    }
+    buildTypes { getByName("release") { signingConfig = signingConfigs.getByName("release") } }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -28,6 +44,16 @@ android {
 
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
+
+val verifyReleaseSigning by tasks.registering {
+    doLast {
+        check(listOf("storeFile", "storePassword", "keyAlias", "keyPassword").all {
+            !releaseSigning.getProperty(it).isNullOrBlank()
+        }) { "Release signing requires local signing.properties. See docs/validation/release-signing.md." }
+        check(rootProject.file(releaseSigning.getProperty("storeFile")).isFile) { "Release keystore is missing. Restore the existing key; do not replace it." }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(verifyReleaseSigning) }
 
 dependencies {
     implementation(libs.androidx.core)

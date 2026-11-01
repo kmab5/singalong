@@ -1,6 +1,7 @@
 package com.kmab.singalong.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -31,7 +32,8 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
     val scope = rememberCoroutineScope()
     val resolver = LocalContext.current.contentResolver
     val sessionKey = rememberSaveable { java.util.UUID.randomUUID().toString() }
-    val draft = androidx.lifecycle.ViewModelProvider(LocalContext.current as androidx.activity.ComponentActivity)[sessionKey, EditorDraft::class.java]
+    val activity = requireNotNull(LocalActivity.current as? androidx.activity.ComponentActivity)
+    val draft = androidx.lifecycle.ViewModelProvider(activity)[sessionKey, EditorDraft::class.java]
     fun close() { draft.clear(); onClose() }
     var title by rememberSaveable { mutableStateOf("") }
     var artist by rememberSaveable { mutableStateOf("") }

@@ -4,7 +4,7 @@ An Android companion for floating lyrics over your music player. Personal app; m
 
 ## current phase
 
-P0–P5 source is implemented, with P5 using the explicitly unavailable online-translation fallback. **The source has not been built, linted or device-verified**, at the user's request. Tests are authored but unrun; no installable APK or passed milestone is claimed. See the [P1–P3 checkpoint](docs/validation/p1-p3-checkpoint.md).
+P0–P5 source is implemented. P6 automated checks now pass: **35 unit tests, debug lint (zero errors), debug/release builds and instrumentation-test APK compilation**. The signed release APK is available locally at `artifacts/singalong-release.apk`. Physical-device, migration and instrumented test execution remain pending your phone testing. Online translation remains explicitly unavailable. See the [P6 checkpoint](docs/validation/p6-checkpoint.md).
 
 Included:
 
@@ -27,7 +27,7 @@ P4 adds search, favorites, TXT/LRC import preview, personal timed/untimed editin
 
 See the [P4–P5 checkpoint](docs/validation/p4-p5-checkpoint.md) for backup semantics, translation research and pending validation.
 
-## build when verification resumes
+## build and release signing
 
 Pinned versions: Gradle 8.13, Android Gradle Plugin 8.13.2, Kotlin/Compose compiler 2.2.21, Compose BOM 2025.10.00, Activity 1.11.0, Lifecycle 2.9.4, Core 1.17.0, coroutines 1.10.2. Compile/target SDK 36; minimum SDK 31. JVM bytecode targets Java 17; use JDK 17 or 21 to run Gradle (the machine's default Java 26 is not the selected toolchain).
 
@@ -38,17 +38,16 @@ $env:JAVA_HOME = 'D:/Code/java/jdk-21.0.12.1'
 .\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --console=plain
 ```
 
-After a successful build, the debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`. This is a future output path, not a currently verified artifact.
+After a successful build, the debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`. A signed release is also generated at `app/build/outputs/apk/release/app-release.apk`; see [signing continuity](docs/validation/release-signing.md).
 
 For an authorized physical-device test:
 
 ```powershell
 adb devices -l
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-.\gradlew.bat :app:connectedDebugAndroidTest --console=plain
+adb install -r artifacts/singalong-release.apk
 ```
 
-**Do not install an emulator, system image or additional SDK package without a new user request.** Build and device verification are currently deferred. Use the existing SDK and the user's phone when they are ready.
+**Do not install an emulator, system image or additional SDK package without a new user request.** Automated build checks are authorized and passed; device testing is handled by the user. Instrumented tests have compiled but have not run; they require a debug-signed app installation separate from the release testing workflow.
 
 ## development documents
 

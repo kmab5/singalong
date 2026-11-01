@@ -9,3 +9,5 @@
 *.keystore
 /exports/
 /artifacts/
+/.signing/
+/signing.properties

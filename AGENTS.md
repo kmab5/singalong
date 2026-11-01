@@ -4,7 +4,8 @@
 
 - Follow the confirmed design and phase roadmap in `docs/superpowers/`.
 - Implement only the requested phase. Keep future behavior out of the current UI unless clearly labelled as unavailable or a preview.
-- Build, lint and device verification are currently deferred by the user. Do not resume them without a new request. Do not install emulators, system images or SDK packages; use `D:/Code/android-sdk`.
+- P6 build, lint and unit-test execution are authorized. Use JDK `D:/Code/java/jdk-21.0.12.1` and SDK `D:/Code/android-sdk`. Physical testing is being handled by the user. Do not install emulators, system images or SDK packages.
+- Release signing uses the existing ignored `.signing/singalong-release.jks` and `signing.properties`. Never replace the key or commit signing credentials.
 - Report implemented source separately from verified behavior. Never mark a milestone passed without its evidence.
 - Keep commits focused and descriptive. Exclude machine configuration, build output, signing keys and personal data.
 

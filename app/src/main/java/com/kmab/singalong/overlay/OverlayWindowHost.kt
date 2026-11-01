@@ -5,6 +5,7 @@ import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.provider.Settings
 import android.view.*
+import android.view.WindowInsets
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -67,6 +68,8 @@ class OverlayWindowHost(private val context: Context, private val container: App
             (metrics.bounds.height() - insets.bottom).coerceAtLeast(insets.top + 1))
     }
 
+    // Window x/y and safeBounds use physical left-origin display coordinates in every locale.
+    @android.annotation.SuppressLint("RtlHardcoded")
     private fun attach(): Boolean {
         val lifecycleOwner = WindowOwner()
         val composeView = ComposeView(windowContext).apply {

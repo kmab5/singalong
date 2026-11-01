@@ -32,9 +32,9 @@ Reports remain local at `app/build/reports/tests/testDebugUnitTest/index.html` a
 
 ## Phone artifact
 
-Install `artifacts/singalong-release.apk` (copied from `app/build/outputs/apk/release/app-release.apk`). Size: 47,375,541 bytes. Package `com.kmab.singalong`, version name `0.2.0-p5`, version code 3; minimum API 31, target API 36.
+Install `artifacts/singalong-release.apk` (copied from `app/build/outputs/apk/release/app-release.apk`). Size after R8/resource shrinking: 3,567,540 bytes (previously 47,375,541; 92.47% smaller). Package `com.kmab.singalong`, version name `0.2.0-p5`, version code 3; minimum API 31, target API 36.
 
-SHA-256: `AB8E2B01A2F7B36F9E5B4A8CFD852FFD8CDD3EDB5A1FE67C19113EE09F958A38`.
+SHA-256: `F8AA90A9DFE3DBF870D055A86E16005830C3B645E3612F8C4AF6620F8CD5E523`.
 
 Certificate SHA-256: `8BBE1DA96DD01E32F971D516F1619B67C5A15B5222B40864AD3179F62AEF6A04`.
 
@@ -43,3 +43,9 @@ The private key and credentials are ignored local files; see [release signing](r
 ## Remaining acceptance
 
 M6 is a signed candidate, not a fully device-verified release. The [compatibility matrix and phone walkthrough](compatibility.md) remain pending. Installation, real-player metadata/timing, permissions, overlay behavior, battery usage, RTL/large-text/TalkBack, upgrade migration and transactional recovery still require actual device evidence. No successful live lyric-provider request or online translation availability is newly claimed by these build checks. Earlier phase documents record historical unverified states; this checkpoint supersedes their build/unit/lint status only.
+
+## Optimized release follow-up
+
+Enabled R8 minification and resource shrinking with `proguard-android-optimize.txt`. No blanket keep/dontwarn rules were added; dependency consumer rules are used. `:app:assembleRelease :app:lintRelease :app:testReleaseUnitTest` succeeded in 2m 46s with JDK 21. All 35 release-variant unit tests passed; release lint reports zero errors and 21 dependency-version warnings. Signature and 16 KiB alignment verification passed again with the original release certificate.
+
+The current artifact/checksum above supersede the original unminified candidate. Its matching R8 mapping is archived locally in `artifacts/mapping/F8AA90A9DFE3DBF870D055A86E16005830C3B645E3612F8C4AF6620F8CD5E523.txt`. Preserve that file for crash retracing. Unit tests exercise release-variant JVM classes, not the installed optimized DEX; on-phone smoke testing of the minified APK remains pending.

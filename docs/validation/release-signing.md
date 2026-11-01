@@ -17,3 +17,5 @@ $env:JAVA_HOME = 'D:/Code/java/jdk-21.0.12.1'
 Set `JAVA_HOME` as well as the quoted JVM argument because the wrapper itself otherwise uses the machine's default Java. The release build fails explicitly when signing configuration is missing. Debug builds use the usual Android debug certificate; they cannot update an installation signed with the release certificate. Use release APKs consistently on the test phone to preserve update continuity.
 
 APK paths: `app/build/outputs/apk/debug/app-debug.apk` and `app/build/outputs/apk/release/app-release.apk`. See the P6 checkpoint for actual build and signature verification results.
+
+Release builds enable R8 optimization/obfuscation and resource shrinking. Preserve `app/build/outputs/mapping/release/mapping.txt` alongside each distributed APK's checksum to decode obfuscated crash traces. The current candidate's mapping is archived under `artifacts/mapping/`, named by its APK SHA-256. These files remain local and ignored by Git.

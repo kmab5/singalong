@@ -14,10 +14,21 @@ object LyricsEditor {
     fun edit(source: LyricVersion, text: String, keepTiming: Boolean): LyricVersion {
         require(text.toByteArray().size <= MAX_BYTES && text.isNotBlank()) { "Lyrics must contain text and fit within 2 MiB." }
         val rows = text.replace("\r\n", "\n").lines()
+        require(rows.size <= 20_000) { "Too many lyric lines." }
         require(!keepTiming || rows.size == source.lines.size) { "Timed edits must keep the same number of lines. Create an untimed copy to add or remove lines." }
         val lines = rows.mapIndexed { index, row -> if (keepTiming) source.lines[index].copy(text = row) else LyricLine("$index", null, row) }
         return source.copy(id = UUID.randomUUID().toString(), lines = lines, contentHash = hash(lines), origin = LyricOrigin.PERSONAL,
             sourceName = "Personal edit", providerId = null)
+    }
+    fun editTiming(source: LyricVersion, text: String, times: List<Long?>): LyricVersion {
+        LyricTimestamp.validate(times)
+        val edited = edit(source, text, keepTiming = false)
+        require(edited.lines.size == times.size) { "Line count changed. Restore the lines or create an untimed version before retiming." }
+        val lines = edited.lines.mapIndexed { i, line -> line.copy(
+            id = if (source.lines.size == times.size) source.lines[i].id else line.id,
+            startMs = times[i],
+        ) }
+        return edited.copy(lines = lines, contentHash = hash(lines), confidence = MatchConfidence.UNCERTAIN)
     }
     fun import(recordingId: String, text: String): LyricVersion {
         val clean = text.removePrefix("\uFEFF").replace("\r\n", "\n")

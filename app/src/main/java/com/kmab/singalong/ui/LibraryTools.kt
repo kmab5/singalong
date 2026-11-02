@@ -19,21 +19,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.kmab.singalong.app.AppContainer
 import com.kmab.singalong.backup.*
 import com.kmab.singalong.editor.LyricsEditor
+import com.kmab.singalong.editor.TimingDraft
+import com.kmab.singalong.lyrics.SearchQueries
 import com.kmab.singalong.model.*
 import kotlinx.coroutines.*
 import java.io.IOException
 import com.kmab.singalong.ui.theme.SingalongColors
-
-class EditorDraft : androidx.lifecycle.ViewModel() {
-    val text = mutableStateOf("")
-    val source = mutableStateOf<LyricVersion?>(null)
-    val dirty = mutableStateOf(false)
-    fun clear() { text.value = ""; source.value = null; dirty.value = false }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,11 +44,14 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
     var title by rememberSaveable { mutableStateOf("") }
     var artist by rememberSaveable { mutableStateOf("") }
     var album by rememberSaveable { mutableStateOf("") }
-    var text by draft.text
-    var source by draft.source
+    val text by draft.text
+    val source by draft.source
     var versions by remember { mutableStateOf<List<LyricVersion>>(emptyList()) }
     var id by rememberSaveable { mutableStateOf(recordingId) }
-    var timed by rememberSaveable { mutableStateOf(false) }
+    var timing by draft.timing
+    var timingEnabled by rememberSaveable { mutableStateOf(false) }
+    val timed = timing?.times?.any { it != null } == true || !timing?.timeInput.isNullOrBlank()
+    val timingProblem = timing?.problem(text.lines().size)
     var dirty by draft.dirty
     var discard by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -65,11 +65,14 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
         catch (_: SecurityException) { message = "File access was removed. Choose the document again." }
         finally { busy = false }
     } }
-    fun load(version: LyricVersion?) { source = version; text = version?.lines?.joinToString("\n") { it.text }.orEmpty(); timed = version?.lines?.any { it.startMs != null } == true; dirty = false }
+    fun load(version: LyricVersion?) = draft.load(version)
     suspend fun recording(): Recording {
         id?.let { return requireNotNull(container.library.recording(it)) }
-        require(title.isNotBlank() && artist.isNotBlank()) { "Enter the song title and artist first." }
-        return container.library.resolveRecording(Recording("new", title.trim(), listOf(artist.trim()), album.ifBlank { null }, null)).also { id = it.id }
+        val original = Recording("new", title.trim(), listOfNotNull(artist.trim().takeIf { it.isNotBlank() }), album.ifBlank { null }, null)
+        require(title.isNotBlank() && (artist.isNotBlank() || SearchQueries.plan(original).isNotEmpty())) {
+            "Enter a title and artist, or a filename such as Artist - Title.mp3."
+        }
+        return container.library.resolveRecording(original).also { id = it.id }
     }
     LaunchedEffect(recordingId) { if (!dirty) recordingId?.let {
         container.library.recording(it)?.let { r -> title = r.title; artist = r.artists.joinToString(); album = r.album.orEmpty() }
@@ -78,7 +81,7 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
     val importFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) action {
         val content = withContext(Dispatchers.IO) { requireNotNull(resolver.openInputStream(uri)).use { BackupCodec.read(it, LyricsEditor.MAX_BYTES) } }
         val preview = LyricsEditor.import(id ?: "preview", content)
-        source = preview; text = preview.lines.joinToString("\n") { it.text }; timed = preview.lines.any { it.startMs != null }; dirty = true
+        load(preview); dirty = true
         message = "Import preview · review the lyrics, then save to this song."
     } }
     BackHandler { if (dirty) discard = true else close() }
@@ -99,6 +102,17 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
                 OutlinedTextField(title, { title = it }, label = { Text(if (id == null) "Song title" else "Search title") }, enabled = !busy, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(artist, { artist = it }, label = { Text(if (id == null) "Artist" else "Search artist") }, enabled = !busy, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(album, { album = it }, label = { Text("Album (optional)") }, enabled = !busy, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                val suggestion = remember(title, artist, album) {
+                    SearchQueries.suggestion(Recording(id ?: "preview", title, listOf(artist), album.ifBlank { null }, null))
+                }
+                suggestion?.let { proposed ->
+                    Text("From filename: ${proposed.title} · ${proposed.artists.joinToString()}${proposed.album?.let { " · $it" }.orEmpty()}",
+                        style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                    ActionButton(enabled = !busy, onClick = { title = proposed.title; artist = proposed.artists.joinToString(); album = proposed.album.orEmpty() }) {
+                        Text("use search details")
+                    }
+                }
+                Text("Search tries filename details automatically. Saved song details stay unchanged.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
             } }
         } }
         AnimatedVisibility(message != null) { GlassPanel { Text(message.orEmpty(), Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium) } }
@@ -127,19 +141,39 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
         source?.sourceUrl?.let { Text("Source: $it", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
         if (timed) {
             Text("Timed copy · edit words without adding or removing lines.")
-            ActionButton(onClick = { timed = false; dirty = true }) { Text("create an untimed version") }
+            ActionButton(enabled = !busy, onClick = { draft.clearTiming() }) { Text("create an untimed version") }
         }
-        OutlinedTextField(text, { text = it; dirty = true }, label = { Text(if (timed) "Lyrics · keep line count" else "Lyrics") }, modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp, max = 600.dp),
+        GlassPanel { Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text("Edit timing", style = MaterialTheme.typography.titleMedium)
+                Text("Add or adjust when each line starts. Hiding controls keeps your edits.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+            }
+            Switch(checked = timingEnabled, enabled = !busy, onCheckedChange = {
+                if (it && timing == null) timing = TimingDraft(List(text.lines().size) { null })
+                timingEnabled = it
+            }, modifier = Modifier.semantics { contentDescription = "Edit timing" })
+        } }
+        AnimatedVisibility(timingEnabled) {
+            timing?.let { current -> TimingEditor(text, current, id, container.tracking.current, !busy) { timing = it; dirty = true } }
+        }
+        AnimatedVisibility(!timingEnabled) {
+        OutlinedTextField(text, draft::changeText, label = { Text(if (timed) "Lyrics · keep line count" else "Lyrics") }, modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp, max = 600.dp),
             shape = RoundedCornerShape(24.dp), textStyle = MaterialTheme.typography.bodyLarge, enabled = !busy,
             colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = SingalongColors.Surface.copy(alpha = .8f), focusedContainerColor = SingalongColors.Surface.copy(alpha = .9f)))
-        Button(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = !busy && text.isNotBlank(), onClick = { action {
+        }
+        timingProblem?.let { Text(it, color = SingalongColors.Critical, style = MaterialTheme.typography.bodyMedium) }
+        Button(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = !busy && text.isNotBlank() && timingProblem == null, onClick = { action {
             val r = recording()
             val base = source?.copy(recordingId = r.id) ?: LyricsEditor.import(r.id, text)
-            val edited = LyricsEditor.edit(base, text, timed)
+            val times = timing?.resolvedTimes()
+            val edited = if (times != null && times != base.lines.map { it.startMs }) LyricsEditor.editTiming(base, text, times)
+                else LyricsEditor.edit(base, text, timed)
             if (base.origin == LyricOrigin.IMPORT) container.library.savePersonal(base)
             container.library.savePersonal(edited); load(edited); versions = container.library.versions(r.id)
             if (container.reader.state.value.snapshot?.recording?.id == r.id) container.reader.select(edited)
-            message = "Personal version saved. The original is unchanged."
+            message = if (edited.lines.any { it.startMs != null } && edited.confidence == MatchConfidence.UNCERTAIN)
+                "Personal version saved. Use Try sync in the reader to follow your timing. The original is unchanged."
+                else "Personal version saved. The original is unchanged."
         } }) { Text(if (busy) "saving…" else "save personal version") }
         Text("Personal edits are saved as a new version.", color = SingalongColors.Muted, style = MaterialTheme.typography.labelMedium)
         Spacer(Modifier.height(20.dp))

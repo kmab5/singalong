@@ -6,6 +6,8 @@ The public site is `docs/index.html`, with `site.css`, `site.js` and `assets/`. 
 
 In the repository's **Settings → Pages**, select **Deploy from a branch**, the branch containing the site (currently `feat/p0-foundation`), and **/docs**. Save. If you later merge to another branch, switch the Pages source accordingly. The expected project URL is `https://kmab5.github.io/singalong/`. Configuration/deployment status must be checked in GitHub; creating these files does not establish that the site is live.
 
+The existing configuration deployed this page successfully on November 2. Live URL: [kmab5.github.io/singalong](https://kmab5.github.io/singalong/). See the [site checkpoint](validation/site-checkpoint.md) for the deployment and live browser verification.
+
 See [GitHub's publishing-source instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 
 Local preview: `python -m http.server 8765 --directory docs --bind 127.0.0.1`, then open `http://127.0.0.1:8765/`. All local asset paths are relative so project-path hosting works too.

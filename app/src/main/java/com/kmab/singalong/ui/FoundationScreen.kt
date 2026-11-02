@@ -89,7 +89,7 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                 if (page == "editor") LibraryTools(container, toolsId) { tools = false; container.reader.request() }
                 else Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(painterResource(R.drawable.ic_kmab), "KMAB", Modifier.size(24.dp), tint = SingalongColors.Purple)
+                        Icon(painterResource(R.drawable.ic_kmab), "kmab", Modifier.size(24.dp), tint = SingalongColors.Purple)
                         Text("singalong", Modifier.padding(start = 10.dp).weight(1f), style = MaterialTheme.typography.titleMedium)
                         Text(if (state.tracking) "Following music" else "Paused", style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
                     }
@@ -182,7 +182,10 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                     Text("Saved versions", style = MaterialTheme.typography.titleMedium)
                     reader.candidates.forEach { version -> ActionButton(onClick = { container.reader.select(version) }) {
                         Icon(if (reader.version?.id == version.id) Icons.Outlined.RadioButtonChecked else Icons.Outlined.RadioButtonUnchecked, null)
-                        Text(version.attribution ?: version.sourceName.orEmpty(), Modifier.padding(start = 10.dp))
+                        Column(Modifier.padding(start = 10.dp)) {
+                            Text(version.attribution ?: version.sourceName.orEmpty())
+                            Text(if (version.lines.any { it.startMs != null }) "Timed" else "Untimed", style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted)
+                        }
                     } }
                 }
                 if (!controlTab && sessions.size > 1) {

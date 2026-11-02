@@ -108,13 +108,20 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
         }
         if (versions.isNotEmpty()) Box {
             OutlinedButton(enabled = !dirty && !busy, onClick = { chooseVersion = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(source?.sourceName ?: "Choose a saved version", Modifier.weight(1f)); Icon(Icons.Outlined.ExpandMore, null)
+                Column(Modifier.weight(1f)) {
+                    Text(source?.sourceName ?: "Choose a saved version")
+                    source?.let { Text(if (it.lines.any { line -> line.startMs != null }) "Timed" else "Untimed", style = MaterialTheme.typography.labelMedium) }
+                }
+                Icon(Icons.Outlined.ExpandMore, null)
             }
             DropdownMenu(chooseVersion, { chooseVersion = false }) {
         versions.forEach { version -> DropdownMenuItem(enabled = !dirty && !busy, onClick = { chooseVersion = false; action {
             container.library.selectVersion(version.recordingId, version.id); load(version)
             if (container.reader.state.value.snapshot?.recording?.id == version.recordingId) container.reader.select(version)
-        } }, text = { Text("${if (source?.id == version.id) "✓ " else ""}${version.sourceName ?: "Saved version"} · ${version.attribution ?: version.id.take(8)}") }) }
+        } }, text = { Column {
+            Text("${if (source?.id == version.id) "✓ " else ""}${version.sourceName ?: "Saved version"} · ${version.attribution ?: version.id.take(8)}")
+            Text(if (version.lines.any { it.startMs != null }) "Timed" else "Untimed", style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted)
+        } }) }
             }
         }
         source?.sourceUrl?.let { Text("Source: $it", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }

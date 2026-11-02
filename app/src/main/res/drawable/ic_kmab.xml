@@ -1,4 +1,4 @@
-<!-- KMAB canonical lambda submark, paths and proportions preserved from brand-kit/01_LOGOS/submark.svg. -->
+<!-- kmab canonical lambda submark, paths and proportions preserved from brand-kit/01_LOGOS/submark.svg. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="32dp" android:height="32dp" android:viewportWidth="128" android:viewportHeight="128">
     <path android:pathData="M22,29 H41 Q58,30 65,45 L29,107" android:fillColor="@android:color/transparent" android:strokeColor="#B24BFF" android:strokeWidth="15" android:strokeLineCap="square" android:strokeLineJoin="round" />

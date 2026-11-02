@@ -10,7 +10,6 @@ import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.io.IOException
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resumeWithException
 import java.io.ByteArrayOutputStream
 
 sealed interface ProviderResult {
@@ -48,32 +47,34 @@ class LrclibClient(
             .header("User-Agent", "Singalong/0.1.0 (https://github.com/kmab5/singalong)").build())
         activeCall = call
         try {
-            call.await().use { response ->
-                withContext(Dispatchers.IO) {
-                    val it = response
-                    if (it.code == 429 || it.code == 503) {
-                        val retry = retryAfterMillis(it.header("Retry-After"), now()) ?: if (it.code == 429) 60_000L else 2_000L
-                        blockedUntil = now() + retry.coerceAtMost(Long.MAX_VALUE - now())
-                        blockedReason = if (it.code == 429) "rate_limited" else "unavailable"
-                        return@withContext ProviderResult.Failed(if (it.code == 429) "rate_limited" else "unavailable", retry)
-                    }
-                    if (it.code == 404) return@withContext ProviderResult.Songs(emptyList())
-                    if (!it.isSuccessful) return@withContext ProviderResult.Failed("unavailable")
-                    val body = it.body ?: return@withContext ProviderResult.Failed("invalid_response")
-                    val input = body.byteStream()
-                    val output = ByteArrayOutputStream()
-                    val buffer = ByteArray(8192)
-                    while (output.size() <= 2_000_000) {
-                        currentCoroutineContext().ensureActive()
-                        val count = input.read(buffer, 0, minOf(buffer.size, 2_000_001 - output.size()))
-                        if (count < 0) break
-                        output.write(buffer, 0, count)
-                    }
-                    val bytes = output.toByteArray()
-                    if (bytes.size > 2_000_000) return@withContext ProviderResult.Failed("invalid_response")
-                    ProviderResult.Songs(json.decodeFromString<List<ProviderSong>>(bytes.toString(Charsets.UTF_8)))
+            val result = call.readResponse {
+                if (it.code == 429 || it.code == 503) {
+                    val retry = retryAfterMillis(it.header("Retry-After"), now()) ?: if (it.code == 429) 60_000L else 2_000L
+                    return@readResponse ProviderResult.Failed(if (it.code == 429) "rate_limited" else "unavailable", retry)
                 }
+                if (it.code == 404) return@readResponse ProviderResult.Songs(emptyList())
+                if (!it.isSuccessful) return@readResponse ProviderResult.Failed("unavailable")
+                val body = it.body ?: return@readResponse ProviderResult.Failed("invalid_response")
+                val input = body.byteStream()
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(8192)
+                while (output.size() <= 2_000_000) {
+                    if (call.isCanceled()) throw IOException("Request canceled")
+                    val count = input.read(buffer, 0, minOf(buffer.size, 2_000_001 - output.size()))
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                }
+                val bytes = output.toByteArray()
+                if (bytes.size > 2_000_000) return@readResponse ProviderResult.Failed("invalid_response")
+                ProviderResult.Songs(json.decodeFromString<List<ProviderSong>>(bytes.toString(Charsets.UTF_8)))
             }
+            // Only the coroutine holding the mutex updates cooldown state. A canceled callback
+            // may still be closing its socket after the next song has acquired the mutex.
+            if (result is ProviderResult.Failed && result.retryAfterMs != null) {
+                blockedUntil = now() + result.retryAfterMs.coerceAtMost(Long.MAX_VALUE - now())
+                blockedReason = result.reason
+            }
+            result
         } catch (_: IOException) {
             currentCoroutineContext().ensureActive()
             ProviderResult.Failed("network_error")
@@ -87,15 +88,4 @@ class LrclibClient(
 
     override fun cancelRequests() { activeCall?.cancel(); client.dispatcher.cancelAll() }
 
-    private suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
-        continuation.invokeOnCancellation { cancel() }
-        enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                if (!continuation.isCancelled) continuation.resumeWithException(e)
-            }
-            override fun onResponse(call: Call, response: Response) {
-                continuation.resume(response) { _, value, _ -> value.close() }
-            }
-        })
-    }
 }

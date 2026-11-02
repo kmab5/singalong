@@ -59,7 +59,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     item { SettingsLink("English subtext", "Optional translations beneath the original", Icons.Outlined.Translate) { page = "translation" } }
                     item { SettingsLink("Library & backup", "Export, restore and manage saved words", Icons.Outlined.FolderOpen) { page = "storage" } }
                     item { SettingsLink("About Singalong", "App details, credits and feedback", Icons.Outlined.Info) { page = "about" } }
-                    item { Text("Singalong · by KMAB", Modifier.padding(8.dp), style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted) }
+                    item { Text("Singalong · by kmab", Modifier.padding(8.dp), style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted) }
                 }
                 "access" -> {
                     item { Text("Read song details from your players. Singalong never records your microphone.", color = SingalongColors.Muted) }

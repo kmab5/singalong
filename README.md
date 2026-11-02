@@ -4,7 +4,9 @@ An Android companion for floating lyrics over your music player. Personal app; m
 
 ## current phase
 
-The latest revision (`0.3.2`) fixes the response-cleanup crash when changing songs or retrying a request, adds Timed/Untimed version labels and keeps local crash details available for manual export. See the [stability checkpoint](docs/validation/stability-checkpoint.md) for evidence and phone checks. The signed, minified release APK is kept locally at `artifacts/singalong-release.apk`. Earlier [compact-controls](docs/validation/compact-controls-checkpoint.md), [feedback](docs/validation/feedback-checkpoint.md) and [P6](docs/validation/p6-checkpoint.md) checkpoints record prior baselines.
+The latest revision (`0.3.3`) adds filename-aware lyric search and an opt-in line-timing editor. See the [search/timing checkpoint](docs/validation/search-timing-checkpoint.md) for automated evidence and pending phone checks. The previous [stability checkpoint](docs/validation/stability-checkpoint.md) covers the song-change response-cleanup fix, Timed/Untimed labels and local crash details. The signed, minified test APK is kept locally at `artifacts/singalong-release.apk`. Earlier [compact-controls](docs/validation/compact-controls-checkpoint.md), [feedback](docs/validation/feedback-checkpoint.md) and [P6](docs/validation/p6-checkpoint.md) checkpoints record prior baselines.
+
+Audio recognition is deferred. Main-branch merge, v1.0.0, GPL v3/community documents, the full documentation audit and tagged APK publishing/website download link await the user's confirmation of successful phone testing.
 
 The static landing page is in [docs/index.html](docs/index.html); [GitHub Pages setup and site checks](docs/SITE.md) describe hosting and local preview. Downloadable SVG/PNG icons and wordmarks live in `docs/assets/` and `public/docs/`.
 
@@ -18,6 +20,8 @@ Included:
 - Ten seconds of observed playing time qualifies a play; pauses, buffering and seeking do not add listened time.
 - Room history/lyric versions and DataStore preferences, including migration from P0 preferences.
 - LRCLIB lookup plus lyrics.ovh plain-lyric fallback, conservative matching, attribution and offline caching. Visible readers retry transient failures automatically with a bounded budget and server cooldowns.
+- Filename-aware search derives conservative title/artist/album hints without replacing original metadata. Inferred matches stay labelled uncertain, and search details offer a reviewable suggestion.
+- Simple text editing by default; optional line timing with precise timestamps, 0.1-second adjustments and stamp-and-next from matching playback. Saves a new personal version, including partially timed drafts, without changing the original.
 - Plain/LRC parsing, playback interpolation, manual reading and version selection. Optional experimental sync estimates untimed lyric positions from line length and duration without changing original timestamps. Controls include 50ms/250ms/1s steps, direct offsets and line-to-position alignment.
 - Process-local tracking gate: persisted preference alone cannot restart observation.
 - Glass floating lyrics with native background blur where supported, compact/expanded and lyric-only minimal modes. Tap minimal lyrics to reveal controls; long-press and drag to move. Settings allow 12sp originals, 10sp subtext, 20% opacity, 160dp width and 56dp minimal height; low-opacity text gains a shadow. Readability depends on the background and selected sizes.

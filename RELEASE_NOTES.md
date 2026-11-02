@@ -1,6 +1,6 @@
-# Singalong 1.0.0 release candidate
+# Singalong 1.0.0
 
-This candidate is for phone acceptance testing. It is not a claim that every player/device combination has been verified.
+The first stable release of Singalong, a floating lyrics companion for Android. Version 1.0.0 (9); player and device support depends on the metadata and playback controls exposed by each music app.
 
 - Floating lyrics with compact, expanded and minimal modes, bottom icon controls and an edge handle.
 - Adaptive lookup/retry states; automatic docking when lyrics remain unavailable, returning after lyrics load.

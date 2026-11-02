@@ -1,18 +1,18 @@
 # Releasing Singalong
 
-Do not merge or publish a release until the maintainer explicitly approves it. The present branch is a pre-merge release candidate. Workflow preparation and signed CI artifacts are not a public release.
+Merge and publish releases only when the maintainer explicitly approves them. The maintainer authorized the first stable release, v1.0.0 (9), on 2026-11-02. Workflow preparation and signed CI artifacts alone are not a public release.
 
 ## One version source
 
 `version.properties` supplies `versionName` and the monotonically increasing Android `versionCode` to Gradle. Use `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-rc.N` for candidates. Every distributed build needs a larger code. APK names alone do not identify the installed version; check About and `build-info.json`.
 
-After acceptance, promote the candidate with a focused change, for example:
+For the next patch release, increment the version with a focused change, for example:
 
 ```sh
-python3 tools/release_version.py set 1.0.0 --code 9
+python3 tools/release_version.py set 1.0.1 --code 10
 ```
 
-Use the next unused code if additional candidates have already consumed 9. Update `RELEASE_NOTES.md`, run checks, and commit. After an authorized merge to main, create an annotated tag matching the version exactly (`v1.0.0` in this example) and push that tag only when publication is authorized. Never reuse/move a published version tag.
+Use the next unused code if additional candidates have already consumed 10. Update `RELEASE_NOTES.md`, run checks, and commit. After an authorized merge to main, create an annotated tag matching the version exactly (`v1.0.1` in this example) and push that tag only when publication is authorized. Never reuse/move a published version tag. Ordinary branch checks allow the current published name/code unchanged; creating a new version still requires both to increase.
 
 ## CI checks and signing
 
@@ -28,6 +28,6 @@ Local credentials remain in ignored `signing.properties`. The Gradle environment
 
 `.github/workflows/release.yml` runs on `v*` tags. Before accessing signing secrets it verifies that the tagged commit is an ancestor of `origin/main`, the tag matches the version file, and version name/code exceed all earlier versioned tags. Tests/lint/build and certificate verification must pass. It then creates a GitHub Release, marks `-rc.N` tags as prereleases, and attaches the APK, mapping, metadata and checksums. An existing release causes failure; assets are never silently overwritten.
 
-No production tag or release is created during pre-merge preparation. After main changes, point GitHub Pages at main `/docs`; until then the existing feature-branch Pages configuration stays in use. The website finds a published stable release containing `singalong.apk`; before one exists or when GitHub is unavailable, it links to the actual releases page without advertising an unavailable APK.
+No production tag or release is created during pre-merge preparation. GitHub Pages should deploy from main `/docs`. The website finds a published stable release containing `singalong.apk`; before one exists or when GitHub is unavailable, it links to the actual releases page without advertising an unavailable APK.
 
 The Ubuntu 24.04 runner image supplies Android SDK 36/build-tools 36.0.0. The workflows select JDK 21. They do not install emulators, system images or extra SDK packages. If runner images stop supplying the required SDK, update the build environment explicitly.

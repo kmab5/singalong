@@ -4,11 +4,11 @@ An Android companion that keeps lyrics over your music player. Made by kmab. Req
 
 ## Status and downloads
 
-The current source is a **1.0.0 release candidate**, with its exact version/code in `version.properties`. Pre-merge preparation is authorized; merging and pushing a public release tag still require the user's instruction. See the [current checkpoint](docs/validation/premerge-checkpoint.md) for executed checks and pending phone acceptance.
+The current version is **1.0.0 (9)**, with its version source in `version.properties`. Download the signed APK from [the v1.0.0 release](https://github.com/kmab5/singalong/releases/tag/v1.0.0). The [candidate checkpoint](docs/validation/premerge-checkpoint.md) records automated checks and the device-testing checklist; it does not claim universal player compatibility.
 
 [Website](https://kmab5.github.io/singalong/) · [GitHub Releases](https://github.com/kmab5/singalong/releases) · [Feedback](https://kmab5.github.io/kmab-feedback/?product=singalong)
 
-Signed test builds are available locally at `artifacts/singalong-release.apk` and, after successful trusted CI, in the workflow's signed-phone-test artifact. Public APKs appear only after an authorized release tag. Install release-signed updates over the existing app to preserve data; debug APKs have a different signing key.
+Each GitHub Release includes `singalong.apk`, checksums, build metadata and the matching R8 crash mapping. Signed test builds are also available in successful CI runs. Install release-signed updates over the existing app to preserve data; debug APKs have a different signing key.
 
 ## What it does
 

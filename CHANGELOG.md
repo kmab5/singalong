@@ -1,6 +1,12 @@
 # Changelog
 
-## 1.0.0-rc.1 — pending phone acceptance
+## 1.0.0 — 2026-11-02
+
+- First stable release, promoted from 1.0.0-rc.1 with Android version code 9.
+- Floating lyrics, offline library, filename-aware search, optional translations and per-line timing editing.
+- Same-key signed APK distribution through GitHub Releases, with checksums and matching crash mappings.
+
+## 1.0.0-rc.1 — 2026-11-02
 
 - Bottom floating controls, tap-to-open Now and adaptive missing-lyrics docking/recovery.
 - Independent Now typography, alignment, animation and tap-to-focus.

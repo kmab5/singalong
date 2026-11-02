@@ -25,11 +25,13 @@ def parse(text):
     return name, code
 
 
-def validate(name, code, tag=None, previous=()):
+def validate(name, code, tag=None, previous=(), allow_current=False):
     key = version_key(name)
     if tag is not None and tag != "v" + name:
         raise ValueError("Tag must match version.properties exactly")
     for old_name, old_code in previous:
+        if allow_current and (name, code) == (old_name, old_code):
+            continue
         if code <= old_code or key <= version_key(old_name):
             raise ValueError("Version name and code must increase beyond every earlier release")
 
@@ -60,7 +62,7 @@ def main():
         result = subprocess.run(["git", "show", f"{tag}:version.properties"], cwd=ROOT, capture_output=True, text=True)
         if result.returncode == 0:
             previous.append(parse(result.stdout))
-    validate(name, code, args.tag, previous)
+    validate(name, code, args.tag, previous, allow_current=args.command == "check" and args.tag is None)
     if args.command == "set":
         path.write_text(f"versionName={name}\nversionCode={code}\n")
     print(f"{name} ({code})")

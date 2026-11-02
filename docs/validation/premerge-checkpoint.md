@@ -1,6 +1,6 @@
 # Pre-merge release candidate
 
-Current version source: `version.properties`. Merge, production tag and public release remain unperformed and require the user's later instruction.
+Historical candidate checkpoint for 1.0.0-rc.1 (8). The maintainer subsequently authorized merging and publishing v1.0.0 (9) on 2026-11-02. The evidence below belongs to the candidate commit; stable release verification is recorded in its GitHub Actions run and release artifacts.
 
 ## Source changes and diagnosis
 

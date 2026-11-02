@@ -11,7 +11,7 @@ This index describes the current source. Earlier phase plans and validation repo
 - [License](../LICENSE), [ML Kit linking permission](../LICENSE-EXCEPTION), [third-party notices](../NOTICE.md)
 - [Contributing](../CONTRIBUTING.md), [conduct](../CODE_OF_CONDUCT.md), [security reporting](../SECURITY.md)
 - [Website hosting and checks](SITE.md)
-- [Current pre-merge checkpoint](validation/premerge-checkpoint.md)
+- [Release-candidate verification checkpoint](validation/premerge-checkpoint.md)
 
 ## Accepted changes since the initial design
 
@@ -19,7 +19,7 @@ The current app includes simple text editing plus an opt-in per-line timing edit
 
 Audio recognition, microphone/playback capture and word-level timing remain out of scope. Some Android screens may suppress overlays by policy; Singalong must respect that policy. Player compatibility and device acceptance must be based on testing, not inferred from a successful build.
 
-The user authorized all pre-merge preparation, including GPL v3 with the specific ML Kit permission and GitHub signing/release automation. Merging and pushing release tags require a later explicit instruction. The test version is read from `version.properties`; final v1.0.0 promotion must increment the Android version code.
+The maintainer authorized merging to main and publishing v1.0.0 on 2026-11-02. The stable version is 1.0.0 with Android version code 9, promoted from candidate code 8. Future releases follow the [release guide](RELEASING.md) and retain the existing signing certificate.
 
 ## Historical evidence
 

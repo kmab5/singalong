@@ -37,14 +37,17 @@ class OverlayWindowHost(private val context: Context, private val container: App
     private var blurEnabled by mutableStateOf(false)
     private var lastSettings = AppSettings()
     private var lastPanel = OverlayState()
+    private var lastScreenAllowed = false
     private val blurListener = Consumer<Boolean> { enabled -> blurEnabled = enabled; updateBlur() }
 
     fun render(panel: OverlayState, settings: AppSettings, screenAllowed: Boolean): Boolean {
         lastPanel = panel; lastSettings = settings
+        lastScreenAllowed = screenAllowed
         if (!screenAllowed) { hide(); return true }
         if (panel.mode == PanelMode.HIDDEN) { dismissAnimated(); return true }
         if (!Settings.canDrawOverlays(context)) { hide(); return false }
-        if (closing) { dialog?.window?.decorView?.apply { animate().cancel(); alpha = 1f }; closing = false }
+        if (dialog != null && dialog?.isShowing != true) hide()
+        if (closing) { dialog?.window?.decorView?.apply { animate().withEndAction(null).cancel(); alpha = 1f }; closing = false }
         val target = OverlayGeometry.bounds(panel, settings, safeBounds(), density)
         if (dialog == null) return attach(target)
         updateBlur()
@@ -91,6 +94,9 @@ class OverlayWindowHost(private val context: Context, private val container: App
                     onExpand = container::expandPanel, onFollow = container.reader::follow, onRetry = container.reader::request,
                     onMinimal = { container.minimalPanel(true) }, onReveal = container::revealPanelControls,
                     onSync = container.reader::toggleSync,
+                    onOpenApp = { context.startActivity(android.content.Intent(context, com.kmab.singalong.app.MainActivity::class.java)
+                        .setAction(com.kmab.singalong.app.MainActivity.ACTION_OPEN_NOW)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)) },
                     onDragStart = { animator?.cancel(); dragging = true }, onMove = ::move, onDragEnd = ::persist)
             }
         }
@@ -104,8 +110,8 @@ class OverlayWindowHost(private val context: Context, private val container: App
             if (ValueAnimator.areAnimatorsEnabled()) window.decorView.apply { alpha = 0f; animate().alpha(1f).setDuration(180).start() }
             container.overlayVisible(true)
             true
-        } catch (_: WindowManager.BadTokenException) { hide(); false }
-        catch (_: SecurityException) { hide(); false }
+        } catch (_: WindowManager.BadTokenException) { hide(); true }
+        catch (_: SecurityException) { hide(); Settings.canDrawOverlays(context) }
     }
 
     private fun updateBlur() {
@@ -137,8 +143,8 @@ class OverlayWindowHost(private val context: Context, private val container: App
     private fun applyBounds(bounds: PanelBounds) {
         val window = dialog?.window ?: return
         try { window.attributes = window.attributes.apply { x = bounds.x; y = bounds.y; width = bounds.width; height = bounds.height } }
-        catch (_: SecurityException) { hide(); container.closePanel() }
-        catch (_: WindowManager.BadTokenException) { hide(); container.closePanel() }
+        catch (_: SecurityException) { hide(); if (!Settings.canDrawOverlays(context)) container.closePanel() }
+        catch (_: WindowManager.BadTokenException) { hide() }
     }
     private fun move(dx: Float, dy: Float) {
         val p = dialog?.window?.attributes ?: return
@@ -155,7 +161,7 @@ class OverlayWindowHost(private val context: Context, private val container: App
         container.geometry((p.x - safe.x).toFloat() / maxOf(1, safe.width - p.width),
             (p.y - safe.y).toFloat() / maxOf(1, safe.height - p.height), lastSettings.widthDp, lastSettings.heightDp)
     }
-    fun configurationChanged() { render(lastPanel, lastSettings, dialog != null) }
+    fun configurationChanged() { render(lastPanel, lastSettings, lastScreenAllowed) }
     private fun dismissAnimated() {
         val decor = dialog?.window?.decorView ?: return
         if (closing) return

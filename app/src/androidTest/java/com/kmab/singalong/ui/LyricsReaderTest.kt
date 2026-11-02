@@ -45,4 +45,20 @@ class LyricsReaderTest {
         compose.onNodeWithContentDescription("Close floating lyrics").assertIsDisplayed()
         compose.onNodeWithContentDescription("Dock lyrics").assertIsDisplayed()
     }
+    @Test fun expandedLyricsOpenAppAndOptionsAreDirectIcons() {
+        var opened = false
+        val version = LyricVersion("v", "r", "hash", LyricOrigin.PERSONAL,
+            listOf(LyricLine("1", null, "Tap these synthetic words")), null, null, MatchConfidence.CONFIDENT)
+        compose.setContent { SingalongTheme {
+            FloatingLyricsPanel(OverlayState(expanded = true).show(), AppSettings(), ReaderState(version = version),
+                onOpen = {}, onDock = {}, onClose = {}, onExpand = {}, onFollow = {}, onRetry = {},
+                onMinimal = {}, onReveal = {}, onSync = {}, onDragStart = {}, onMove = { _, _ -> }, onDragEnd = {},
+                onOpenApp = { opened = true })
+        } }
+        compose.onNodeWithContentDescription("Floating display options").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Minimal lyrics").assertExists()
+        compose.onNodeWithContentDescription("Compact view").assertExists()
+        compose.onNodeWithText("Tap these synthetic words").performClick()
+        org.junit.Assert.assertTrue(opened)
+    }
 }

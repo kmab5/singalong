@@ -57,6 +57,18 @@ class TrackingService : Service() {
                     }
                 }
         }
+        scope.launch {
+            while (isActive) {
+                delay(2_000)
+                refreshScreen()
+                // Reconcile transient window detach/suppression without overriding an explicit close.
+                if (screenAllowed.value && container.panel.value.mode != com.kmab.singalong.overlay.PanelMode.HIDDEN &&
+                    !overlay.render(container.panel.value, container.settings.state.value, true)) {
+                    container.closePanel()
+                    container.message("Floating lyric access was removed. Restore it in Music access.")
+                }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

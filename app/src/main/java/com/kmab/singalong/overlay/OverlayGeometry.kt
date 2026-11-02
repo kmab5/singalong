@@ -13,8 +13,8 @@ object OverlayGeometry {
             docked -> 96f
             settings.minimalMode && !panel.controlsVisible -> settings.minimalHeightDp
             settings.minimalMode && panel.controlsVisible -> maxOf(settings.heightDp, 220f)
-            panel.expanded -> (settings.heightDp * 1.6f).coerceAtMost(640f)
-            else -> settings.heightDp
+            panel.expanded -> (settings.heightDp * 1.6f).coerceIn(192f, 640f)
+            else -> settings.heightDp.coerceAtLeast(192f)
         }
         val height = (heightDp * density).roundToInt().coerceIn(1, safe.height)
         val fraction = if (docked) if (settings.xFraction < .5f) 0f else 1f else settings.xFraction

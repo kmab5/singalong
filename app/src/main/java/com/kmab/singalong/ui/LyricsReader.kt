@@ -3,6 +3,7 @@ package com.kmab.singalong.ui
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -16,12 +17,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kmab.singalong.lyrics.ReaderState
 import com.kmab.singalong.model.MatchConfidence
 import com.kmab.singalong.ui.theme.SingalongColors
+import com.kmab.singalong.settings.*
 
 fun lookupMessage(status: String) = when (status) {
     "loading" -> "Finding the words…"
@@ -36,9 +39,13 @@ fun lookupMessage(status: String) = when (status) {
 
 @Composable
 fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boolean = false, textSize: Float = 22f,
-    translationSize: Float = 16f, onFollow: (Boolean) -> Unit = {}, onRetry: () -> Unit = {}, minimal: Boolean = false, shadowText: Boolean = false) {
+    translationSize: Float = 16f, onFollow: (Boolean) -> Unit = {}, onRetry: () -> Unit = {}, minimal: Boolean = false, shadowText: Boolean = false,
+    appearance: NowAppearance? = null) {
+    val size = appearance?.textSizeSp ?: textSize
+    val alignment = when (appearance?.alignment) { LyricAlignment.CENTER -> androidx.compose.ui.text.style.TextAlign.Center; LyricAlignment.END -> androidx.compose.ui.text.style.TextAlign.End; else -> androidx.compose.ui.text.style.TextAlign.Start }
+    val animateText = appearance?.animation != LyricAnimation.NONE
     val textStyle = MaterialTheme.typography.bodyLarge.copy(shadow = if (shadowText) Shadow(Color.Black, Offset(0f, 1f), 6f) else null)
-    val subtextSize = minOf(translationSize, textSize - 2)
+    val subtextSize = minOf(translationSize, size - 2)
     // Do not animate the whole reader on every clock tick.
     Crossfade(state.version?.id ?: "empty", modifier, animationSpec = SingalongMotion.tween(), label = "Lyric version") { versionId ->
         val version = state.version?.takeIf { it.id == versionId }
@@ -61,11 +68,15 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
             }
         } else {
             val list = rememberLazyListState()
+            var focusedLine by remember(version.id) { mutableStateOf<Int?>(null) }
+            LaunchedEffect(state.following) { if (state.following) focusedLine = null }
             val dragged by list.interactionSource.collectIsDraggedAsState()
             LaunchedEffect(dragged) { if (dragged) onFollow(false) }
             LaunchedEffect(version.id, state.moment.index, state.following, compact) {
-                if (state.canSync && state.following && state.moment.index >= 0 && !compact)
-                    list.animateScrollToItem(state.moment.index, -(list.layoutInfo.viewportSize.height / 3))
+                if (state.canSync && state.following && state.moment.index >= 0 && !compact) {
+                    val offset = -(list.layoutInfo.viewportSize.height / 3)
+                    if (animateText) list.animateScrollToItem(state.moment.index, offset) else list.scrollToItem(state.moment.index, offset)
+                }
             }
             Column(Modifier.fillMaxSize()) {
                 AnimatedVisibility(!minimal && state.canSync && !state.following) {
@@ -100,14 +111,17 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                     contentPadding = PaddingValues(horizontal = if (minimal) 12.dp else if (compact) 22.dp else 24.dp, vertical = if (minimal) 6.dp else if (compact) 12.dp else 32.dp),
                     verticalArrangement = Arrangement.spacedBy(if (minimal) 10.dp else if (compact) 18.dp else 28.dp)) {
                     itemsIndexed(version.lines, key = { _, line -> line.id }) { index, line ->
-                        val active = !state.canSync || !state.following || index == state.moment.index
-                        val color by animateColorAsState(if (active) SingalongColors.Text else SingalongColors.Muted,
-                            animationSpec = SingalongMotion.tween(), label = "Line emphasis")
-                        Column {
-                            Text(line.text.ifBlank { "♪" }, style = textStyle, fontSize = textSize.sp, lineHeight = (textSize * 1.45f).sp,
+                        val active = if (focusedLine != null && !state.following) index == focusedLine else !state.canSync || !state.following || index == state.moment.index
+                        val color by animateColorAsState(if (active || appearance?.dimInactive == false) SingalongColors.Text else SingalongColors.Muted,
+                            animationSpec = if (animateText) SingalongMotion.tween() else snap(), label = "Line emphasis")
+                        val scale by animateFloatAsState(if (appearance?.animation == LyricAnimation.FOCUS && active && (state.canSync || focusedLine != null)) 1.04f else 1f,
+                            animationSpec = if (animateText) SingalongMotion.tween() else snap(), label = "Line focus")
+                        Column(Modifier.fillMaxWidth().graphicsLayer { scaleX = scale; scaleY = scale }
+                            .then(if (appearance?.tapToFocus == true) Modifier.clickable(onClickLabel = "Focus lyric line") { focusedLine = index; onFollow(false) } else Modifier)) {
+                            Text(line.text.ifBlank { "♪" }, Modifier.fillMaxWidth(), textAlign = alignment, style = textStyle, fontSize = size.sp, lineHeight = (size * (appearance?.lineSpacing ?: 1.45f)).sp,
                                 fontWeight = FontWeight.SemiBold, color = color)
                             AnimatedVisibility(state.translation?.lines?.containsKey(line.id) == true) {
-                                Text(state.translation?.lines?.get(line.id).orEmpty(), Modifier.padding(top = if (minimal) 4.dp else 8.dp), style = textStyle,
+                                Text(state.translation?.lines?.get(line.id).orEmpty(), Modifier.fillMaxWidth().padding(top = if (minimal) 4.dp else 8.dp), textAlign = alignment, style = textStyle,
                                     fontSize = subtextSize.sp, lineHeight = (subtextSize * 1.5f).sp,
                                     color = SingalongColors.PurpleText)
                             }

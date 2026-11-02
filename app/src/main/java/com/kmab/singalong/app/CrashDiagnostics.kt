@@ -10,6 +10,13 @@ import java.time.Instant
 /** Keep one private report for manual export; Android's original fatal handler still runs. */
 object CrashDiagnostics {
     private fun file(context: Context) = File(context.noBackupFilesDir, "last-crash.txt")
+    private fun reportId(report: String) = java.security.MessageDigest.getInstance("SHA-256").digest(report.toByteArray()).joinToString("") { "%02x".format(it) }
+    fun pending(context: Context): String? = read(context)?.takeIf {
+        context.getSharedPreferences("crash_review", Context.MODE_PRIVATE).getString("reviewed", null) != reportId(it)
+    }
+    fun reviewed(context: Context, report: String) {
+        context.getSharedPreferences("crash_review", Context.MODE_PRIVATE).edit().putString("reviewed", reportId(report)).apply()
+    }
     fun read(context: Context): String? = file(context).takeIf { it.isFile }?.inputStream()?.bufferedReader()?.use { reader ->
         val buffer = CharArray(24_000)
         val count = reader.read(buffer)

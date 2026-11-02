@@ -44,7 +44,7 @@ class LrclibClient(
             .addQueryParameter("track_name", recording.title)
             .addQueryParameter("artist_name", recording.artists.joinToString(", ")).build()
         val call = client.newCall(Request.Builder().url(url)
-            .header("User-Agent", "Singalong/0.1.0 (https://github.com/kmab5/singalong)").build())
+            .header("User-Agent", "Singalong/${com.kmab.singalong.BuildConfig.VERSION_NAME} (https://github.com/kmab5/singalong)").build())
         activeCall = call
         try {
             val result = call.readResponse {

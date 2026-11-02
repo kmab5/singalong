@@ -29,6 +29,7 @@ data class AppSettings(
     val yFraction: Float = 0.2f,
     val minimalMode: Boolean = false,
     val minimalHeightDp: Float = 88f,
+    val now: NowAppearance = NowAppearance(),
 )
 
 class SettingsStore(context: Context, scope: CoroutineScope) {
@@ -49,6 +50,12 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
         val y = floatPreferencesKey("overlay_y_fraction")
         val minimal = booleanPreferencesKey("overlay_minimal")
         val minimalHeight = floatPreferencesKey("overlay_minimal_height")
+        val nowSize = floatPreferencesKey("now_text_size")
+        val nowAlignment = stringPreferencesKey("now_alignment")
+        val nowAnimation = stringPreferencesKey("now_animation")
+        val nowSpacing = floatPreferencesKey("now_line_spacing")
+        val nowDim = booleanPreferencesKey("now_dim_inactive")
+        val nowTap = booleanPreferencesKey("now_tap_focus")
     }
     val state = store.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map { p ->
         AppSettings(
@@ -63,10 +70,18 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
             yFraction = (p[Keys.y] ?: 0.2f).safe(0f, 1f, 0.2f),
             minimalMode = p[Keys.minimal] ?: false,
             minimalHeightDp = (p[Keys.minimalHeight] ?: 88f).safe(56f, 240f, 88f),
+            now = NowAppearance(p[Keys.nowSize] ?: p[Keys.size] ?: 22f,
+                LyricAlignment.entries.firstOrNull { it.name == p[Keys.nowAlignment] } ?: LyricAlignment.START,
+                LyricAnimation.entries.firstOrNull { it.name == p[Keys.nowAnimation] } ?: LyricAnimation.FOCUS,
+                p[Keys.nowSpacing] ?: 1.45f, p[Keys.nowDim] ?: true, p[Keys.nowTap] ?: true).sanitized(),
         )
     }.stateIn(scope, SharingStarted.Eagerly, AppSettings())
 
     suspend fun translation(enabled: Boolean) { store.edit { it[Keys.translation] = enabled; it[Keys.translationConsent] = enabled } }
+    suspend fun nowAppearance(value: NowAppearance) { val v = value.sanitized(); store.edit {
+        it[Keys.nowSize] = v.textSizeSp; it[Keys.nowAlignment] = v.alignment.name; it[Keys.nowAnimation] = v.animation.name
+        it[Keys.nowSpacing] = v.lineSpacing; it[Keys.nowDim] = v.dimInactive; it[Keys.nowTap] = v.tapToFocus
+    } }
     suspend fun translationSize(value: Float) { store.edit { it[Keys.translationSize] = value.safe(10f, 22f, 16f) } }
     suspend fun minimal(enabled: Boolean) { store.edit { it[Keys.minimal] = enabled } }
     suspend fun minimalHeight(value: Float) { store.edit { it[Keys.minimalHeight] = value.safe(56f, 240f, 88f) } }

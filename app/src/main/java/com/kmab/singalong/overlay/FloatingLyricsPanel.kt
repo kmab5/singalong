@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.ShortText
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,12 +31,12 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
     onOpen: () -> Unit, onDock: () -> Unit, onClose: () -> Unit, onExpand: () -> Unit,
     onFollow: (Boolean) -> Unit, onRetry: () -> Unit,
     onMinimal: () -> Unit, onReveal: () -> Unit, onSync: () -> Unit,
-    onDragStart: () -> Unit, onMove: (Float, Float) -> Unit, onDragEnd: () -> Unit) {
+    onDragStart: () -> Unit, onMove: (Float, Float) -> Unit, onDragEnd: () -> Unit,
+    onOpenApp: () -> Unit = {}) {
     val density = LocalDensity.current.density
     val left = settings.xFraction < .5f
     val docked = panel.mode == PanelMode.MANUAL_MINIMIZED || panel.mode == PanelMode.AUTO_MINIMIZED
     val minimal = settings.minimalMode && !panel.controlsVisible
-    var menu by remember { mutableStateOf(false) }
     val drag = Modifier.semantics {
         contentDescription = "Move floating lyrics"
         customActions = buildList {
@@ -86,37 +88,58 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
             } else {
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f).heightIn(min = 48.dp).then(drag), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f).heightIn(min = 48.dp).then(drag).clickable(onClickLabel = "Open Singalong", onClick = onOpenApp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.DragHandle, null, Modifier.size(20.dp), tint = SingalongColors.Muted)
                         Text(reader.snapshot?.recording?.title ?: "Singalong", Modifier.padding(start = 8.dp),
                             style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     FilledTonalIconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Close floating lyrics", Modifier.size(20.dp)) }
                 }
-                LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null),
-                    Modifier.weight(1f), compact = !panel.expanded, textSize = settings.textSizeSp,
-                    translationSize = settings.translationSizeSp, onFollow = onFollow, onRetry = onRetry, shadowText = settings.opacity < .85f)
-                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f).fillMaxWidth().clickable(onClickLabel = "Open Singalong", onClick = onOpenApp)) {
+                    if (reader.version == null) FloatingEmptyState(reader, onRetry, onOpenApp)
+                    else LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null),
+                        Modifier.fillMaxSize(), compact = !panel.expanded, textSize = settings.textSizeSp,
+                        translationSize = settings.translationSizeSp, onFollow = onFollow, onRetry = onRetry, shadowText = settings.opacity < .85f)
+                }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     FilledTonalIconButton(onClick = onDock) { Icon(Icons.Outlined.VerticalAlignCenter, "Dock lyrics", Modifier.size(20.dp)) }
-                    Spacer(Modifier.weight(1f))
                     val syncOn = if (reader.experimental) reader.allowUncertainSync else reader.canSync && reader.following
                     FilledTonalIconToggleButton(checked = syncOn, onCheckedChange = { onSync() }, enabled = reader.canTrySync || syncOn) {
                         Icon(if (syncOn) Icons.Outlined.Sync else Icons.Outlined.SyncDisabled,
                             "${if (syncOn) "Turn off" else "Try"} ${if (reader.experimental) "experimental sync" else "lyric following"}", Modifier.size(20.dp))
                     }
-                    Spacer(Modifier.weight(1f))
-                    Box {
-                        FilledTonalIconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreHoriz, "Floating display options") }
-                        DropdownMenu(menu, { menu = false }) {
-                            DropdownMenuItem(text = { Text(if (settings.minimalMode) "Hide controls · lyrics only" else "Minimal · lyrics only") }, onClick = { menu = false; onMinimal() })
-                            DropdownMenuItem(text = { Text(if (panel.expanded && !settings.minimalMode) "Compact view" else "Expanded view") }, onClick = { menu = false; onExpand() })
-                            DropdownMenuItem(text = { Text(if (syncOn) "Turn sync off" else if (reader.experimental) "Try experimental sync" else "Follow lyrics") },
-                                enabled = reader.canTrySync || syncOn, onClick = { menu = false; onSync() })
-                        }
-                    }
+                    FilledTonalIconButton(onClick = onMinimal) { Icon(Icons.AutoMirrored.Outlined.ShortText, "Minimal lyrics", Modifier.size(20.dp)) }
+                    FilledTonalIconButton(onClick = onExpand) { Icon(if (panel.expanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
+                        if (panel.expanded) "Compact view" else "Expanded view", Modifier.size(20.dp)) }
+                    FilledTonalIconButton(onClick = onOpenApp) { Icon(Icons.AutoMirrored.Outlined.OpenInNew, "Open Singalong", Modifier.size(20.dp)) }
                 }
             }
             }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FloatingEmptyState(reader: ReaderState, onRetry: () -> Unit, onOpenApp: () -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val roomy = maxHeight > 170.dp && maxWidth > 200.dp
+        val loading = reader.status == "loading"
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)) {
+            if (roomy) Icon(if (loading) Icons.Outlined.Search else Icons.Outlined.Lyrics, null, tint = SingalongColors.PurpleText)
+            Text(when (reader.status) { "not_found" -> "No lyrics for this song yet"; "loading" -> "Looking for lyrics…"; "offline" -> "Waiting for internet";
+                "idle" -> "Play a song to begin"; "instrumental" -> "Instrumental"; else -> "Lyrics couldn't load" },
+                style = MaterialTheme.typography.titleSmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            if (roomy && reader.status !in listOf("idle", "instrumental", "loading")) Text(
+                "Try again or open the app to search or add lyrics. This panel docks shortly and returns when lyrics load.",
+                style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            if (!loading && reader.status !in listOf("idle", "instrumental")) {
+                ActionButton(onClick = onRetry) {
+                    Icon(Icons.Outlined.Refresh, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                    Text(reader.retryInSeconds?.let { "Retry in ${it}s" } ?: "Try again")
+                }
+                if (roomy) ActionButton(onClick = onOpenApp) { Text("search in app") }
             }
         }
     }

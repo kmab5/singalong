@@ -51,6 +51,8 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
     var savedStatus by remember { mutableStateOf("loading") }
     var options by remember { mutableStateOf(false) }
     var controlTab by rememberSaveable { mutableStateOf(true) }
+    val openNow by container.openNowRequested.collectAsStateWithLifecycle()
+    LaunchedEffect(openNow) { if (openNow) { destination = "now"; savedId = null; tools = false; container.openedNow() } }
     fun acceptsSavedTranslation(id: String, version: LyricVersion) = savedId == id && !tools && settings.translationEnabled &&
         savedVersion?.id == version.id && savedVersion?.contentHash == version.contentHash
     LaunchedEffect(savedId, settings.translationEnabled, tools) {
@@ -120,7 +122,8 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                             }
                             GlassPanel(Modifier.weight(1f).fillMaxWidth()) {
                                 LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.fillMaxSize(),
-                                    textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request)
+                                    textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request,
+                                    appearance = settings.now)
                             }
                             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(reader.version?.sourceName?.let { "Lyrics · $it" } ?: "LRCLIB + lyrics.ovh", style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)

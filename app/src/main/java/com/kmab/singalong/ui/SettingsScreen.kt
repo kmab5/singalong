@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.FormatAlignLeft
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,8 @@ import com.kmab.singalong.app.AppContainer
 import com.kmab.singalong.model.PlaybackSnapshot
 import com.kmab.singalong.overlay.PreviewLyricsPanel
 import com.kmab.singalong.settings.AppSettings
+import com.kmab.singalong.settings.LyricAlignment
+import com.kmab.singalong.settings.LyricAnimation
 import com.kmab.singalong.tracking.PlayerApp
 import com.kmab.singalong.ui.theme.SingalongColors
 import kotlin.math.roundToInt
@@ -43,7 +46,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
         LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
             item {
                 if (section != "index") ActionButton(onClick = { page = "index" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, null); Spacer(Modifier.width(8.dp)); Text("Settings") }
-                PageHeading(when (section) { "access" -> "Music access"; "players" -> "Music apps"; "appearance" -> "Look & feel"; "translation" -> "English subtext"; "storage" -> "Library & backup"; "about" -> "About Singalong"; else -> "Your setup" })
+                PageHeading(when (section) { "access" -> "Music access"; "players" -> "Music apps"; "appearance" -> "Look & feel"; "now" -> "Now-tab lyrics"; "translation" -> "English subtext"; "storage" -> "Library & backup"; "about" -> "About Singalong"; else -> "Your setup" })
             }
             when (section) {
                 "index" -> {
@@ -56,6 +59,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     item { SettingsLink("Music access", "Permissions and connection", Icons.Outlined.Security) { page = "access" } }
                     item { SettingsLink("Music apps", "Choose which players to follow", Icons.Outlined.LibraryMusic) { page = "players" } }
                     item { SettingsLink("Look & feel", "Lyric size, glass and edge position", Icons.Outlined.Palette) { page = "appearance" } }
+                    item { SettingsLink("Now-tab lyrics", "Alignment, timing animation and reading controls", Icons.AutoMirrored.Outlined.FormatAlignLeft) { page = "now" } }
                     item { SettingsLink("English subtext", "Optional translations beneath the original", Icons.Outlined.Translate) { page = "translation" } }
                     item { SettingsLink("Library & backup", "Export, restore and manage saved words", Icons.Outlined.FolderOpen) { page = "storage" } }
                     item { SettingsLink("About Singalong", "App details, credits and feedback", Icons.Outlined.Info) { page = "about" } }
@@ -92,6 +96,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     item { Text("Background blur follows your phone's settings. A text shadow helps at lower opacity; readability also depends on the app underneath.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
                     item { SettingSlider("Floating width", settings.widthDp, 160f..560f, "${settings.widthDp.roundToInt()} dp", { container.geometry(settings.xFraction, settings.yFraction, it, settings.heightDp) }) }
                     item { SettingSlider("Floating height", settings.heightDp, 120f..640f, "${settings.heightDp.roundToInt()} dp", { container.geometry(settings.xFraction, settings.yFraction, settings.widthDp, it) }) }
+                    item { Text("Views with controls use at least 192 dp so buttons stay usable. Minimal lyrics can be as short as 56 dp.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
                     item { SettingSlider("Minimal height", settings.minimalHeightDp, 56f..240f, "${settings.minimalHeightDp.roundToInt()} dp", container::minimalHeight) }
                     item { GlassPanel { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Edge handle", style = MaterialTheme.typography.titleMedium)
@@ -103,6 +108,26 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     } } }
                     item { OutlinedButton(onClick = if (permissions.overlay) container::showLyrics else actions.overlayAccess, modifier = Modifier.fillMaxWidth()) { Text("Try floating lyrics") } }
                     item { Text("Motion follows Android's animation settings.", style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted) }
+                }
+                "now" -> {
+                    item { Text("Personalize the full reader independently of floating lyrics.", color = SingalongColors.Muted) }
+                    item { SettingSlider("Now lyric size", settings.now.textSizeSp, 12f..40f, "${settings.now.textSizeSp.roundToInt()} sp") { container.nowAppearance(settings.now.copy(textSizeSp = it)) } }
+                    item { GlassPanel { Column(Modifier.padding(20.dp)) {
+                        Text("Text alignment", style = MaterialTheme.typography.titleMedium)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { LyricAlignment.entries.forEach { value ->
+                            FilterChip(settings.now.alignment == value, { container.nowAppearance(settings.now.copy(alignment = value)) }, label = { Text(value.name.lowercase().replaceFirstChar { it.uppercase() }) })
+                        } }
+                    } } }
+                    item { GlassPanel { Column(Modifier.padding(20.dp)) {
+                        Text("Timed-line animation", style = MaterialTheme.typography.titleMedium)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { LyricAnimation.entries.forEach { value ->
+                            FilterChip(settings.now.animation == value, { container.nowAppearance(settings.now.copy(animation = value)) }, label = { Text(when(value) { LyricAnimation.NONE -> "None"; LyricAnimation.FADE -> "Fade"; LyricAnimation.FOCUS -> "Gentle focus" }) })
+                        } }
+                    } } }
+                    item { SettingSlider("Line spacing", settings.now.lineSpacing, 1.1f..2f, "${(settings.now.lineSpacing * 100).roundToInt()}%") { container.nowAppearance(settings.now.copy(lineSpacing = it)) } }
+                    item { ToggleSetting("Dim other lines", "Emphasize the current timed line or the line you select.", settings.now.dimInactive) { container.nowAppearance(settings.now.copy(dimInactive = it)) } }
+                    item { ToggleSetting("Tap a line to focus", "Pause following while you read a selected line. Tap Follow lyrics to resume.", settings.now.tapToFocus) { container.nowAppearance(settings.now.copy(tapToFocus = it)) } }
+                    item { OutlinedButton(onClick = { container.nowAppearance(com.kmab.singalong.settings.NowAppearance()) }, modifier = Modifier.fillMaxWidth()) { Text("Reset Now appearance") } }
                 }
                 "translation" -> {
                     item { ToggleSetting("English beneath the original", "Translate only lyrics you open. Originals always appear first.", settings.translationEnabled,

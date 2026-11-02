@@ -41,4 +41,9 @@ class OverlayGeometryTest {
         assertTrue(controls.height >= 660)
         assertEquals(minimal, OverlayGeometry.bounds(panel, settings, safe, 3f))
     }
+    @Test fun normalSmallPanelLeavesRoomForHeaderToolbarAndRetryTouchTarget() {
+        val bounds = OverlayGeometry.bounds(OverlayState().show(), AppSettings(widthDp = 160f, heightDp = 120f), PanelBounds(0, 0, 600, 1200), 1f)
+        assertTrue(bounds.height - 48 - 48 >= 96)
+        assertEquals(160, bounds.width)
+    }
 }

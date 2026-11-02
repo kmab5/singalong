@@ -34,6 +34,10 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             SingalongTheme {
+                com.kmab.singalong.ui.CrashPrompt { url ->
+                    try { startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+                    catch (_: ActivityNotFoundException) { container.message("No browser is available. Your crash log is saved; open feedback from About later.") }
+                }
                 FoundationScreen(
                     container, permissions.value,
                     FoundationActions(
@@ -61,6 +65,7 @@ class MainActivity : ComponentActivity() {
         refreshPermissions()
         container.onAppOpened()
         container.activityVisible(true)
+        if (intent.action == ACTION_OPEN_NOW) { container.openNow(); intent.action = null }
         if (intent.action == ACTION_SHOW_LYRICS) {
             container.showLyrics()
             intent.action = null
@@ -107,7 +112,11 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.action == ACTION_OPEN_NOW) { container.openNow(); intent.action = null }
         if (intent.action == ACTION_SHOW_LYRICS) { container.showLyrics(); intent.action = null }
     }
-    companion object { const val ACTION_SHOW_LYRICS = "com.kmab.singalong.SHOW_LYRICS" }
+    companion object {
+        const val ACTION_SHOW_LYRICS = "com.kmab.singalong.SHOW_LYRICS"
+        const val ACTION_OPEN_NOW = "com.kmab.singalong.OPEN_NOW"
+    }
 }

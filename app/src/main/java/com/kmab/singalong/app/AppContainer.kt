@@ -17,9 +17,16 @@ import kotlinx.coroutines.flow.*
 data class FoundationState(val tracking: Boolean = false, val listenerConnected: Boolean = false,
     val overlayVisible: Boolean = false, val message: String? = null)
 
+private data class PanelObservation(val songId: String?, val playing: Boolean?, val status: String, val hasLyrics: Boolean, val retrying: Boolean)
+
 class AppContainer(private val context: Context) {
     private val mutableState = MutableStateFlow(FoundationState())
     val state = mutableState.asStateFlow()
+    private val mutableOpenNow = MutableStateFlow(false)
+    val openNowRequested = mutableOpenNow.asStateFlow()
+    fun openNow() { mutableOpenNow.value = true; minimizePanel() }
+    fun openedNow() { mutableOpenNow.value = false }
+    fun nowAppearance(value: com.kmab.singalong.settings.NowAppearance) { scope.launch { settings.nowAppearance(value) } }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, error ->
         if (error is java.io.IOException || error is android.database.sqlite.SQLiteException) {
             serviceStopped()
@@ -62,14 +69,19 @@ class AppContainer(private val context: Context) {
             reader.networkChanged()
         } }
         scope.launch {
-            combine(panel, tracking.current) { panel, current -> panel to (current?.status == PlaybackStatus.PLAYING) }
-                .distinctUntilChanged().collectLatest { (panel, playing) ->
+            combine(panel, reader.state.map { state -> PanelObservation(state.snapshot?.recording?.id,
+                when (state.snapshot?.status) { PlaybackStatus.PLAYING -> true; PlaybackStatus.PAUSED -> false; else -> null },
+                state.status, state.version != null, state.retryInSeconds != null) }.distinctUntilChanged())
+                { panel, observation -> panel to observation }
+                .distinctUntilChanged().collectLatest { (panel, observation) ->
                     updateDemand()
-                    val now = SystemClock.elapsedRealtime()
-                    if (playing || panel.pauseSince == null) mutablePanel.update { it.playback(playing, now) }
-                    if (!playing && panel.mode == PanelMode.VISIBLE && panel.pauseSince != null) {
-                        delay((15_000 - (now - panel.pauseSince)).coerceAtLeast(0))
-                        mutablePanel.update { it.playback(false, SystemClock.elapsedRealtime()) }
+                    fun observed(state: OverlayState) = state.observe(observation.songId, observation.playing, observation.status,
+                        observation.hasLyrics, observation.retrying, SystemClock.elapsedRealtime())
+                    val next = observed(panel)
+                    if (next != panel) mutablePanel.value = next
+                    else panel.nextCheckAt()?.let { deadline ->
+                        delay((deadline - SystemClock.elapsedRealtime()).coerceAtLeast(0))
+                        mutablePanel.update(::observed)
                     }
                 }
         }
@@ -128,7 +140,7 @@ class AppContainer(private val context: Context) {
     fun screenAllowed(allowed: Boolean) { screenAllowed = allowed; updateDemand() }
     private var previousDemand = false
     private fun updateDemand() {
-        val demand = screenAllowed && ((activityVisible && readerVisible) || panel.value.mode == PanelMode.VISIBLE)
+        val demand = screenAllowed && ((activityVisible && readerVisible) || panel.value.needsLyrics)
         if (demand != previousDemand) { previousDemand = demand; reader.visible(demand) }
     }
     fun showLyrics() {

@@ -20,8 +20,8 @@ android {
         applicationId = "com.kmab.singalong"
         minSdk = 31
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.2.0-p5"
+        versionCode = 4
+        versionName = "0.3.0-feedback"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
@@ -80,6 +80,7 @@ dependencies {
     implementation(libs.datastore)
     implementation(libs.serialization.json)
     implementation(libs.okhttp)
+    implementation(libs.mlkit.language.id)
     debugImplementation(libs.compose.tooling)
     debugImplementation(libs.compose.test.manifest)
     testImplementation(libs.junit)

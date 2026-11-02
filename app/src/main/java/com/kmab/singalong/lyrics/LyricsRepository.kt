@@ -11,7 +11,7 @@ data class LookupResult(val status: String, val version: LyricVersion? = null, v
 class LyricsRepository(private val store: LyricsStore, private val provider: LyricsProvider) {
     private val locks = Array(32) { Mutex() }
     private val recent = ConcurrentHashMap<String, Pair<Long, LookupResult>>()
-    suspend fun lookup(recording: Recording, permitsNetwork: () -> Boolean, nowMs: () -> Long = System::currentTimeMillis): LookupResult =
+    suspend fun lookup(recording: Recording, permitsNetwork: () -> Boolean, nowMs: () -> Long = System::currentTimeMillis, forceRefresh: Boolean = false): LookupResult =
         locks[(recording.id.hashCode() and Int.MAX_VALUE) % locks.size].withLock {
             store.selectedVersion(recording.id)?.let { return@withLock LookupResult("available", it) }
             if (store.storedStatus(recording.id) == "instrumental") return@withLock LookupResult("instrumental")
@@ -19,7 +19,11 @@ class LyricsRepository(private val store: LyricsStore, private val provider: Lyr
                 store.setLookupStatus(recording.id, "offline")
                 return@withLock LookupResult("offline")
             }
-            recent[recording.id]?.takeIf { it.first > nowMs() }?.let { return@withLock it.second }
+            recent[recording.id]?.takeIf { it.first > nowMs() }?.let { (deadline, cached) ->
+                // Explicit retries may bypass misses/transient failures, never a server cooldown.
+                if (!forceRefresh || cached.retryAfterMs != null)
+                    return@withLock cached.copy(retryAfterMs = (deadline - nowMs()).coerceAtLeast(0))
+            }
             val result = when (val response = provider.search(recording)) {
                 is ProviderResult.Failed -> LookupResult(response.reason, retryAfterMs = response.retryAfterMs)
                 is ProviderResult.Songs -> {
@@ -33,7 +37,7 @@ class LyricsRepository(private val store: LyricsStore, private val provider: Lyr
             }
             store.setLookupStatus(recording.id, result.status)
             if (recent.size > 256) recent.clear()
-            if (result.version == null) recent[recording.id] = (nowMs() + (result.retryAfterMs ?: if (result.status in listOf("not_found", "instrumental")) 3_600_000 else 30_000)) to result
+            if (result.version == null) recent[recording.id] = (nowMs() + (result.retryAfterMs ?: if (result.status in listOf("not_found", "instrumental")) 600_000 else 2_000)) to result
             result
         }
 }

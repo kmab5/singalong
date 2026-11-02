@@ -1,32 +1,35 @@
 package com.kmab.singalong.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kmab.singalong.app.AppContainer
 import com.kmab.singalong.R
 import com.kmab.singalong.lyrics.ReaderState
 import com.kmab.singalong.model.*
-import com.kmab.singalong.tracking.PlayerApp
+import com.kmab.singalong.translation.*
 import com.kmab.singalong.ui.theme.SingalongColors
-import java.text.DateFormat
-import java.util.Date
 import kotlinx.coroutines.launch
 
 data class PermissionStatus(val music: Boolean = false, val overlay: Boolean = false, val notifications: Boolean = false)
 data class FoundationActions(val musicAccess: () -> Unit, val overlayAccess: () -> Unit, val notificationAccess: () -> Unit)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, actions: FoundationActions) {
     val scope = rememberCoroutineScope()
@@ -39,151 +42,146 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
     val override by container.tracking.overrideSession.collectAsStateWithLifecycle()
     var tools by rememberSaveable { mutableStateOf(false) }
     var toolsId by rememberSaveable { mutableStateOf<String?>(null) }
-    var search by rememberSaveable { mutableStateOf("") }
-    var favoritesOnly by rememberSaveable { mutableStateOf(false) }
     var destination by rememberSaveable { mutableStateOf("now") }
     var savedId by rememberSaveable { mutableStateOf<String?>(null) }
     var savedVersion by remember { mutableStateOf<LyricVersion?>(null) }
-    var savedTitle by remember { mutableStateOf("") }
-    var savedTranslation by remember { mutableStateOf<com.kmab.singalong.translation.TranslationRecord?>(null) }
+    var savedRecording by remember { mutableStateOf<Recording?>(null) }
+    var savedTranslation by remember { mutableStateOf<TranslationRecord?>(null) }
     var savedStatus by remember { mutableStateOf("loading") }
+    var options by remember { mutableStateOf(false) }
     LaunchedEffect(savedId, settings.translationEnabled, tools) {
-        savedVersion = null; savedTranslation = null; savedStatus = "loading"; savedTitle = ""
-        savedId?.let { id ->
-            savedTitle = container.library.recording(id)?.title.orEmpty()
+        savedVersion = null; savedTranslation = null; savedStatus = "loading"; savedRecording = null
+        if (!tools) savedId?.let { id ->
+            savedRecording = container.library.recording(id)
             savedVersion = container.library.selectedVersion(id)
             savedStatus = container.library.storedStatus(id) ?: "not_found"
-            savedVersion?.let { savedTranslation = (container.translations.resolve(it, settings.translationEnabled, true, false) as? com.kmab.singalong.translation.TranslationResult.Available)?.record }
+            savedVersion?.let { savedTranslation = (container.translationForSaved(it) as? TranslationResult.Available)?.record }
         }
     }
-    DisposableEffect(destination, savedId) {
-        container.readerVisible(destination == "now" && savedId == null)
+    DisposableEffect(destination, savedId, tools) {
+        container.readerVisible(destination == "now" && savedId == null && !tools)
         onDispose { container.readerVisible(false) }
     }
-    if (tools) {
-        LibraryTools(container, toolsId) { tools = false; container.reader.request() }
-        return
-    }
-    BackHandler(savedId != null || destination == "settings") { if (savedId != null) savedId = null else destination = "now" }
-    Scaffold(containerColor = SingalongColors.Background, bottomBar = {
-        NavigationBar {
-            listOf("now", "library", "history", "settings").forEach { name ->
-                NavigationBarItem(selected = destination == name && savedId == null,
-                    onClick = { destination = name; savedId = null }, icon = { Icon(when(name) { "now" -> Icons.Outlined.GraphicEq; "library" -> Icons.Outlined.LibraryMusic; "history" -> Icons.Outlined.History; else -> Icons.Outlined.Tune }, null) }, label = { Text(name) })
-            }
-        }
-    }) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(painterResource(R.drawable.ic_kmab), "KMAB", Modifier.size(28.dp), tint = SingalongColors.Purple)
-                Text("singalong", Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
-            }
-            state.message?.let { Text(it, color = SingalongColors.PurpleText, style = MaterialTheme.typography.bodyMedium) }
-            if (savedId != null) {
-                TextButton(onClick = { savedId = null }) { Text("back to $destination") }
-                TextButton(onClick = { toolsId = savedId; tools = true }) { Text("versions, import & edit") }
-                Text(savedTitle, style = MaterialTheme.typography.headlineSmall)
-                Text("Saved copy · live floating lyrics continue separately", style = MaterialTheme.typography.labelSmall)
-                LyricsReader(ReaderState(status = savedStatus, version = savedVersion, translation = if (settings.translationEnabled) savedTranslation else null), Modifier.weight(1f), textSize = settings.textSizeSp,
-                    onRetry = {
-                        val id = savedId
-                        if (id != null) scope.launch {
-                            savedStatus = "loading"
-                            val result = container.lookupSaved(id)
-                            if (savedId == id) { savedStatus = result?.status ?: "not_found"; savedVersion = result?.version }
-                        }
-                    })
-            } else when (destination) {
-                "now" -> {
-                    Text(reader.snapshot?.recording?.title ?: "keep the words close.", style = MaterialTheme.typography.headlineMedium)
-                    Text(reader.snapshot?.recording?.artists?.joinToString().orEmpty(), color = SingalongColors.Muted)
-                    Button(onClick = if (permissions.overlay) container::showLyrics else actions.overlayAccess, modifier = Modifier.fillMaxWidth()) { Text("open floating lyrics") }
-                    if (!state.tracking) OutlinedButton(onClick = container::enableTracking, enabled = settings.ready) { Text("start tracking") }
-                    if (sessions.size > 1) {
-                        var choose by remember { mutableStateOf(false) }
-                        Box {
-                            TextButton(onClick = { choose = true }) { Text(reader.snapshot?.playerName ?: "choose player") }
-                            DropdownMenu(choose, { choose = false }) {
-                                DropdownMenuItem(text = { Text(if (override == null) "Automatic ✓" else "Automatic") }, onClick = { container.chooseSession(null); choose = false })
-                                sessions.filter { it.packageName in settings.allowedPlayers }.forEach { session ->
-                                    DropdownMenuItem(text = { Text(session.playerName) }, onClick = { container.chooseSession(session.sessionId); choose = false })
-                                }
-                            }
-                        }
-                    }
-                    LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.weight(1f), textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request)
-                    ReaderControls(reader, container.reader::adjust)
-                    if (reader.candidates.size > 1) {
-                        var choose by remember { mutableStateOf(false) }
-                        Box {
-                            TextButton(onClick = { choose = true }) { Text("choose saved version (${reader.candidates.size})") }
-                            DropdownMenu(choose, { choose = false }) { reader.candidates.forEach { version ->
-                                DropdownMenuItem(text = { Text(version.attribution ?: version.sourceName.orEmpty()) }, onClick = { container.reader.select(version); choose = false })
-                            } }
-                        }
-                    }
-                    reader.version?.sourceName?.let { Text("Lyrics: $it", style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted) }
-                }
-                "library", "history" -> {
-                    Text(if (destination == "library") "your words, saved." else "songs you come back to.", style = MaterialTheme.typography.headlineMedium)
-                    Row {
-                        TextButton(onClick = { toolsId = null; tools = true }) { Text("add a song") }
-                        FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly }, label = { Text("favorites") })
-                    }
-                    OutlinedTextField(search, { search = it }, label = { Text("Search title or artist") }, modifier = Modifier.fillMaxWidth())
-                    val rows = entries.filter { (if (destination == "library") it.hasLyrics else it.playCount > 0) &&
-                        (!favoritesOnly || it.favorite) && (it.recording.title + " " + it.recording.artists.joinToString()).contains(search, true) }
-                    if (rows.isEmpty()) Text("Play a song for ten seconds to start your collection.", color = SingalongColors.Muted)
-                    LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(rows, key = { it.recording.id }) { entry ->
-                            Surface(color = SingalongColors.Surface, modifier = Modifier.fillMaxWidth().clickable { savedId = entry.recording.id }) {
-                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    TextButton(onClick = { scope.launch { container.library.favorite(entry.recording.id, !entry.favorite) } }) { Text(if (entry.favorite) "★ favorited" else "favorite") }
-                                    if (entry.hasLyrics) Text("saved offline", style = MaterialTheme.typography.labelSmall)
-                                    Text(entry.recording.title, style = MaterialTheme.typography.titleMedium)
-                                    Text(entry.recording.artists.joinToString(), color = SingalongColors.Muted)
-                                    if (destination == "history") Text("${entry.playCount} plays · ${entry.lastPlayedAtMs?.let { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it)) }.orEmpty()}", style = MaterialTheme.typography.labelSmall)
-                                    if (!entry.hasLyrics) Text(lookupMessage(entry.lookupStatus), style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                        }
+    BackHandler(!tools && (savedId != null || destination != "now")) { if (savedId != null) savedId = null else destination = "now" }
+    AmbientBackground {
+        Scaffold(containerColor = Color.Transparent, contentColor = SingalongColors.Text, bottomBar = {
+            if (!tools) Surface(color = SingalongColors.Surface.copy(alpha = .9f), contentColor = SingalongColors.Text) {
+                NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
+                    listOf("now" to "Now", "library" to "Library", "history" to "History", "settings" to "Settings").forEach { (name, label) ->
+                        NavigationBarItem(selected = destination == name, onClick = { destination = name; savedId = null },
+                            icon = { Icon(when (name) { "now" -> Icons.Outlined.GraphicEq; "library" -> Icons.Outlined.LibraryMusic; "history" -> Icons.Outlined.History; else -> Icons.Outlined.Tune }, null) },
+                            label = { Text(label) })
                     }
                 }
-                "settings" -> {
-                    var query by rememberSaveable { mutableStateOf("") }
-                    val apps = (installed + sessions.map { PlayerApp(it.packageName, it.playerName) } + settings.allowedPlayers.map { PlayerApp(it, it) })
-                        .distinctBy { it.packageName }.sortedBy { it.label.lowercase() }
-                    LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        item { Text("a little setup.", style = MaterialTheme.typography.headlineMedium) }
-                        item { Text("Music access reads media details without recording audio. Select the apps you want to follow.") }
-                        item { PermissionButton("music access", permissions.music, actions.musicAccess) }
-                        item { PermissionButton("display over other apps", permissions.overlay, actions.overlayAccess) }
-                        item { PermissionButton("notifications", permissions.notifications, actions.notificationAccess) }
-                        item { Button(onClick = if (state.tracking) container::disableTracking else container::enableTracking, enabled = settings.ready) { Text(if (state.tracking) "stop tracking" else "start tracking") } }
-                        item { Text("Open Singalong after a restart to resume tracking. Closing lyrics leaves collection running.", color = SingalongColors.Muted) }
-                        item { Row(verticalAlignment = Alignment.CenterVertically) { Switch(settings.wifiOnly, container::wifiOnly); Text("Download only on Wi-Fi", Modifier.padding(start = 12.dp)) } }
-                        item { Text("Lyric size"); Slider(settings.textSizeSp, container::textSize, valueRange = 16f..36f) }
-                        item { Text("Panel opacity"); Slider(settings.opacity, container::opacity, valueRange = 0.85f..1f) }
-                        item { BackupControls(container) }
-                        item { Text("English translations", style = MaterialTheme.typography.titleLarge)
-                            Row(verticalAlignment = Alignment.CenterVertically) { Switch(settings.translationEnabled, container::translation); Text("Show English subtext", Modifier.padding(start = 12.dp)) }
-                            Text("Translation text size"); Slider(settings.translationSizeSp, container::translationSize, valueRange = 14f..24f)
-                            Text("Unavailable · no free online provider has been approved for this build. Original lyrics always remain available. A future opt-in service would send opened lyrics online and save aligned translations with their version.", style = MaterialTheme.typography.bodyMedium)
-                        }
-                        item { Text("music apps", style = MaterialTheme.typography.titleLarge); OutlinedTextField(query, { query = it }, label = { Text("Search installed apps") }, modifier = Modifier.fillMaxWidth()) }
-                        items(apps.filter { it.label.contains(query, true) || it.packageName.contains(query, true) }, key = { it.packageName }) { app ->
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(app.packageName in settings.allowedPlayers, { container.allowPlayer(app.packageName, it) })
-                                Column { Text(app.label); Text(app.packageName, style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted) }
+            }
+        }) { padding ->
+            AnimatedContent(if (tools) "editor" else if (savedId != null) "saved" else destination,
+                Modifier.padding(if (tools) PaddingValues(0.dp) else padding).fillMaxSize(),
+                transitionSpec = { (fadeIn(SingalongMotion.tween()) + slideInHorizontally { it / 18 }) togetherWith fadeOut(SingalongMotion.tween()) },
+                label = "App page") { page ->
+                if (page == "editor") LibraryTools(container, toolsId) { tools = false; container.reader.request() }
+                else Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painterResource(R.drawable.ic_kmab), "KMAB", Modifier.size(24.dp), tint = SingalongColors.Purple)
+                        Text("singalong", Modifier.padding(start = 10.dp).weight(1f), style = MaterialTheme.typography.titleMedium)
+                        Text(if (state.tracking) "Following music" else "Paused", style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
+                    }
+                    AnimatedVisibility(state.message != null) {
+                        GlassPanel { Row(Modifier.padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(state.message.orEmpty(), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                            IconButton(onClick = { container.message(null) }) { Icon(Icons.Outlined.Close, "Dismiss message") }
+                        } }
+                    }
+                    when (page) {
+                        "now" -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(reader.snapshot?.recording?.title ?: "Ready when you are.", style = MaterialTheme.typography.headlineSmall,
+                                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(reader.snapshot?.recording?.artists?.joinToString() ?: "Your music. The words, right here.",
+                                    style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = if (permissions.overlay) container::showLyrics else actions.overlayAccess, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                                    Icon(Icons.Outlined.PictureInPictureAlt, null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Floating lyrics")
+                                }
+                                FilledTonalIconButton(onClick = { options = true }, modifier = Modifier.size(48.dp)) { Icon(Icons.Outlined.MoreHoriz, "Lyric and player options") }
+                            }
+                            AnimatedVisibility(!state.tracking) {
+                                OutlinedButton(onClick = {
+                                    when { !permissions.music -> actions.musicAccess(); settings.allowedPlayers.isEmpty() -> destination = "settings"; else -> container.enableTracking() }
+                                }, modifier = Modifier.fillMaxWidth()) { Text(if (settings.allowedPlayers.isEmpty() || !permissions.music) "Set up music access" else "Start following music") }
+                            }
+                            GlassPanel(Modifier.weight(1f).fillMaxWidth()) {
+                                LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.fillMaxSize(),
+                                    textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request)
+                            }
+                            Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(reader.version?.sourceName?.let { "Lyrics · $it" } ?: "LRCLIB + lyrics.ovh", style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
+                                Text(reader.snapshot?.playerName.orEmpty(), style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted, maxLines = 1)
                             }
                         }
+                        "saved" -> {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { savedId = null }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back to collection") }
+                                Text("Saved lyrics", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                                IconButton(onClick = { toolsId = savedId; tools = true }) { Icon(Icons.Outlined.Edit, "Versions, import and edit") }
+                            }
+                            Text(savedRecording?.title.orEmpty(), style = MaterialTheme.typography.headlineSmall)
+                            Text(savedRecording?.artists?.joinToString().orEmpty(), color = SingalongColors.Muted)
+                            GlassPanel(Modifier.weight(1f).fillMaxWidth()) {
+                                LyricsReader(ReaderState(status = savedStatus, version = savedVersion, translation = if (settings.translationEnabled) savedTranslation else null),
+                                    Modifier.fillMaxSize(), textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onRetry = {
+                                        val id = savedId
+                                        if (id != null) scope.launch {
+                                            savedStatus = "loading"
+                                            val result = container.lookupSaved(id)
+                                            if (savedId == id) {
+                                                savedStatus = result?.status ?: "not_found"; savedVersion = result?.version
+                                                result?.version?.let { version ->
+                                                    val translated = container.translationForSaved(version)
+                                                    if (savedId == id) savedTranslation = (translated as? TranslationResult.Available)?.record
+                                                }
+                                            }
+                                        }
+                                    })
+                            }
+                            Text("Saved copy · floating lyrics follow your current song", style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        "library", "history" -> CollectionScreen(entries, page == "history",
+                            onOpen = { savedId = it }, onAdd = { toolsId = null; tools = true },
+                            onFavorite = { entry -> scope.launch { container.library.favorite(entry.recording.id, !entry.favorite) } })
+                        "settings" -> SettingsScreen(container, permissions, actions, settings, state.tracking, installed, sessions)
                     }
                 }
             }
         }
+        if (options) ModalBottomSheet(onDismissRequest = { options = false }, containerColor = SingalongColors.Surface,
+            contentColor = SingalongColors.Text) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                Text("Make it yours", style = MaterialTheme.typography.headlineSmall)
+                ReaderControls(reader, container.reader::adjust)
+                reader.translationStatus?.takeIf { settings.translationEnabled }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
+                if (reader.candidates.size > 1) {
+                    Text("Saved versions", style = MaterialTheme.typography.titleMedium)
+                    reader.candidates.forEach { version -> TextButton(onClick = { container.reader.select(version) }) {
+                        Icon(if (reader.version?.id == version.id) Icons.Outlined.RadioButtonChecked else Icons.Outlined.RadioButtonUnchecked, null)
+                        Text(version.attribution ?: version.sourceName.orEmpty(), Modifier.padding(start = 10.dp))
+                    } }
+                }
+                if (sessions.size > 1) {
+                    Text("Follow a player", style = MaterialTheme.typography.titleMedium)
+                    FilterChip(selected = override == null, onClick = { container.chooseSession(null) }, label = { Text("Automatic") })
+                    sessions.filter { it.packageName in settings.allowedPlayers }.forEach { session ->
+                        FilterChip(selected = override == session.sessionId, onClick = { container.chooseSession(session.sessionId) }, label = { Text(session.playerName) })
+                    }
+                }
+                OutlinedButton(onClick = { toolsId = reader.snapshot?.recording?.id; tools = true; options = false }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Find, import or edit lyrics")
+                }
+                TextButton(onClick = { destination = "settings"; options = false }) { Text("Appearance & translation settings") }
+            }
+        }
     }
-}
-
-@Composable private fun PermissionButton(title: String, allowed: Boolean, action: () -> Unit) {
-    OutlinedButton(onClick = action, modifier = Modifier.fillMaxWidth()) { Text("$title · ${if (allowed) "allowed" else "set up"}") }
 }

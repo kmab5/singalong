@@ -7,10 +7,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.kmab.singalong.app.AppContainer
@@ -19,6 +26,7 @@ import com.kmab.singalong.editor.LyricsEditor
 import com.kmab.singalong.model.*
 import kotlinx.coroutines.*
 import java.io.IOException
+import com.kmab.singalong.ui.theme.SingalongColors
 
 class EditorDraft : androidx.lifecycle.ViewModel() {
     val text = mutableStateOf("")
@@ -27,6 +35,7 @@ class EditorDraft : androidx.lifecycle.ViewModel() {
     fun clear() { text.value = ""; source.value = null; dirty.value = false }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -47,6 +56,8 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
     var discard by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    var metadataOpen by rememberSaveable { mutableStateOf(recordingId == null) }
+    var chooseVersion by remember { mutableStateOf(false) }
     fun action(block: suspend () -> Unit) { scope.launch {
         busy = true
         try { block() } catch (e: IllegalArgumentException) { message = e.message ?: "Invalid content." }
@@ -73,28 +84,48 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
     BackHandler { if (dirty) discard = true else close() }
     if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text("Discard unsaved lyrics?") },
         confirmButton = { TextButton(onClick = ::close) { Text("discard") } }, dismissButton = { TextButton(onClick = { discard = false }) { Text("keep editing") } })
-    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TextButton(onClick = { if (dirty) discard = true else close() }) { Text("back") }
-        Text("your version.", style = MaterialTheme.typography.headlineMedium)
-        OutlinedTextField(title, { title = it }, label = { Text(if (id == null) "Song title" else "Search title") }, enabled = !busy, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(artist, { artist = it }, label = { Text(if (id == null) "Artist" else "Search artist") }, enabled = !busy, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(album, { album = it }, label = { Text("Album (optional)") }, enabled = !busy, modifier = Modifier.fillMaxWidth())
-        message?.let { Text(it) }
-        Row {
+    Scaffold(containerColor = androidx.compose.ui.graphics.Color.Transparent, contentColor = SingalongColors.Text, topBar = {
+        TopAppBar(title = { Text(if (id == null) "Add lyrics" else "Your version") },
+            navigationIcon = { IconButton(onClick = { if (dirty) discard = true else close() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = SingalongColors.Background.copy(alpha = .9f)))
+    }) { padding ->
+    Column(Modifier.fillMaxSize().padding(padding).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        GlassPanel { Column(Modifier.padding(18.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) { Text(title.ifBlank { "Song details" }, style = MaterialTheme.typography.titleMedium); Text(artist.ifBlank { "Add a title and artist to get started." }, color = SingalongColors.Muted, style = MaterialTheme.typography.bodyMedium) }
+                IconButton(onClick = { metadataOpen = !metadataOpen }) { Icon(if (metadataOpen) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, "Show song and search details") }
+            }
+            AnimatedVisibility(metadataOpen) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(title, { title = it }, label = { Text(if (id == null) "Song title" else "Search title") }, enabled = !busy, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(artist, { artist = it }, label = { Text(if (id == null) "Artist" else "Search artist") }, enabled = !busy, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(album, { album = it }, label = { Text("Album (optional)") }, enabled = !busy, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            } }
+        } }
+        AnimatedVisibility(message != null) { GlassPanel { Text(message.orEmpty(), Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium) } }
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(enabled = !busy && !dirty, onClick = { action { val r = recording(); val result = container.manualLookup(r.id, title, artist, album); versions = container.library.versions(r.id); message = if (result == "available") "Choose a matching version below. Timing is manual until you try sync." else lookupMessage(result) } }) { Text("find lyrics") }
             TextButton(enabled = !busy && !dirty, onClick = { importFile.launch(arrayOf("text/*", "application/octet-stream")) }) { Text("import TXT / LRC") }
         }
-        versions.forEach { version -> TextButton(enabled = !dirty && !busy, onClick = { action {
+        if (versions.isNotEmpty()) Box {
+            OutlinedButton(enabled = !dirty && !busy, onClick = { chooseVersion = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(source?.sourceName ?: "Choose a saved version", Modifier.weight(1f)); Icon(Icons.Outlined.ExpandMore, null)
+            }
+            DropdownMenu(chooseVersion, { chooseVersion = false }) {
+        versions.forEach { version -> DropdownMenuItem(enabled = !dirty && !busy, onClick = { chooseVersion = false; action {
             container.library.selectVersion(version.recordingId, version.id); load(version)
             if (container.reader.state.value.snapshot?.recording?.id == version.recordingId) container.reader.select(version)
-        } }) { Text("${if (source?.id == version.id) "✓ " else ""}${version.sourceName ?: "Saved version"} · ${version.attribution ?: version.id.take(8)}") } }
-        source?.sourceUrl?.let { Text("Source: $it", style = MaterialTheme.typography.bodySmall) }
+        } }, text = { Text("${if (source?.id == version.id) "✓ " else ""}${version.sourceName ?: "Saved version"} · ${version.attribution ?: version.id.take(8)}") }) }
+            }
+        }
+        source?.sourceUrl?.let { Text("Source: $it", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
         if (timed) {
             Text("Timed copy · edit words without adding or removing lines.")
             TextButton(onClick = { timed = false; dirty = true }) { Text("create an untimed version") }
         }
-        OutlinedTextField(text, { text = it; dirty = true }, label = { Text(if (timed) "Lyrics · keep line count" else "Lyrics") }, modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp), enabled = !busy)
-        Button(enabled = !busy && text.isNotBlank(), onClick = { action {
+        OutlinedTextField(text, { text = it; dirty = true }, label = { Text(if (timed) "Lyrics · keep line count" else "Lyrics") }, modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp, max = 600.dp),
+            shape = RoundedCornerShape(24.dp), textStyle = MaterialTheme.typography.bodyLarge, enabled = !busy,
+            colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = SingalongColors.Surface.copy(alpha = .8f), focusedContainerColor = SingalongColors.Surface.copy(alpha = .9f)))
+        Button(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = !busy && text.isNotBlank(), onClick = { action {
             val r = recording()
             val base = source?.copy(recordingId = r.id) ?: LyricsEditor.import(r.id, text)
             val edited = LyricsEditor.edit(base, text, timed)
@@ -103,6 +134,9 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
             if (container.reader.state.value.snapshot?.recording?.id == r.id) container.reader.select(edited)
             message = "Personal version saved. The original is unchanged."
         } }) { Text(if (busy) "saving…" else "save personal version") }
+        Text("Personal edits are saved as a new version.", color = SingalongColors.Muted, style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.height(20.dp))
+    }
     }
 }
 
@@ -139,9 +173,9 @@ fun BackupControls(container: AppContainer) {
     Text("library storage", style = MaterialTheme.typography.titleLarge)
     storageBytes?.let { Text("${it / 1024} KiB of original lyric text · excludes database overhead", style = MaterialTheme.typography.bodySmall) }
     message?.let { Text(it) }
-    Row { TextButton(enabled = !busy, onClick = { export.launch("singalong-backup.json") }) { Text("export backup") }
+    FlowRow { TextButton(enabled = !busy, onClick = { export.launch("singalong-backup.json") }) { Text("export backup") }
         TextButton(enabled = !busy, onClick = { restore.launch(arrayOf("application/json", "text/*")) }) { Text("restore backup") } }
-    Row { TextButton(enabled = !busy, onClick = { clear = "history" }) { Text("clear history") }
+    FlowRow { TextButton(enabled = !busy, onClick = { clear = "history" }) { Text("clear history") }
         TextButton(enabled = !busy, onClick = { clear = "downloads" }) { Text("clear downloads") } }
     pending?.let { document -> AlertDialog(onDismissRequest = { if (!busy) pending = null }, title = { Text("Restore ${document.songs.size} songs?") },
         text = { Text("Merge saved versions and history. Current settings and selected versions stay unchanged. Tracking will not be enabled.") },

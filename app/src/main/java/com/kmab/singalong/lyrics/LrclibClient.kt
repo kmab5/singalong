@@ -9,9 +9,6 @@ import kotlinx.serialization.json.Json
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.io.IOException
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resumeWithException
 import java.io.ByteArrayOutputStream
@@ -21,22 +18,28 @@ sealed interface ProviderResult {
     data class Failed(val reason: String, val retryAfterMs: Long? = null) : ProviderResult
 }
 
-interface LyricsProvider { suspend fun search(recording: Recording): ProviderResult }
+interface LyricsProvider {
+    suspend fun search(recording: Recording): ProviderResult
+    fun cancelRequests() = Unit
+}
 
 /** One paced request at a time, cancellable at the socket and coroutine boundaries. */
 class LrclibClient(
-    private val client: OkHttpClient = OkHttpClient.Builder().callTimeout(25, TimeUnit.SECONDS).build(),
+    private val client: OkHttpClient = OkHttpClient.Builder().callTimeout(10, TimeUnit.SECONDS).build(),
     private val baseUrl: String = "https://lrclib.net/api/",
     private val now: () -> Long = System::currentTimeMillis,
     private val permitsNetwork: () -> Boolean = { true },
 ) : LyricsProvider {
     private val mutex = Mutex()
     private var nextRequestAt = 0L
+    private var blockedUntil = 0L
+    private var blockedReason = "rate_limited"
     @Volatile private var activeCall: Call? = null
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
     override suspend fun search(recording: Recording): ProviderResult = mutex.withLock {
-        delay((nextRequestAt - now()).coerceAtLeast(0))
+        if (blockedUntil > now()) return@withLock ProviderResult.Failed(blockedReason, blockedUntil - now())
+        delay((nextRequestAt - now()).coerceIn(0, 350))
         if (!permitsNetwork()) return@withLock ProviderResult.Failed("offline")
         val url = (baseUrl + "search").toHttpUrl().newBuilder()
             .addQueryParameter("track_name", recording.title)
@@ -49,8 +52,9 @@ class LrclibClient(
                 withContext(Dispatchers.IO) {
                     val it = response
                     if (it.code == 429 || it.code == 503) {
-                        val retry = retryDelay(it.header("Retry-After")) ?: 60_000L
-                        nextRequestAt = now() + retry.coerceAtMost(Long.MAX_VALUE - now())
+                        val retry = retryAfterMillis(it.header("Retry-After"), now()) ?: if (it.code == 429) 60_000L else 2_000L
+                        blockedUntil = now() + retry.coerceAtMost(Long.MAX_VALUE - now())
+                        blockedReason = if (it.code == 429) "rate_limited" else "unavailable"
                         return@withContext ProviderResult.Failed(if (it.code == 429) "rate_limited" else "unavailable", retry)
                     }
                     if (it.code == 404) return@withContext ProviderResult.Songs(emptyList())
@@ -81,14 +85,7 @@ class LrclibClient(
         }
     }
 
-    fun cancelRequests() { activeCall?.cancel(); client.dispatcher.cancelAll() }
-
-    private fun retryDelay(value: String?): Long? {
-        value ?: return null
-        value.toLongOrNull()?.let { return it.coerceIn(0, Long.MAX_VALUE / 1000) * 1000 }
-        return try { (ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() - now()).coerceAtLeast(0) }
-        catch (_: DateTimeParseException) { null }
-    }
+    override fun cancelRequests() { activeCall?.cancel(); client.dispatcher.cancelAll() }
 
     private suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
         continuation.invokeOnCancellation { cancel() }

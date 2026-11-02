@@ -30,4 +30,17 @@ class LrclibClientTest {
             assertEquals(ProviderResult.Failed("invalid_response"), LrclibClient(baseUrl = server.url("/api/").toString()).search(song))
         }
     }
+    @Test fun cooldownReturnsImmediatelyWithoutQueueingAnotherNetworkCall() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "12"))
+            var now = 0L
+            val client = LrclibClient(baseUrl = server.url("/api/").toString(), now = { now })
+            client.search(song)
+            now = 3000
+            assertEquals(ProviderResult.Failed("rate_limited", 9000), client.search(song))
+            assertEquals(1, server.requestCount)
+        }
+        val epoch = java.time.Instant.parse("2026-11-02T10:00:00Z").toEpochMilli()
+        assertEquals(12_000L, retryAfterMillis("Mon, 2 Nov 2026 10:00:12 GMT", epoch))
+    }
 }

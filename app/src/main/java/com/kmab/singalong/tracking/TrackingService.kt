@@ -2,6 +2,7 @@ package com.kmab.singalong.tracking
 
 import android.app.KeyguardManager
 import android.app.Service
+import android.app.AppOpsManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -24,6 +25,15 @@ class TrackingService : Service() {
     private lateinit var overlay: OverlayWindowHost
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val screenAllowed = MutableStateFlow(false)
+    private val overlayPermissionListener = AppOpsManager.OnOpChangedListener { operation, packageName ->
+        if (operation == AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW && packageName == this.packageName) scope.launch {
+            if (!Settings.canDrawOverlays(this@TrackingService)) {
+                overlay.hide()
+                container.closePanel()
+                container.message("Floating lyric access was removed. Restore it in Music access.")
+            }
+        }
+    }
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             refreshScreen()
@@ -33,6 +43,7 @@ class TrackingService : Service() {
     override fun onCreate() {
         super.onCreate()
         overlay = OverlayWindowHost(this, container)
+        getSystemService(AppOpsManager::class.java).startWatchingMode(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, packageName, overlayPermissionListener)
         ContextCompat.registerReceiver(this, screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
@@ -71,6 +82,7 @@ class TrackingService : Service() {
         }
         container.serviceStarted()
         if (intent.action == ACTION_SHOW_OVERLAY) {
+            refreshScreen()
             val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
             if (locked || !Settings.canDrawOverlays(this)) {
                 container.message("Unlock your phone and allow display over other apps to open lyrics.")
@@ -90,6 +102,7 @@ class TrackingService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
+        getSystemService(AppOpsManager::class.java).stopWatchingMode(overlayPermissionListener)
         overlay.hide()
         unregisterReceiver(screenReceiver)
         container.serviceStopped()

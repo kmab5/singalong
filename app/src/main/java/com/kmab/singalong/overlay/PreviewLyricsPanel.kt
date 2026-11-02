@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import com.kmab.singalong.ui.theme.SingalongColors
 import com.kmab.singalong.ui.theme.SingalongTheme
@@ -22,6 +23,8 @@ fun PreviewLyricsPanel(
     modifier: Modifier = Modifier,
     dragModifier: Modifier = Modifier,
     onClose: (() -> Unit)? = null,
+    textSize: Float = 22f,
+    translationSize: Float = 16f,
 ) {
     Surface(modifier, shape = RoundedCornerShape(16.dp), color = SingalongColors.Surface, tonalElevation = 0.dp) {
         Column(Modifier.padding(start = 20.dp, end = 12.dp, bottom = 24.dp)) {
@@ -38,10 +41,10 @@ fun PreviewLyricsPanel(
             Row(Modifier.fillMaxWidth().padding(end = 8.dp)) {
                 Box(Modifier.padding(top = 5.dp).width(3.dp).height(if (bilingual) 78.dp else 54.dp).clip(RoundedCornerShape(2.dp)).background(SingalongColors.Purple))
                 Column(Modifier.padding(start = 16.dp).weight(1f)) {
-                    Text(if (bilingual) "La noche guarda\nnuestra voz." else "Let the next line\nfind you here.", style = MaterialTheme.typography.titleLarge)
+                    Text(if (bilingual) "La noche guarda\nnuestra voz." else "Let the next line\nfind you here.", style = MaterialTheme.typography.titleLarge, fontSize = textSize.sp, lineHeight = (textSize * 1.4f).sp)
                     if (bilingual) {
                         Spacer(Modifier.height(8.dp))
-                        Text("The night holds our voice.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
+                        Text("The night holds our voice.", fontSize = translationSize.sp, lineHeight = (translationSize * 1.4f).sp, color = SingalongColors.PurpleText)
                     }
                 }
             }

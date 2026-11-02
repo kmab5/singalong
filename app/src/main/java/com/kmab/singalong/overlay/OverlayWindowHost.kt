@@ -1,175 +1,174 @@
 package com.kmab.singalong.overlay
 
+import android.animation.ValueAnimator
+import android.app.Dialog
 import android.content.Context
-import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.hardware.display.DisplayManager
 import android.provider.Settings
 import android.view.*
-import android.view.WindowInsets
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
+import android.view.animation.PathInterpolator
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.semantics.*
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.*
 import androidx.savedstate.*
+import com.kmab.singalong.R
 import com.kmab.singalong.app.AppContainer
 import com.kmab.singalong.settings.AppSettings
-import com.kmab.singalong.ui.LyricsReader
-import com.kmab.singalong.ui.theme.*
+import com.kmab.singalong.ui.theme.SingalongTheme
+import java.util.function.Consumer
 import kotlin.math.roundToInt
 
+/** One Window owns its initial size, blur listener, animations and composition. */
 class OverlayWindowHost(private val context: Context, private val container: AppContainer) {
     private val windowContext = context.createWindowContext(
         context.getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY),
-        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null,
-    )
+        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null)
     private val manager = windowContext.getSystemService(WindowManager::class.java)
     private val density get() = windowContext.resources.displayMetrics.density
+    private var dialog: Dialog? = null
     private var view: ComposeView? = null
     private var owner: WindowOwner? = null
-    private var params: WindowManager.LayoutParams? = null
+    private var animator: ValueAnimator? = null
     private var dragging = false
+    private var closing = false
+    private var blurRegistered = false
+    private var blurEnabled by mutableStateOf(false)
     private var lastSettings = AppSettings()
     private var lastPanel = OverlayState()
+    private val blurListener = Consumer<Boolean> { enabled -> blurEnabled = enabled; updateBlur() }
 
     fun render(panel: OverlayState, settings: AppSettings, screenAllowed: Boolean): Boolean {
         lastPanel = panel; lastSettings = settings
-        if (!screenAllowed || panel.mode == PanelMode.HIDDEN) { hide(); return true }
+        if (!screenAllowed) { hide(); return true }
+        if (panel.mode == PanelMode.HIDDEN) { dismissAnimated(); return true }
         if (!Settings.canDrawOverlays(context)) { hide(); return false }
-        if (view == null && !attach()) return false
-        if (!dragging) {
-            val p = params ?: return false
-            val safe = safeBounds()
-            val minimized = panel.mode != PanelMode.VISIBLE
-            p.width = if (minimized) (56 * density).roundToInt() else (settings.widthDp * density).roundToInt().coerceAtMost(safe.width())
-            p.height = if (minimized) (56 * density).roundToInt() else ((if (panel.expanded) maxOf(settings.heightDp, 360f) else settings.heightDp) * density).roundToInt().coerceAtMost(safe.height())
-            p.x = safe.left + ((safe.width() - p.width).coerceAtLeast(0) * settings.xFraction).roundToInt()
-            if (minimized) p.x = if (settings.xFraction < 0.5f) safe.left else safe.right - p.width
-            p.y = safe.top + ((safe.height() - p.height).coerceAtLeast(0) * settings.yFraction).roundToInt()
-            return update()
-        }
+        if (closing) { dialog?.window?.decorView?.apply { animate().cancel(); alpha = 1f }; closing = false }
+        val target = OverlayGeometry.bounds(panel, settings, safeBounds(), density, windowContext.resources.configuration.fontScale)
+        if (dialog == null) return attach(target)
+        updateBlur()
+        if (!dragging) animateTo(target)
         return true
     }
 
-    private fun safeBounds(): android.graphics.Rect {
+    private fun safeBounds(): PanelBounds {
         val metrics = manager.currentWindowMetrics
         val insets = metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-        return android.graphics.Rect(insets.left, insets.top,
-            (metrics.bounds.width() - insets.right).coerceAtLeast(insets.left + 1),
-            (metrics.bounds.height() - insets.bottom).coerceAtLeast(insets.top + 1))
+        return PanelBounds(insets.left, insets.top, (metrics.bounds.width() - insets.left - insets.right).coerceAtLeast(1),
+            (metrics.bounds.height() - insets.top - insets.bottom).coerceAtLeast(1))
     }
 
-    // Window x/y and safeBounds use physical left-origin display coordinates in every locale.
     @android.annotation.SuppressLint("RtlHardcoded")
-    private fun attach(): Boolean {
+    private fun attach(bounds: PanelBounds): Boolean {
         val lifecycleOwner = WindowOwner()
         val composeView = ComposeView(windowContext).apply {
             setViewTreeLifecycleOwner(lifecycleOwner)
             setViewTreeSavedStateRegistryOwner(lifecycleOwner)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         }
-        val layout = WindowManager.LayoutParams(1, 1, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT).apply {
+        val floating = Dialog(windowContext, R.style.Theme_Singalong_Overlay)
+        val window = requireNotNull(floating.window)
+        window.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
+        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.decorView.setPadding(0, 0, 0, 0)
+        window.attributes = window.attributes.apply {
             gravity = Gravity.TOP or Gravity.LEFT; title = "Singalong lyrics"
-            setFitInsetsTypes(0)
+            width = bounds.width; height = bounds.height; x = bounds.x; y = bounds.y
+            windowAnimations = 0; setFitInsetsTypes(0)
         }
-        params = layout
+        floating.setCancelable(false)
+        floating.setContentView(composeView)
         composeView.setContent {
             val panel by container.panel.collectAsState()
             val settings by container.settings.state.collectAsState()
             val reader by container.reader.state.collectAsState()
             SingalongTheme {
-                Surface(Modifier.fillMaxSize(), color = SingalongColors.Surface.copy(alpha = settings.opacity), shape = RoundedCornerShape(16.dp)) {
-                    if (panel.mode != PanelMode.VISIBLE) {
-                        IconButton(onClick = container::showPanel, modifier = Modifier.fillMaxSize()) { Icon(Icons.Outlined.MusicNote, "Restore floating lyrics") }
-                    } else Column(Modifier.fillMaxSize()) {
-                        Row(Modifier.fillMaxWidth()) {
-                            Box(Modifier.weight(1f).height(48.dp).semantics {
-                                contentDescription = "Move floating lyrics"
-                                customActions = listOf(
-                                    CustomAccessibilityAction("Move up") { move(0f, -48 * density); persist(); true },
-                                    CustomAccessibilityAction("Move down") { move(0f, 48 * density); persist(); true },
-                                    CustomAccessibilityAction("Move left") { move(-48 * density, 0f); persist(); true },
-                                    CustomAccessibilityAction("Move right") { move(48 * density, 0f); persist(); true },
-                                )
-                            }.pointerInput(Unit) {
-                                detectDragGestures(onDragStart = { dragging = true }, onDragEnd = { persist() }, onDragCancel = { persist() }) { change, drag ->
-                                    change.consume(); move(drag.x, drag.y)
-                                }
-                            }.padding(12.dp)) { Icon(Icons.Outlined.DragHandle, null, tint = SingalongColors.Muted) }
-                            IconButton(onClick = container::expandPanel) { Icon(if (panel.expanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore, if (panel.expanded) "Compact lyrics" else "Expand lyrics") }
-                            IconButton(onClick = container::minimizePanel) { Icon(Icons.Outlined.Minimize, "Minimize lyrics") }
-                            IconButton(onClick = container::closePanel) { Icon(Icons.Outlined.Close, "Close lyrics") }
-                        }
-                        LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.weight(1f), compact = !panel.expanded, textSize = settings.textSizeSp, translationSize = settings.translationSizeSp,
-                            onFollow = container.reader::follow, onRetry = container.reader::request)
-                        Row(Modifier.fillMaxWidth()) {
-                            Text(reader.version?.sourceName ?: "singalong", Modifier.weight(1f).padding(12.dp), style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
-                            Box(Modifier.size(48.dp).semantics {
-                                contentDescription = "Resize floating lyrics"
-                                customActions = listOf(
-                                    CustomAccessibilityAction("Make larger") { resize(24 * density, 24 * density); persist(); true },
-                                    CustomAccessibilityAction("Make smaller") { resize(-24 * density, -24 * density); persist(); true },
-                                )
-                            }.pointerInput(Unit) {
-                                detectDragGestures(onDragStart = { dragging = true }, onDragEnd = { persist() }, onDragCancel = { persist() }) { change, drag -> change.consume(); resize(drag.x, drag.y) }
-                            }.padding(12.dp)) { Icon(Icons.Outlined.OpenInFull, null, tint = SingalongColors.Muted) }
-                        }
-                    }
-                }
+                FloatingLyricsPanel(panel, settings, reader, blurEnabled,
+                    onOpen = container::showPanel, onDock = container::minimizePanel, onClose = container::closePanel,
+                    onExpand = container::expandPanel, onFollow = container.reader::follow, onRetry = container.reader::request,
+                    onDragStart = { animator?.cancel(); dragging = true }, onMove = ::move, onDragEnd = ::persist)
             }
         }
+        dialog = floating; owner = lifecycleOwner; view = composeView
         return try {
-            manager.addView(composeView, layout)
-            view = composeView; owner = lifecycleOwner; lifecycleOwner.resume(); container.overlayVisible(true); true
-        } catch (_: WindowManager.BadTokenException) {
-            composeView.disposeComposition(); lifecycleOwner.destroy(); params = null; false
-        } catch (_: SecurityException) {
-            composeView.disposeComposition(); lifecycleOwner.destroy(); params = null; false
-        }
+            // Full bounds are installed BEFORE show/addView. There is no 1px attachment race.
+            floating.show()
+            lifecycleOwner.resume()
+            manager.addCrossWindowBlurEnabledListener(blurListener); blurRegistered = true
+            updateBlur()
+            if (ValueAnimator.areAnimatorsEnabled()) window.decorView.apply { alpha = 0f; animate().alpha(1f).setDuration(180).start() }
+            container.overlayVisible(true)
+            true
+        } catch (_: WindowManager.BadTokenException) { hide(); false }
+        catch (_: SecurityException) { hide(); false }
     }
 
-    private fun move(dx: Float, dy: Float) {
-        params?.let { p -> val safe = safeBounds()
-            p.x = (p.x + dx.roundToInt()).coerceIn(safe.left, maxOf(safe.left, safe.right - p.width))
-            p.y = (p.y + dy.roundToInt()).coerceIn(safe.top, maxOf(safe.top, safe.bottom - p.height))
-            update()
+    private fun updateBlur() {
+        val window = dialog?.window ?: return
+        val docked = lastPanel.mode != PanelMode.VISIBLE
+        window.setBackgroundDrawable(GradientDrawable().apply {
+            cornerRadius = (if (docked) 16f else 28f) * density
+            setColor(android.graphics.Color.argb(1, 0, 0, 0))
+        })
+        window.setBackgroundBlurRadius(if (blurEnabled && !docked) (36 * density).roundToInt() else 0)
+    }
+
+    private fun animateTo(target: PanelBounds) {
+        val p = dialog?.window?.attributes ?: return
+        val from = PanelBounds(p.x, p.y, p.width, p.height)
+        if (from == target) return
+        animator?.cancel()
+        if (!ValueAnimator.areAnimatorsEnabled()) { applyBounds(target); return }
+        animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 280; interpolator = PathInterpolator(.2f, 0f, 0f, 1f)
+            addUpdateListener {
+                val progress = it.animatedValue as Float
+                fun lerp(a: Int, b: Int) = (a + (b - a) * progress).roundToInt()
+                applyBounds(PanelBounds(lerp(from.x, target.x), lerp(from.y, target.y), lerp(from.width, target.width), lerp(from.height, target.height)))
+            }
+            start()
         }
     }
-    private fun resize(dx: Float, dy: Float) {
-        params?.let { p -> val safe = safeBounds()
-            p.width = (p.width + dx.roundToInt()).coerceIn(minOf((260 * density).roundToInt(), safe.width()), minOf((560 * density).roundToInt(), safe.width()))
-            p.height = (p.height + dy.roundToInt()).coerceIn(minOf((180 * density).roundToInt(), safe.height()), minOf((640 * density).roundToInt(), safe.height()))
-            move(0f, 0f)
-        }
+    private fun applyBounds(bounds: PanelBounds) {
+        val window = dialog?.window ?: return
+        try { window.attributes = window.attributes.apply { x = bounds.x; y = bounds.y; width = bounds.width; height = bounds.height } }
+        catch (_: SecurityException) { hide(); container.closePanel() }
+        catch (_: WindowManager.BadTokenException) { hide(); container.closePanel() }
+    }
+    private fun move(dx: Float, dy: Float) {
+        val p = dialog?.window?.attributes ?: return
+        val safe = safeBounds()
+        val x = if (lastPanel.mode == PanelMode.VISIBLE) (p.x + dx.roundToInt()).coerceIn(safe.x, maxOf(safe.x, safe.x + safe.width - p.width)) else p.x
+        val y = (p.y + dy.roundToInt()).coerceIn(safe.y, maxOf(safe.y, safe.y + safe.height - p.height))
+        applyBounds(PanelBounds(x, y, p.width, p.height))
     }
     private fun persist() {
         dragging = false
-        params?.let { p -> val safe = safeBounds()
-            container.geometry((p.x - safe.left).toFloat() / maxOf(1, safe.width() - p.width),
-                (p.y - safe.top).toFloat() / maxOf(1, safe.height() - p.height), p.width / density, p.height / density)
-        }
+        val p = dialog?.window?.attributes ?: return
+        val safe = safeBounds()
+        // A docked handle never overwrites the full panel's saved dimensions.
+        container.geometry((p.x - safe.x).toFloat() / maxOf(1, safe.width - p.width),
+            (p.y - safe.y).toFloat() / maxOf(1, safe.height - p.height), lastSettings.widthDp, lastSettings.heightDp)
     }
-    private fun update(): Boolean {
-        val current = view ?: return false
-        return try { if (current.isAttachedToWindow) manager.updateViewLayout(current, params); true }
-        catch (_: SecurityException) { hide(); false }
-        catch (_: WindowManager.BadTokenException) { hide(); false }
+    fun configurationChanged() { render(lastPanel, lastSettings, dialog != null) }
+    private fun dismissAnimated() {
+        val decor = dialog?.window?.decorView ?: return
+        if (closing) return
+        if (!ValueAnimator.areAnimatorsEnabled()) { hide(); return }
+        closing = true
+        decor.animate().alpha(0f).setDuration(180).withEndAction { hide() }.start()
     }
-    fun configurationChanged() { render(lastPanel, lastSettings, view != null) }
     fun hide() {
-        view?.let { if (it.isAttachedToWindow) manager.removeViewImmediate(it); it.disposeComposition() }
-        owner?.destroy(); owner = null; view = null; params = null; dragging = false
+        closing = false
+        animator?.cancel(); animator = null
+        if (blurRegistered) { manager.removeCrossWindowBlurEnabledListener(blurListener); blurRegistered = false }
+        dialog?.window?.decorView?.animate()?.cancel()
+        dialog?.dismiss(); dialog = null
+        view?.disposeComposition(); view = null
+        owner?.destroy(); owner = null; dragging = false
         container.overlayVisible(false)
     }
     private class WindowOwner : LifecycleOwner, SavedStateRegistryOwner {

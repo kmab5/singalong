@@ -33,11 +33,16 @@ class AppContainer(private val context: Context) {
     val gate = TrackingGate()
     val observer = AndroidPlaybackObserver(context) { accessLost() }
     private val connection = NetworkMonitor(context).changes.stateIn(scope, SharingStarted.Eagerly, Connectivity())
-    private val provider = LrclibClient(permitsNetwork = ::networkAllowed)
+    private val provider = FallbackLyricsProvider(LrclibClient(permitsNetwork = ::networkAllowed), LyricsOvhClient(permitsNetwork = ::networkAllowed))
     private val repository = LyricsRepository(library, provider)
     private val collectionJobs = mutableMapOf<String, Job>()
     val tracking = TrackingCoordinator(scope, observer, settings.state, library, SystemClock::elapsedRealtime, System::currentTimeMillis, ::collectLyrics)
-    val translations = com.kmab.singalong.translation.TranslationRepository(library)
+    private val translationProvider = com.kmab.singalong.translation.MyMemoryProvider(
+        detector = com.kmab.singalong.translation.LocalLanguageDetector(),
+        cache = com.kmab.singalong.translation.TranslationSegmentCache(context),
+        permitsNetwork = { networkAllowed() && settings.state.value.translationEnabled },
+    )
+    val translations = com.kmab.singalong.translation.TranslationRepository(library, translationProvider)
     val reader = ReaderCoordinator(scope, tracking.current, library, repository, ::networkAllowed, SystemClock::elapsedRealtime, translations) { settings.state.value.translationEnabled }
     private val mutablePanel = MutableStateFlow(OverlayState())
     val panel = mutablePanel.asStateFlow()
@@ -51,8 +56,9 @@ class AppContainer(private val context: Context) {
     private var screenAllowed = true
 
     init {
-        scope.launch { combine(connection, settings.state) { _, _ -> Unit }.collect {
+        scope.launch { combine(connection, settings.state.map { it.wifiOnly to it.translationEnabled }.distinctUntilChanged()) { net, prefs -> net to prefs }.distinctUntilChanged().collect {
             if (!networkAllowed()) provider.cancelRequests()
+            if (!networkAllowed() || !settings.state.value.translationEnabled) translationProvider.cancelRequests()
             reader.networkChanged()
         } }
         scope.launch {
@@ -119,7 +125,21 @@ class AppContainer(private val context: Context) {
         val demand = screenAllowed && ((activityVisible && readerVisible) || panel.value.mode == PanelMode.VISIBLE)
         if (demand != previousDemand) { previousDemand = demand; reader.visible(demand) }
     }
-    fun showLyrics() { if (appOpened) startService(TrackingService.ACTION_SHOW_OVERLAY) }
+    fun showLyrics() {
+        if (!appOpened) return
+        val expected = ++generation
+        scope.launch {
+            settings.state.first { it.ready }
+            if (expected != generation) return@launch
+            if (!gate.active) {
+                if (!canStart()) return@launch
+                settings.tracking(true)
+                if (expected != generation) return@launch
+                gate.onAppOpened(true)
+            }
+            startService(TrackingService.ACTION_SHOW_OVERLAY)
+        }
+    }
     fun showPanel() { mutablePanel.update { it.show() }; updateDemand() }
     fun closePanel() {
         mutablePanel.update { it.close() }; updateDemand()
@@ -128,7 +148,8 @@ class AppContainer(private val context: Context) {
     fun minimizePanel() { mutablePanel.update { it.minimize() }; updateDemand() }
     fun expandPanel() { mutablePanel.update { it.copy(expanded = !it.expanded) } }
     fun chooseSession(id: String?) = tracking.chooseSession(id)
-    suspend fun lookupSaved(id: String): LookupResult? = library.recording(id)?.let { repository.lookup(it, ::networkAllowed) }
+    suspend fun lookupSaved(id: String): LookupResult? = library.recording(id)?.let { repository.lookup(it, ::networkAllowed, forceRefresh = true) }
+    suspend fun translationForSaved(version: LyricVersion) = translations.resolve(version, settings.state.value.translationEnabled, true, networkAllowed())
     suspend fun manualLookup(id: String, title: String, artist: String, album: String): String {
         val recording = requireNotNull(library.recording(id))
         if (!networkAllowed()) return "offline"
@@ -164,6 +185,7 @@ class AppContainer(private val context: Context) {
         startPending = false; gate.disable(); tracking.stop(); observer.stop(); reader.tracking(false)
         collectionJobs.values.toList().forEach { it.cancel() }; collectionJobs.clear()
         provider.cancelRequests()
+        translationProvider.cancelRequests()
         closePanel()
         mutableState.update { it.copy(tracking = false, overlayVisible = false) }
     }
@@ -180,11 +202,11 @@ class AppContainer(private val context: Context) {
         collectionJobs[recording.id] = scope.launch {
             try {
                 repeat(3) {
-                    val result = repository.lookup(recording, ::networkAllowed)
+                    val result = repository.lookup(recording, ::networkAllowed, forceRefresh = it > 0)
                     reader.collected(recording)
                     if (result.status !in ReaderCoordinator.retryable) return@launch
                     combine(connection, settings.state) { net, prefs -> net.permits(prefs.wifiOnly) }.first { it }
-                    if (result.status != "offline") delay(result.retryAfterMs ?: 30_000)
+                    if (result.status != "offline") delay(maxOf(result.retryAfterMs ?: 0, RetryPolicy.delayMs(it)))
                 }
             } finally { collectionJobs.remove(recording.id) }
         }

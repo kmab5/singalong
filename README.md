@@ -4,7 +4,7 @@ An Android companion for floating lyrics over your music player. Personal app; m
 
 ## current phase
 
-P0–P5 source is implemented. P6 automated checks now pass: **35 unit tests, debug lint (zero errors), debug/release builds and instrumentation-test APK compilation**. The signed release APK is available locally at `artifacts/singalong-release.apk`. Physical-device, migration and instrumented test execution remain pending your phone testing. Online translation remains explicitly unavailable. See the [P6 checkpoint](docs/validation/p6-checkpoint.md).
+The November phone-feedback revision (`0.3.0-feedback`) rebuilds the app's screens and floating lyrics. See the [feedback checkpoint](docs/validation/feedback-checkpoint.md) for current build/test evidence and outstanding phone checks. The signed, minified release APK is kept locally at `artifacts/singalong-release.apk`. The [P6 checkpoint](docs/validation/p6-checkpoint.md) records the earlier baseline.
 
 Included:
 
@@ -15,15 +15,17 @@ Included:
 - Selected music apps, automatic player arbitration and manual session override.
 - Ten seconds of observed playing time qualifies a play; pauses, buffering and seeking do not add listened time.
 - Room history/lyric versions and DataStore preferences, including migration from P0 preferences.
-- LRCLIB lookup with conservative matching, attribution, offline cache, request pacing and bounded retries.
+- LRCLIB lookup plus lyrics.ovh plain-lyric fallback, conservative matching, attribution and offline caching. Visible readers retry transient failures automatically with a bounded budget and server cooldowns.
 - Plain/LRC parsing, playback interpolation, manual reading, version selection and saved timing adjustments.
 - Process-local tracking gate: persisted preference alone cannot restart observation.
-- Floating current lyrics, expanded/manual reading, drag/resize, text size and opacity settings.
+- Glass floating lyrics with native background blur where supported, readable solid fallback, drag, expanded/manual reading and size controls in settings.
+- A rectangular edge handle restores lyrics by tap or inward swipe; its position is independent of the full panel's dimensions.
+- Animated navigation, lyric following/highlights, panel docking/expansion and status changes; respects Android animation settings.
 - Separate close, manual-minimize and 15-second automatic pause-minimize behavior.
-- Notification actions to reopen lyrics or stop tracking.
+- Notification tap/action opens floating lyrics over the current app; separate actions open Singalong or stop tracking.
 - Behavior-focused unit, Room and Compose tests for a later verification run.
 
-P4 adds search, favorites, TXT/LRC import preview, personal timed/untimed editing, version selection, protected cleanup and JSON backup/restore. P5 adds opt-in translation settings, version-bound validated cache storage and subordinate English rendering; online translation is explicitly unavailable. No Genius/Musixmatch scraping or key-based provider is included. P0 sample panels remain design-preview source only; runtime screens display actual data or explicit empty/error states.
+Search, favorites, TXT/LRC import preview, personal timed/untimed editing, version selection, protected cleanup and JSON backup/restore remain available. English subtext now uses opt-in MyMemory translation with bundled on-device language detection, a local quota guard, reusable line cache and version-bound saved translations. Original lyrics publish before translation work. No direct Genius/Musixmatch or key-based integration is included. Sample panels are explicitly labelled previews; runtime readers display actual data or explicit empty/error states.
 
 See the [P4–P5 checkpoint](docs/validation/p4-p5-checkpoint.md) for backup semantics, translation research and pending validation.
 
@@ -58,10 +60,11 @@ adb install -r artifacts/singalong-release.apk
 - [P1–P3 implementation and pending checks](docs/validation/p1-p3-checkpoint.md)
 - [Provider feasibility](docs/validation/providers.md)
 - [Design baseline](docs/design/p0-visual-baseline.md)
+- [Phone-feedback revision plan](docs/superpowers/plans/2026-11-02-feedback-overhaul.md)
 
 ## local data and permissions
 
-Room stores recordings, qualified occurrence IDs, history summaries, immutable lyric-version payloads, selected versions and timing adjustments. DataStore stores setup and display preferences. Media snapshots and live authorization stay in memory. Internet/network-state permission supports lyric lookup; launcher queries support player selection. There is no microphone, broad-storage, all-packages or accessibility-service permission. Song title and artist are sent to LRCLIB when network lookup is needed. Wi-Fi-only downloads are optional.
+Room stores recordings, qualified occurrence IDs, history summaries, immutable lyric versions, translations, selected versions and timing adjustments. DataStore stores setup and display preferences. Media snapshots and live authorization stay in memory. Song title/artist go to LRCLIB and, when needed, lyrics.ovh. Only explicitly enabled translation sends opened lyric lines to MyMemory, which stores submitted text; the consent screen explains this. Language identification stays on-device. A bounded private preferences cache reuses completed translation segments and persists the daily request budget. Wi-Fi-only downloads are optional. There is no microphone, broad-storage, all-packages or accessibility-service permission.
 
 No boot receiver or sticky restart is used. The listener may be rebound by Android, but observation remains off in a fresh process until an activity opens. Overlay visibility is not persisted. Screen-off/lock suppresses rendering without changing manual close/minimize decisions. Closing the panel leaves authorized collection running; stopping tracking ends the live session. Opening a saved song does not replace the live overlay song.
 

@@ -14,13 +14,15 @@ object TrackingNotification {
     const val ID = 100
     private const val CHANNEL = "tracking"
 
+    // This action updates the service-owned overlay; it never launches an Activity through a trampoline.
+    @android.annotation.SuppressLint("LaunchActivityFromNotification")
     fun create(context: Context, tracking: Boolean): Notification {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(CHANNEL, "Music tracking", NotificationManager.IMPORTANCE_LOW),
         )
         val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val showLyrics = PendingIntent.getActivity(context, 1, Intent(context, MainActivity::class.java)
-            .setAction(MainActivity.ACTION_SHOW_LYRICS).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val showLyrics = PendingIntent.getService(context, 1, Intent(context, TrackingService::class.java)
+            .setAction(TrackingService.ACTION_SHOW_OVERLAY), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         fun action(name: String, request: Int) = PendingIntent.getService(
             context, request, Intent(context, TrackingService::class.java).setAction(name),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -29,10 +31,11 @@ object TrackingNotification {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(if (tracking) "Singalong is following your player" else "Singalong floating lyrics")
             .setContentText("Open the words, or stop music tracking.")
-            .setContentIntent(open)
+            .setContentIntent(showLyrics)
             .setOngoing(true)
             .setSilent(true)
             .addAction(0, "show lyrics", showLyrics)
+            .addAction(0, "open app", open)
             .addAction(0, "stop", action(TrackingService.ACTION_STOP, 2))
             .build()
     }

@@ -11,6 +11,7 @@ data class ProviderSong(
     val id: Long, val trackName: String, val artistName: String, val albumName: String = "",
     val duration: Double = 0.0, val instrumental: Boolean = false,
     val plainLyrics: String? = null, val syncedLyrics: String? = null,
+    val source: String = "LRCLIB", val sourceUrl: String? = null,
 )
 
 object LyricsMatcher {
@@ -34,8 +35,14 @@ object LyricsMatcher {
         if (lines.isEmpty() || song.instrumental) return@mapNotNull null
         val hash = MessageDigest.getInstance("SHA-256").digest(lines.joinToString("\n") { "${it.startMs}:${it.text}" }.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
-        LyricVersion("${recording.id}:lrclib:${song.id}:$hash", recording.id, hash, LyricOrigin.PROVIDER, lines,
-            "LRCLIB", "https://lrclib.net/api/get/${song.id}", confidence, song.id.toString(),
-            "${song.trackName} — ${song.artistName} · ${song.albumName} · ${song.duration.toInt()}s · LRCLIB")
+        val attribution = buildList {
+            add("${song.trackName} — ${song.artistName}")
+            if (song.albumName.isNotBlank()) add(song.albumName)
+            if (song.duration > 0) add("${song.duration.toInt()}s")
+            add(song.source)
+        }.joinToString(" · ")
+        LyricVersion("${recording.id}:${song.source.lowercase()}:${song.id}:$hash", recording.id, hash, LyricOrigin.PROVIDER, lines,
+            song.source, song.sourceUrl ?: "https://lrclib.net/api/get/${song.id}", confidence, song.id.toString(),
+            attribution)
     }.distinctBy { it.id }.sortedBy { it.confidence.ordinal }
 }

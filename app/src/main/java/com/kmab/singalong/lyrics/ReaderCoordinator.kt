@@ -16,6 +16,8 @@ data class ReaderState(
     val allowUncertainSync: Boolean = false,
     val following: Boolean = true,
     val moment: LyricMoment = LyricMoment(),
+    val retryInSeconds: Int? = null,
+    val translationStatus: String? = null,
 ) {
     val canSync: Boolean get() {
         val lyrics = version ?: return false
@@ -38,8 +40,8 @@ class ReaderCoordinator(
     private val mutableState = MutableStateFlow(ReaderState())
     val state = mutableState.asStateFlow()
     private var fetch: Job? = null
+    private var translate: Job? = null
     private val demand = MutableStateFlow(false)
-    private var tracking = false
 
     init {
         scope.launch {
@@ -47,11 +49,14 @@ class ReaderCoordinator(
                 val changed = snapshot?.recording?.id != state.value.snapshot?.recording?.id
                 if (changed) {
                     fetch?.cancel()
+                    translate?.cancel()
                     mutableState.value = ReaderState(snapshot = snapshot, following = snapshot?.positionMs != null)
-                    if (demand.value) request()
+                    if (demand.value) startRequest(false)
                 } else {
+                    val metadataChanged = snapshot?.recording != state.value.snapshot?.recording
                     val lostTiming = state.value.snapshot?.positionMs != null && snapshot?.positionMs == null
                     mutableState.update { it.copy(snapshot = snapshot, following = it.following && !lostTiming) }
+                    if (metadataChanged && demand.value && state.value.version == null) request()
                 }
             }
         }
@@ -68,8 +73,11 @@ class ReaderCoordinator(
             }
         }
     }
-    fun tracking(active: Boolean) { tracking = active; if (!active) { fetch?.cancel(); fetch = null } }
-    fun visible(visible: Boolean) { demand.value = visible; if (visible) request() }
+    fun tracking(active: Boolean) { if (!active) { fetch?.cancel(); fetch = null; translate?.cancel() } }
+    fun visible(visible: Boolean) {
+        demand.value = visible
+        if (visible) startRequest(false) else { fetch?.cancel(); translate?.cancel(); mutableState.update { it.copy(retryInSeconds = null) } }
+    }
     fun refreshLocal() {
         fetch?.cancel()
         val id = state.value.snapshot?.recording?.id ?: return
@@ -78,31 +86,67 @@ class ReaderCoordinator(
             if (state.value.snapshot?.recording?.id == id) load(LookupResult(if (version == null) "not_found" else "available", version))
         }
     }
-    fun request() {
+    fun request() { fetch?.cancel(); startRequest(true) }
+    private fun startRequest(force: Boolean) {
         val recording = state.value.snapshot?.recording ?: return
         if (fetch?.isActive == true) return
         fetch = scope.launch {
-            mutableState.update { it.copy(status = "loading") }
-            val result = repository.lookup(recording, networkAllowed)
-            if (state.value.snapshot?.recording?.id != recording.id) return@launch
-            load(result)
+            repeat(4) { attempt ->
+                mutableState.update { it.copy(status = if (it.version == null) "loading" else it.status, retryInSeconds = null) }
+                val result = repository.lookup(recording, networkAllowed, forceRefresh = force || attempt > 0)
+                ensureActive()
+                if (state.value.snapshot?.recording?.id != recording.id) return@launch
+                load(result)
+                if (!demand.value || result.status !in retryable || result.status == "offline" || attempt == 3) return@launch
+                var remaining = maxOf(result.retryAfterMs ?: 0, RetryPolicy.delayMs(attempt))
+                while (remaining > 0) {
+                    mutableState.update { it.copy(retryInSeconds = (remaining / 1000 + if (remaining % 1000 > 0) 1 else 0).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()) }
+                    val step = minOf(remaining, 1000)
+                    delay(step); remaining -= step
+                }
+            }
         }
     }
     fun collected(recording: Recording) {
-        if (state.value.snapshot?.recording?.id == recording.id) request()
+        if (state.value.snapshot?.recording?.id == recording.id && demand.value) startRequest(false)
     }
-    fun networkChanged() { if (tracking && demand.value && state.value.status in retryable) request() }
+    fun networkChanged() {
+        if (!networkAllowed()) {
+            translate?.cancel()
+            if (translationEnabled() && state.value.version != null && state.value.translation == null)
+                mutableState.update { it.copy(translationStatus = "Waiting for connection") }
+        } else if (demand.value && (state.value.status in retryable ||
+                (translationEnabled() && state.value.version != null && state.value.translation == null && state.value.translationStatus == "Waiting for connection"))) request()
+    }
     private suspend fun load(result: LookupResult) {
         val id = state.value.snapshot?.recording?.id ?: return
         val version = result.version
         val adjustment = version?.let { library.adjustment(it.id) }
         val candidates = library.versions(id)
-        val translated = version?.let { translations?.resolve(it, translationEnabled(), demand.value, networkAllowed()) }
-        val translation = (translated as? TranslationResult.Available)?.record
-        if (state.value.snapshot?.recording?.id == id) mutableState.update { it.copy(status = result.status, version = version, translation = translation,
+        currentCoroutineContext().ensureActive()
+        if (state.value.snapshot?.recording?.id != id) return
+        translate?.cancel()
+        if (state.value.snapshot?.recording?.id == id) mutableState.update { it.copy(status = result.status, version = version, translation = null,
+            translationStatus = null, retryInSeconds = null,
             candidates = candidates, delayMs = adjustment?.delayMs ?: 0, allowUncertainSync = adjustment?.allowUncertainSync ?: false) }
+        if (version != null && translationEnabled() && demand.value) translate = scope.launch {
+            mutableState.update { it.copy(translationStatus = "Translating to English…") }
+            val result = translations?.resolve(version, true, true, networkAllowed())
+            ensureActive()
+            if (state.value.version?.id == version.id && translationEnabled()) mutableState.update { it.copy(
+                translation = (result as? TranslationResult.Available)?.record,
+                translationStatus = when (result) {
+                    is TranslationResult.Available -> "English · ${result.record.provider}"
+                    TranslationResult.Unsupported -> null
+                    else -> "English translation unavailable"
+                },
+            ) }
+        }
     }
-    fun select(version: LyricVersion) { scope.launch {
+    fun select(version: LyricVersion) {
+        if (state.value.snapshot?.recording?.id != version.recordingId) return
+        fetch?.cancel()
+        fetch = scope.launch {
         val id = state.value.snapshot?.recording?.id ?: return@launch
         if (version.recordingId != id) return@launch
         library.selectVersion(id, version.id)
@@ -117,4 +161,8 @@ class ReaderCoordinator(
         scope.launch { library.adjust(com.kmab.singalong.library.AdjustmentEntity(version.id, delay, allow)) }
     }
     companion object { val retryable = setOf("offline", "network_error", "unavailable", "rate_limited") }
+}
+
+object RetryPolicy {
+    fun delayMs(attempt: Int): Long = when (attempt) { 0 -> 2_000; 1 -> 5_000; else -> 10_000 }
 }

@@ -44,4 +44,19 @@ class LyricsRepositoryTest {
         assertEquals(MatchConfidence.CONFIDENT, LyricsMatcher.confidence(recording, candidate.copy(trackName = "Synthetic: Song")))
         assertNull(LyricsMatcher.confidence(recording, candidate.copy(duration = 220.0)))
     }
+    @Test fun explicitRetryBypassesTransientFailureButReportsRemainingServerCooldown() = runTest {
+        var calls = 0
+        val repository = LyricsRepository(Store(), object : LyricsProvider {
+            override suspend fun search(recording: Recording): ProviderResult {
+                calls++
+                return if (calls == 1) ProviderResult.Failed("network_error") else ProviderResult.Failed("rate_limited", 12_000)
+            }
+        })
+        repository.lookup(recording, { true }, { 0 })
+        repository.lookup(recording, { true }, { 100 }, forceRefresh = true)
+        assertEquals(2, calls)
+        val result = repository.lookup(recording, { true }, { 3100 }, forceRefresh = true)
+        assertEquals(9000L, result.retryAfterMs)
+        assertEquals(2, calls)
+    }
 }

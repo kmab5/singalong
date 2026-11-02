@@ -1,6 +1,6 @@
 # provider feasibility — p0
 
-Assessed 2026-11-01; updated during P1–P3 implementation. LRCLIB now has a source-level integration; runtime verification remains deferred. Translation is not implemented.
+The sections below record the original November 1 assessment. The November 2 phone-feedback revision supersedes its translation-unavailable disposition; see the update at the end and the [feedback checkpoint](feedback-checkpoint.md).
 
 ## LRCLIB
 
@@ -39,3 +39,13 @@ If integrated later: opt-in, disclose remote processing, respect quotas, validat
 - Translation absence is explicitly acceptable and does not block M0.
 - LRCLIB source integration follows the documented personal offline use case, but the earlier smoke request failed and no successful live integration run is claimed. The provider gate remains **assessed, not passed**.
 - Revisit current provider availability and any broader storage/distribution rights before a release beyond personal use.
+
+## November 2 feedback revision
+
+The renewed request for additional sources led to these implemented adapters:
+
+- **lyrics.ovh:** its [official API contract](https://github.com/NTag/lyrics.ovh#api) documents a free title/artist endpoint returning plain lyrics or HTTP 404. It is a fallback after LRCLIB yields no usable version or fails. Attribution names lyrics.ovh, without inventing the upstream origin. Results lack independent recording/duration evidence, so they remain possible matches with manual reading. A synthetic nonexistent-song request returned 404. Synthetic MockWebServer fixtures verify parsing, encoding, fallback, attribution and absence of fabricated timing; actual song coverage remains a phone check.
+- **MyMemory:** the official API/terms/usage pages linked above were rechecked. The app sends one line per request, at most 500 UTF-8 bytes, with source language identified locally. Fresh opt-in explains remote text retention. A persisted 5,000-character/day budget, sequential pacing, server quota handling and reusable segments limit usage. Complete validated results are saved as personal English subtext alongside their original lyric version. No contribution, registration, email or key endpoint is called. This personal reuse implementation does not claim redistribution rights. A synthetic greeting returned HTTP/API status 200; that is availability evidence, not a guarantee of lyric translation quality.
+- **Lingva investigated, excluded:** its [documented public API](https://github.com/thedaviddelta/lingva-translate#public-apis) was tested on the official instance and returned 403. No unsupported or nonfunctional provider is advertised in the app.
+
+The new network adapters and reader retry/cancellation paths have automated fixture coverage. No real user lyric text or feedback media was sent during development. Existing Android permissions are unchanged.

@@ -17,12 +17,12 @@ class LyricsReaderTest {
             listOf(LyricLine("1", null, "Synthetic original words")), null, null, MatchConfidence.CONFIDENT)
         compose.setContent { SingalongTheme { LyricsReader(ReaderState(version = version), Modifier.fillMaxSize()) } }
         compose.onNodeWithText("Synthetic original words").assertIsDisplayed()
-        compose.onNodeWithText("Manual reading · timing unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Scroll to read").assertIsDisplayed()
     }
     @Test fun unavailableStateOffersRetryWithoutInventingLyrics() {
         var retried = false
         compose.setContent { SingalongTheme { LyricsReader(ReaderState(status = "unavailable"), onRetry = { retried = true }) } }
-        compose.onNodeWithText("try again").performClick()
+        compose.onNodeWithText("Try again").performClick()
         org.junit.Assert.assertTrue(retried)
     }
 }

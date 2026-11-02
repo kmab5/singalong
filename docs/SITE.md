@@ -16,7 +16,7 @@ Local preview: `python -m http.server 8765 --directory docs --bind 127.0.0.1`, t
 
 The interactive panel uses clearly labelled original sample text; it does not access music, fetch lyrics or play audio. Floating/minimal/docked buttons, edge restore, next line and English subtext work locally. Page content remains readable without JavaScript. Motion honors `prefers-reduced-motion`.
 
-The setup section links to GitHub Releases. A bounded public GitHub API request checks for a stable published release with `singalong.apk`; when present, the button points to that exact asset. With no release, no JavaScript, or an API failure, the real releases-page link remains usable without claiming an APK exists. Feedback opens the existing kmab form with product `singalong` and source `web`; reports are submitted by the visitor. See [release instructions](RELEASING.md).
+The setup section downloads the latest published `singalong.apk` through GitHub's stable release URL. A bounded public GitHub API request optionally adds the exact version and asset link. An empty, rate-limited or failed API response, or disabled JavaScript, leaves the direct download usable. The first stable release must remain published for that fallback URL to resolve. Feedback opens the existing kmab form with product `singalong` and source `web`; reports are submitted by the visitor. See [release instructions](RELEASING.md).
 
 Hosted SVG/PNG icons and outlined wordmarks are in `assets/`, with reusable copies in `public/docs/` at the repository root. The SVG icon preserves `app/src/main/res/drawable/ic_singalong.xml` geometry. Font license notices accompany the self-hosted WOFF2 files. See `tools/export_site_assets.py` for regeneration.
 

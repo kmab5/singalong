@@ -73,6 +73,6 @@
     download.textContent = `Download APK · ${release.tag_name}`;
     releaseStatus.textContent = "Android 12 and newer. Signed with the same release key for updates. Checksums and source are on GitHub Releases.";
   }).catch(() => {
-    releaseStatus.textContent = "Android 12 and newer. Open GitHub Releases to check available APKs.";
+    releaseStatus.textContent = "Android 12 and newer. Download the latest signed APK; release details and checksums are on GitHub.";
   });
 })();

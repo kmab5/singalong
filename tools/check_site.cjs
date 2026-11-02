@@ -62,7 +62,7 @@ const docs = path.join(root, "docs");
       if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`);
     });
     await page.goto(base, { waitUntil: "networkidle" });
-    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases");
+    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk");
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
       path: path.join(root, "artifacts/site-desktop.png"),
@@ -185,7 +185,7 @@ const docs = path.join(root, "docs");
     await page.unroute("https://api.github.com/repos/kmab5/singalong/releases?*");
     await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", (route) => route.abort());
     await page.reload({ waitUntil: "networkidle" });
-    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases");
+    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk");
     assert.deepEqual(errors, []);
     console.log(
       JSON.stringify(

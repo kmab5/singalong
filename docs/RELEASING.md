@@ -28,6 +28,6 @@ Local credentials remain in ignored `signing.properties`. The Gradle environment
 
 `.github/workflows/release.yml` runs on `v*` tags. Before accessing signing secrets it verifies that the tagged commit is an ancestor of `origin/main`, the tag matches the version file, and version name/code exceed all earlier versioned tags. Tests/lint/build and certificate verification must pass. It then creates a GitHub Release, marks `-rc.N` tags as prereleases, and attaches the APK, mapping, metadata and checksums. An existing release causes failure; assets are never silently overwritten.
 
-No production tag or release is created during pre-merge preparation. GitHub Pages should deploy from main `/docs`. The website finds a published stable release containing `singalong.apk`; before one exists or when GitHub is unavailable, it links to the actual releases page without advertising an unavailable APK.
+No production tag or release is created during pre-merge preparation. GitHub Pages deploys from main `/docs`. Since v1.0.0 is published, the website's default download uses GitHub's latest stable release asset URL. An optional API lookup adds the exact version; API rate limits or disabled JavaScript do not prevent downloading. Keep the `singalong.apk` asset name consistent in future stable releases.
 
 The Ubuntu 24.04 runner image supplies Android SDK 36/build-tools 36.0.0. The workflows select JDK 21. They do not install emulators, system images or extra SDK packages. If runner images stop supplying the required SDK, update the build environment explicitly.

@@ -45,7 +45,7 @@ class OverlayWindowHost(private val context: Context, private val container: App
         if (panel.mode == PanelMode.HIDDEN) { dismissAnimated(); return true }
         if (!Settings.canDrawOverlays(context)) { hide(); return false }
         if (closing) { dialog?.window?.decorView?.apply { animate().cancel(); alpha = 1f }; closing = false }
-        val target = OverlayGeometry.bounds(panel, settings, safeBounds(), density, windowContext.resources.configuration.fontScale)
+        val target = OverlayGeometry.bounds(panel, settings, safeBounds(), density)
         if (dialog == null) return attach(target)
         updateBlur()
         if (!dragging) animateTo(target)
@@ -86,9 +86,11 @@ class OverlayWindowHost(private val context: Context, private val container: App
             val settings by container.settings.state.collectAsState()
             val reader by container.reader.state.collectAsState()
             SingalongTheme {
-                FloatingLyricsPanel(panel, settings, reader, blurEnabled,
+                FloatingLyricsPanel(panel, settings, reader,
                     onOpen = container::showPanel, onDock = container::minimizePanel, onClose = container::closePanel,
                     onExpand = container::expandPanel, onFollow = container.reader::follow, onRetry = container.reader::request,
+                    onMinimal = { container.minimalPanel(true) }, onReveal = container::revealPanelControls,
+                    onSync = container.reader::toggleSync,
                     onDragStart = { animator?.cancel(); dragging = true }, onMove = ::move, onDragEnd = ::persist)
             }
         }

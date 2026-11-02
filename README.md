@@ -4,7 +4,7 @@ An Android companion for floating lyrics over your music player. Personal app; m
 
 ## current phase
 
-The November phone-feedback revision (`0.3.0-feedback`) rebuilds the app's screens and floating lyrics. See the [feedback checkpoint](docs/validation/feedback-checkpoint.md) for current build/test evidence and outstanding phone checks. The signed, minified release APK is kept locally at `artifacts/singalong-release.apk`. The [P6 checkpoint](docs/validation/p6-checkpoint.md) records the earlier baseline.
+The latest phone-feedback revision (`0.3.1`) adds minimal floating lyrics, optional estimated sync and finer controls while keeping the glass design. See the [compact-controls checkpoint](docs/validation/compact-controls-checkpoint.md) for current evidence and phone checks. The signed, minified release APK is kept locally at `artifacts/singalong-release.apk`. The [previous feedback checkpoint](docs/validation/feedback-checkpoint.md) and [P6 checkpoint](docs/validation/p6-checkpoint.md) record earlier baselines.
 
 Included:
 
@@ -12,20 +12,22 @@ Included:
 - Live reader, saved-library browsing, play history and settings.
 - Explicit music/overlay/notification permission flows.
 - User-started foreground service with a `specialUse` declaration on Android 14+.
-- Selected music apps, automatic player arbitration and manual session override.
+- Selected music apps with locally loaded icons, automatic player arbitration and manual session override.
 - Ten seconds of observed playing time qualifies a play; pauses, buffering and seeking do not add listened time.
 - Room history/lyric versions and DataStore preferences, including migration from P0 preferences.
 - LRCLIB lookup plus lyrics.ovh plain-lyric fallback, conservative matching, attribution and offline caching. Visible readers retry transient failures automatically with a bounded budget and server cooldowns.
-- Plain/LRC parsing, playback interpolation, manual reading, version selection and saved timing adjustments.
+- Plain/LRC parsing, playback interpolation, manual reading and version selection. Optional experimental sync estimates untimed lyric positions from line length and duration without changing original timestamps. Controls include 50ms/250ms/1s steps, direct offsets and line-to-position alignment.
 - Process-local tracking gate: persisted preference alone cannot restart observation.
-- Glass floating lyrics with native background blur where supported, readable solid fallback, drag, expanded/manual reading and size controls in settings.
+- Glass floating lyrics with native background blur where supported, compact/expanded and lyric-only minimal modes. Tap minimal lyrics to reveal controls; long-press and drag to move. Settings allow 12sp originals, 10sp subtext, 20% opacity, 160dp width and 56dp minimal height; low-opacity text gains a shadow. Readability depends on the background and selected sizes.
 - A rectangular edge handle restores lyrics by tap or inward swipe; its position is independent of the full panel's dimensions.
 - Animated navigation, lyric following/highlights, panel docking/expansion and status changes; respects Android animation settings.
 - Separate close, manual-minimize and 15-second automatic pause-minimize behavior.
 - Notification tap/action opens floating lyrics over the current app; separate actions open Singalong or stop tracking.
-- Behavior-focused unit, Room and Compose tests for a later verification run.
+- Silent tracking notification with a channel-settings shortcut. Android controls status-bar icon visibility.
+- About page with version, author, source/privacy details and the KMAB feedback form prefilled for `singalong`. Reports and attachments are submitted by the user in the browser.
+- Behavior-focused unit tests and compiled Room/Compose device tests; see the checkpoint for executed checks.
 
-Search, favorites, TXT/LRC import preview, personal timed/untimed editing, version selection, protected cleanup and JSON backup/restore remain available. English subtext now uses opt-in MyMemory translation with bundled on-device language detection, a local quota guard, reusable line cache and version-bound saved translations. Original lyrics publish before translation work. No direct Genius/Musixmatch or key-based integration is included. Sample panels are explicitly labelled previews; runtime readers display actual data or explicit empty/error states.
+Search, favorites, TXT/LRC import preview, personal timed/untimed editing, version selection, protected cleanup and JSON backup/restore remain available. English subtext uses opt-in MyMemory translation with bundled on-device language detection, a local quota guard, reusable line cache and version-bound saved translations. Original lyrics publish first; cached/new English lines appear progressively, with at most two requests in flight. Same-version refreshes preserve active translation progress. No direct Genius/Musixmatch or key-based integration is included. Sample panels are explicitly labelled previews; runtime readers display actual data or explicit empty/error states.
 
 See the [P4–P5 checkpoint](docs/validation/p4-p5-checkpoint.md) for backup semantics, translation research and pending validation.
 
@@ -61,6 +63,7 @@ adb install -r artifacts/singalong-release.apk
 - [Provider feasibility](docs/validation/providers.md)
 - [Design baseline](docs/design/p0-visual-baseline.md)
 - [Phone-feedback revision plan](docs/superpowers/plans/2026-11-02-feedback-overhaul.md)
+- [Compact controls plan](docs/superpowers/plans/2026-11-02-compact-controls.md)
 
 ## local data and permissions
 

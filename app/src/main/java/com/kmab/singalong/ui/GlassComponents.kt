@@ -51,3 +51,13 @@ fun PageHeading(title: String, subtitle: String? = null) {
         subtitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
     }
 }
+
+/** Secondary actions are visibly actionable on both glass and opaque surfaces. */
+@Composable
+fun ActionButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit) {
+    Button(onClick, modifier.heightIn(min = 48.dp), enabled = enabled, shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = SingalongColors.Raised, contentColor = SingalongColors.PurpleText),
+        border = BorderStroke(1.dp, SingalongColors.Line), elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 0.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp), content = content)
+}

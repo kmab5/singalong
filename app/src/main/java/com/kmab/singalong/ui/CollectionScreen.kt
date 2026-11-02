@@ -42,7 +42,7 @@ fun ColumnScope.CollectionScreen(entries: List<LibraryEntry>, history: Boolean, 
             Icon(Icons.Outlined.LibraryMusic, null, tint = SingalongColors.Purple)
             Text(if (query.isNotBlank() || favorites) "No songs match these filters." else "Your next song starts the collection.", style = MaterialTheme.typography.titleMedium)
             Text("Listen for ten seconds in a selected app, or add lyrics yourself.", color = SingalongColors.Muted)
-            TextButton(onClick = onAdd) { Text("Add a song") }
+            ActionButton(onClick = onAdd) { Text("Add a song") }
         }
     } else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
         items(rows, key = { it.recording.id }) { entry ->

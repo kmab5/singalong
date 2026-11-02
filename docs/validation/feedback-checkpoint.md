@@ -1,5 +1,7 @@
 # November 2 phone-feedback revision
 
+Historical `0.3.0-feedback` evidence. The [0.3.1 checkpoint](compact-controls-checkpoint.md) supersedes sizing, opacity, sync and translation behavior below.
+
 ## Implemented source
 
 - New dark KMAB glass treatment, higher-contrast foregrounds, dedicated lyric stage, compact collection rows and focused settings subpages. Editor/backup/import/version functionality is retained.

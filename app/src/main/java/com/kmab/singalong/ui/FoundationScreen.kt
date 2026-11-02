@@ -27,7 +27,8 @@ import com.kmab.singalong.ui.theme.SingalongColors
 import kotlinx.coroutines.launch
 
 data class PermissionStatus(val music: Boolean = false, val overlay: Boolean = false, val notifications: Boolean = false)
-data class FoundationActions(val musicAccess: () -> Unit, val overlayAccess: () -> Unit, val notificationAccess: () -> Unit)
+data class FoundationActions(val musicAccess: () -> Unit, val overlayAccess: () -> Unit, val notificationAccess: () -> Unit,
+    val trackingNotificationSettings: () -> Unit, val openLink: (String) -> Unit)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,13 +50,19 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
     var savedTranslation by remember { mutableStateOf<TranslationRecord?>(null) }
     var savedStatus by remember { mutableStateOf("loading") }
     var options by remember { mutableStateOf(false) }
+    var controlTab by rememberSaveable { mutableStateOf(true) }
+    fun acceptsSavedTranslation(id: String, version: LyricVersion) = savedId == id && !tools && settings.translationEnabled &&
+        savedVersion?.id == version.id && savedVersion?.contentHash == version.contentHash
     LaunchedEffect(savedId, settings.translationEnabled, tools) {
         savedVersion = null; savedTranslation = null; savedStatus = "loading"; savedRecording = null
         if (!tools) savedId?.let { id ->
             savedRecording = container.library.recording(id)
             savedVersion = container.library.selectedVersion(id)
             savedStatus = container.library.storedStatus(id) ?: "not_found"
-            savedVersion?.let { savedTranslation = (container.translationForSaved(it) as? TranslationResult.Available)?.record }
+            savedVersion?.let { version ->
+                val result = container.translationForSaved(version) { partial -> if (acceptsSavedTranslation(id, version)) savedTranslation = partial }
+                if (acceptsSavedTranslation(id, version)) savedTranslation = (result as? TranslationResult.Available)?.record ?: savedTranslation
+            }
         }
     }
     DisposableEffect(destination, savedId, tools) {
@@ -115,7 +122,7 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                                 LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.fillMaxSize(),
                                     textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request)
                             }
-                            Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(reader.version?.sourceName?.let { "Lyrics · $it" } ?: "LRCLIB + lyrics.ovh", style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
                                 Text(reader.snapshot?.playerName.orEmpty(), style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted, maxLines = 1)
                             }
@@ -134,12 +141,14 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                                         val id = savedId
                                         if (id != null) scope.launch {
                                             savedStatus = "loading"
+                                            val expectedVersion = savedVersion?.id
                                             val result = container.lookupSaved(id)
-                                            if (savedId == id) {
+                                            if (savedId == id && !tools && savedVersion?.id == expectedVersion) {
                                                 savedStatus = result?.status ?: "not_found"; savedVersion = result?.version
+                                                savedTranslation = null
                                                 result?.version?.let { version ->
-                                                    val translated = container.translationForSaved(version)
-                                                    if (savedId == id) savedTranslation = (translated as? TranslationResult.Available)?.record
+                                                    val translated = container.translationForSaved(version) { partial -> if (acceptsSavedTranslation(id, version)) savedTranslation = partial }
+                                                    if (acceptsSavedTranslation(id, version)) savedTranslation = (translated as? TranslationResult.Available)?.record ?: savedTranslation
                                                 }
                                             }
                                         }
@@ -160,17 +169,23 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
             contentColor = SingalongColors.Text) {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Text("Make it yours", style = MaterialTheme.typography.headlineSmall)
-                ReaderControls(reader, container.reader::adjust)
+                Text("Lyric options", style = MaterialTheme.typography.headlineSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FilterChip(controlTab, { controlTab = true }, label = { Text("Controls") })
+                    FilterChip(!controlTab, { controlTab = false }, label = { Text("Versions & player") })
+                }
+                AnimatedVisibility(controlTab) {
+                    ReaderControls(reader, container.reader::adjust, container.reader::experimentalSync, container.reader::follow, container.reader::setDelay, container.reader::alignLine)
+                }
                 reader.translationStatus?.takeIf { settings.translationEnabled }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
-                if (reader.candidates.size > 1) {
+                if (!controlTab && reader.candidates.isNotEmpty()) {
                     Text("Saved versions", style = MaterialTheme.typography.titleMedium)
-                    reader.candidates.forEach { version -> TextButton(onClick = { container.reader.select(version) }) {
+                    reader.candidates.forEach { version -> ActionButton(onClick = { container.reader.select(version) }) {
                         Icon(if (reader.version?.id == version.id) Icons.Outlined.RadioButtonChecked else Icons.Outlined.RadioButtonUnchecked, null)
                         Text(version.attribution ?: version.sourceName.orEmpty(), Modifier.padding(start = 10.dp))
                     } }
                 }
-                if (sessions.size > 1) {
+                if (!controlTab && sessions.size > 1) {
                     Text("Follow a player", style = MaterialTheme.typography.titleMedium)
                     FilterChip(selected = override == null, onClick = { container.chooseSession(null) }, label = { Text("Automatic") })
                     sessions.filter { it.packageName in settings.allowedPlayers }.forEach { session ->
@@ -180,7 +195,7 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                 OutlinedButton(onClick = { toolsId = reader.snapshot?.recording?.id; tools = true; options = false }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Find, import or edit lyrics")
                 }
-                TextButton(onClick = { destination = "settings"; options = false }) { Text("Appearance & translation settings") }
+                ActionButton(onClick = { destination = "settings"; options = false }) { Text("Appearance & translation settings") }
             }
         }
     }

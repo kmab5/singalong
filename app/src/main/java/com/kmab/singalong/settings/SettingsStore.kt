@@ -27,6 +27,8 @@ data class AppSettings(
     val heightDp: Float = 260f,
     val xFraction: Float = 0f,
     val yFraction: Float = 0.2f,
+    val minimalMode: Boolean = false,
+    val minimalHeightDp: Float = 88f,
 )
 
 class SettingsStore(context: Context, scope: CoroutineScope) {
@@ -45,34 +47,40 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
         val height = floatPreferencesKey("overlay_height_dp")
         val x = floatPreferencesKey("overlay_x_fraction")
         val y = floatPreferencesKey("overlay_y_fraction")
+        val minimal = booleanPreferencesKey("overlay_minimal")
+        val minimalHeight = floatPreferencesKey("overlay_minimal_height")
     }
     val state = store.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map { p ->
         AppSettings(
-            ready = true, translationEnabled = p[Keys.translation] == true && p[Keys.translationConsent] == true, translationSizeSp = (p[Keys.translationSize] ?: 16f).safe(14f, 22f, 16f), trackingEnabled = p[Keys.tracking] ?: false,
+            ready = true, translationEnabled = p[Keys.translation] == true && p[Keys.translationConsent] == true, translationSizeSp = (p[Keys.translationSize] ?: 16f).safe(10f, 22f, 16f), trackingEnabled = p[Keys.tracking] ?: false,
             allowedPlayers = p[Keys.allowed].orEmpty(), wifiOnly = p[Keys.wifi] ?: false,
             notificationRequested = p[Keys.notification] ?: false,
-            textSizeSp = (p[Keys.size] ?: 22f).safe(18f, 32f, 22f),
-            opacity = (p[Keys.opacity] ?: .85f).safe(.85f, .96f, .85f),
-            widthDp = (p[Keys.width] ?: 344f).safe(260f, 560f, 344f),
-            heightDp = (p[Keys.height] ?: 260f).safe(180f, 640f, 260f),
+            textSizeSp = (p[Keys.size] ?: 22f).safe(12f, 32f, 22f),
+            opacity = (p[Keys.opacity] ?: .85f).safe(.20f, .96f, .85f),
+            widthDp = (p[Keys.width] ?: 344f).safe(160f, 560f, 344f),
+            heightDp = (p[Keys.height] ?: 260f).safe(120f, 640f, 260f),
             xFraction = (p[Keys.x] ?: 0f).safe(0f, 1f, 0f),
             yFraction = (p[Keys.y] ?: 0.2f).safe(0f, 1f, 0.2f),
+            minimalMode = p[Keys.minimal] ?: false,
+            minimalHeightDp = (p[Keys.minimalHeight] ?: 88f).safe(56f, 240f, 88f),
         )
     }.stateIn(scope, SharingStarted.Eagerly, AppSettings())
 
     suspend fun translation(enabled: Boolean) { store.edit { it[Keys.translation] = enabled; it[Keys.translationConsent] = enabled } }
-    suspend fun translationSize(value: Float) { store.edit { it[Keys.translationSize] = value.safe(14f, 24f, 16f) } }
+    suspend fun translationSize(value: Float) { store.edit { it[Keys.translationSize] = value.safe(10f, 22f, 16f) } }
+    suspend fun minimal(enabled: Boolean) { store.edit { it[Keys.minimal] = enabled } }
+    suspend fun minimalHeight(value: Float) { store.edit { it[Keys.minimalHeight] = value.safe(56f, 240f, 88f) } }
     suspend fun tracking(enabled: Boolean) { store.edit { it[Keys.tracking] = enabled } }
     suspend fun notificationRequested() { store.edit { it[Keys.notification] = true } }
     suspend fun wifiOnly(enabled: Boolean) { store.edit { it[Keys.wifi] = enabled } }
     suspend fun allowPlayer(packageName: String, allowed: Boolean) { store.edit {
         it[Keys.allowed] = if (allowed) it[Keys.allowed].orEmpty() + packageName else it[Keys.allowed].orEmpty() - packageName
     } }
-    suspend fun textSize(value: Float) { store.edit { it[Keys.size] = value.safe(18f, 32f, 22f) } }
-    suspend fun opacity(value: Float) { store.edit { it[Keys.opacity] = value.safe(.85f, .96f, .85f) } }
+    suspend fun textSize(value: Float) { store.edit { it[Keys.size] = value.safe(12f, 32f, 22f) } }
+    suspend fun opacity(value: Float) { store.edit { it[Keys.opacity] = value.safe(.20f, .96f, .85f) } }
     suspend fun geometry(x: Float, y: Float, width: Float, height: Float) { store.edit {
         it[Keys.x] = x.safe(0f, 1f, 0f); it[Keys.y] = y.safe(0f, 1f, 0.2f)
-        it[Keys.width] = width.safe(260f, 560f, 344f); it[Keys.height] = height.safe(180f, 640f, 260f)
+        it[Keys.width] = width.safe(160f, 560f, 344f); it[Keys.height] = height.safe(120f, 640f, 260f)
     } }
     private fun Float.safe(min: Float, max: Float, fallback: Float) = if (isFinite()) coerceIn(min, max) else fallback
 }

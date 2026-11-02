@@ -116,6 +116,12 @@ class AppContainer(private val context: Context) {
     fun translationSize(value: Float) { scope.launch { settings.translationSize(value) } }
     fun textSize(value: Float) { scope.launch { settings.textSize(value) } }
     fun opacity(value: Float) { scope.launch { settings.opacity(value) } }
+    fun minimalHeight(value: Float) { scope.launch { settings.minimalHeight(value) } }
+    fun minimalPanel(enabled: Boolean) { scope.launch {
+        settings.minimal(enabled)
+        mutablePanel.update { it.copy(controlsVisible = false) }
+    } }
+    fun revealPanelControls() { mutablePanel.update { it.copy(controlsVisible = true) } }
     fun geometry(x: Float, y: Float, width: Float, height: Float) { scope.launch { settings.geometry(x, y, width, height) } }
     fun activityVisible(visible: Boolean) { activityVisible = visible; updateDemand() }
     fun readerVisible(visible: Boolean) { readerVisible = visible; updateDemand() }
@@ -146,10 +152,15 @@ class AppContainer(private val context: Context) {
         if (!gate.active) context.stopService(Intent(context, TrackingService::class.java))
     }
     fun minimizePanel() { mutablePanel.update { it.minimize() }; updateDemand() }
-    fun expandPanel() { mutablePanel.update { it.copy(expanded = !it.expanded) } }
+    fun expandPanel() { scope.launch {
+        val wasMinimal = settings.state.value.minimalMode
+        settings.minimal(false)
+        mutablePanel.update { it.copy(expanded = wasMinimal || !it.expanded, controlsVisible = false) }
+    } }
     fun chooseSession(id: String?) = tracking.chooseSession(id)
     suspend fun lookupSaved(id: String): LookupResult? = library.recording(id)?.let { repository.lookup(it, ::networkAllowed, forceRefresh = true) }
-    suspend fun translationForSaved(version: LyricVersion) = translations.resolve(version, settings.state.value.translationEnabled, true, networkAllowed())
+    suspend fun translationForSaved(version: LyricVersion, onProgress: suspend (com.kmab.singalong.translation.TranslationRecord) -> Unit = {}) =
+        translations.resolve(version, settings.state.value.translationEnabled, true, networkAllowed(), onProgress)
     suspend fun manualLookup(id: String, title: String, artist: String, album: String): String {
         val recording = requireNotNull(library.recording(id))
         if (!networkAllowed()) return "offline"

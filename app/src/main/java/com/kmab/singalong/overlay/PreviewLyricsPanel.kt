@@ -26,6 +26,7 @@ fun PreviewLyricsPanel(
     textSize: Float = 22f,
     translationSize: Float = 16f,
 ) {
+    val subtextSize = minOf(translationSize, textSize - 2)
     Surface(modifier, shape = RoundedCornerShape(16.dp), color = SingalongColors.Surface, tonalElevation = 0.dp) {
         Column(Modifier.padding(start = 20.dp, end = 12.dp, bottom = 24.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -44,7 +45,7 @@ fun PreviewLyricsPanel(
                     Text(if (bilingual) "La noche guarda\nnuestra voz." else "Let the next line\nfind you here.", style = MaterialTheme.typography.titleLarge, fontSize = textSize.sp, lineHeight = (textSize * 1.4f).sp)
                     if (bilingual) {
                         Spacer(Modifier.height(8.dp))
-                        Text("The night holds our voice.", fontSize = translationSize.sp, lineHeight = (translationSize * 1.4f).sp, color = SingalongColors.PurpleText)
+                        Text("The night holds our voice.", fontSize = subtextSize.sp, lineHeight = (subtextSize * 1.4f).sp, color = SingalongColors.PurpleText)
                     }
                 }
             }

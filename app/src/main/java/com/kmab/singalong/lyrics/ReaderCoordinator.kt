@@ -19,10 +19,14 @@ data class ReaderState(
     val retryInSeconds: Int? = null,
     val translationStatus: String? = null,
 ) {
+    val hasTiming: Boolean get() = version?.lines?.any { it.startMs != null } == true
+    val experimental: Boolean get() = version != null && (!hasTiming || version.confidence == MatchConfidence.UNCERTAIN)
+    val canTrySync: Boolean get() = (snapshot?.positionMs ?: -1) >= 0 && version?.lines?.any { it.text.isNotBlank() } == true &&
+        (hasTiming || (snapshot?.recording?.durationMs ?: 0) > 0)
+    val estimated: Boolean get() = !hasTiming && allowUncertainSync && canTrySync
     val canSync: Boolean get() {
         val lyrics = version ?: return false
-        return snapshot?.positionMs != null && lyrics.lines.any { it.startMs != null } &&
-            (lyrics.confidence == MatchConfidence.CONFIDENT || allowUncertainSync)
+        return canTrySync && (estimated || (hasTiming && (lyrics.confidence == MatchConfidence.CONFIDENT || allowUncertainSync)))
     }
 }
 
@@ -66,7 +70,11 @@ class ReaderCoordinator(
                 while (currentCoroutineContext().isActive) {
                     mutableState.update { s ->
                         val position = PlaybackClock.position(s.snapshot, elapsedMs())
-                        s.copy(moment = if (position != null && s.canSync) LyricTimeline.at(s.version!!.lines, position, s.delayMs) else LyricMoment())
+                        s.copy(moment = when {
+                            position == null || !s.canSync -> LyricMoment()
+                            s.estimated -> EstimatedTimeline.at(s.version!!.lines, position, s.snapshot?.recording?.durationMs ?: 0, s.delayMs)
+                            else -> LyricTimeline.at(s.version!!.lines, position, s.delayMs)
+                        })
                     }
                     delay(200)
                 }
@@ -113,10 +121,15 @@ class ReaderCoordinator(
     fun networkChanged() {
         if (!networkAllowed()) {
             translate?.cancel()
-            if (translationEnabled() && state.value.version != null && state.value.translation == null)
+            if (translationEnabled() && state.value.version != null && !translationComplete())
                 mutableState.update { it.copy(translationStatus = "Waiting for connection") }
         } else if (demand.value && (state.value.status in retryable ||
-                (translationEnabled() && state.value.version != null && state.value.translation == null && state.value.translationStatus == "Waiting for connection"))) request()
+                (translationEnabled() && state.value.version != null && !translationComplete() && state.value.translationStatus == "Waiting for connection"))) request()
+    }
+    private fun translationComplete(): Boolean {
+        val version = state.value.version ?: return false
+        val translation = state.value.translation ?: return false
+        return TranslationRepository.valid(version, translation)
     }
     private suspend fun load(result: LookupResult) {
         val id = state.value.snapshot?.recording?.id ?: return
@@ -125,20 +138,30 @@ class ReaderCoordinator(
         val candidates = library.versions(id)
         currentCoroutineContext().ensureActive()
         if (state.value.snapshot?.recording?.id != id) return
-        translate?.cancel()
-        if (state.value.snapshot?.recording?.id == id) mutableState.update { it.copy(status = result.status, version = version, translation = null,
-            translationStatus = null, retryInSeconds = null,
+        val sameVersion = version != null && version.id == state.value.version?.id && version.contentHash == state.value.version?.contentHash
+        val keepTranslation = sameVersion && translationEnabled()
+        val alreadyTranslating = keepTranslation && translate?.isActive == true
+        if (!alreadyTranslating) translate?.cancel()
+        if (state.value.snapshot?.recording?.id == id) mutableState.update { it.copy(status = result.status, version = version,
+            translation = if (keepTranslation) it.translation else null,
+            translationStatus = if (keepTranslation) it.translationStatus else null, retryInSeconds = null,
             candidates = candidates, delayMs = adjustment?.delayMs ?: 0, allowUncertainSync = adjustment?.allowUncertainSync ?: false) }
-        if (version != null && translationEnabled() && demand.value) translate = scope.launch {
+        if (version != null && translationEnabled() && demand.value && !alreadyTranslating) translate = scope.launch {
             mutableState.update { it.copy(translationStatus = "Translating to English…") }
-            val result = translations?.resolve(version, true, true, networkAllowed())
+            val result = translations?.resolve(version, true, true, networkAllowed()) { partial ->
+                ensureActive()
+                if (state.value.version?.id == version.id && translationEnabled() && demand.value) mutableState.update { it.copy(
+                    translation = partial,
+                    translationStatus = "English · ${partial.lines.size}/${version.lines.count { line -> line.text.isNotBlank() }} lines",
+                ) }
+            }
             ensureActive()
             if (state.value.version?.id == version.id && translationEnabled()) mutableState.update { it.copy(
-                translation = (result as? TranslationResult.Available)?.record,
+                translation = (result as? TranslationResult.Available)?.record ?: it.translation,
                 translationStatus = when (result) {
                     is TranslationResult.Available -> "English · ${result.record.provider}"
                     TranslationResult.Unsupported -> null
-                    else -> "English translation unavailable"
+                    else -> if (it.translation != null) "Partial English translation · remaining lines unavailable" else "English translation unavailable"
                 },
             ) }
         }
@@ -153,6 +176,26 @@ class ReaderCoordinator(
         if (state.value.snapshot?.recording?.id == id) load(LookupResult("available", version))
     } }
     fun follow(enabled: Boolean) { mutableState.update { it.copy(following = enabled) } }
+    fun toggleSync() {
+        if (state.value.experimental) experimentalSync(!state.value.allowUncertainSync)
+        else follow(!state.value.following)
+    }
+    fun experimentalSync(enabled: Boolean) {
+        val s = state.value
+        val version = s.version ?: return
+        if (enabled && !s.canTrySync) return
+        mutableState.update { it.copy(allowUncertainSync = enabled, following = enabled, moment = LyricMoment()) }
+        scope.launch { library.adjust(com.kmab.singalong.library.AdjustmentEntity(version.id, s.delayMs, enabled)) }
+    }
+    fun setDelay(value: Long) { adjust(value.coerceIn(-600_000, 600_000) - state.value.delayMs) }
+    fun alignLine(index: Int) {
+        val s = state.value
+        val version = s.version ?: return
+        val position = PlaybackClock.position(s.snapshot, elapsedMs()) ?: return
+        val start = if (s.estimated) EstimatedTimeline.starts(version.lines, s.snapshot?.recording?.durationMs ?: 0)[index]
+            else version.lines.getOrNull(index)?.startMs
+        start?.let { setDelay(position - it) }
+    }
     fun adjust(delta: Long?, trySync: Boolean = false) {
         val version = state.value.version ?: return
         val delay = if (delta == null) 0 else (state.value.delayMs + delta).coerceIn(-600_000, 600_000)

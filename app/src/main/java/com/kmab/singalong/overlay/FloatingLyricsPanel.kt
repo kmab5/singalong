@@ -3,6 +3,7 @@ package com.kmab.singalong.overlay
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,13 +25,16 @@ import com.kmab.singalong.ui.*
 import com.kmab.singalong.ui.theme.SingalongColors
 
 @Composable
-fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: ReaderState, blurEnabled: Boolean,
+fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: ReaderState,
     onOpen: () -> Unit, onDock: () -> Unit, onClose: () -> Unit, onExpand: () -> Unit,
     onFollow: (Boolean) -> Unit, onRetry: () -> Unit,
+    onMinimal: () -> Unit, onReveal: () -> Unit, onSync: () -> Unit,
     onDragStart: () -> Unit, onMove: (Float, Float) -> Unit, onDragEnd: () -> Unit) {
     val density = LocalDensity.current.density
     val left = settings.xFraction < .5f
     val docked = panel.mode == PanelMode.MANUAL_MINIMIZED || panel.mode == PanelMode.AUTO_MINIMIZED
+    val minimal = settings.minimalMode && !panel.controlsVisible
+    var menu by remember { mutableStateOf(false) }
     val drag = Modifier.semantics {
         contentDescription = "Move floating lyrics"
         customActions = buildList {
@@ -62,7 +66,24 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
                     }
                 }
             }
-        } else GlassPanel(Modifier.fillMaxSize(), opacity = if (blurEnabled) settings.opacity.coerceIn(.85f, .96f) else .98f) {
+        } else GlassPanel(Modifier.fillMaxSize(), opacity = settings.opacity) {
+            Crossfade(minimal, animationSpec = SingalongMotion.tween(), label = "Minimal lyrics") { lyricsOnly ->
+            if (lyricsOnly) Box(Modifier.fillMaxSize()
+                .semantics { customActions = listOf(
+                    CustomAccessibilityAction("Show controls") { onReveal(); true },
+                    CustomAccessibilityAction("Dock lyrics") { onDock(); true },
+                    CustomAccessibilityAction("Close lyrics") { onClose(); true },
+                    CustomAccessibilityAction("Move up") { onMove(0f, -48 * density); onDragEnd(); true },
+                    CustomAccessibilityAction("Move down") { onMove(0f, 48 * density); onDragEnd(); true }) }
+                .pointerInput(Unit) {
+                    detectDragGesturesAfterLongPress(onDragStart = { onDragStart() }, onDragEnd = onDragEnd, onDragCancel = onDragEnd) { change, offset ->
+                        change.consume(); onMove(offset.x, offset.y)
+                    }
+                }.clickable(onClickLabel = "Show floating controls", onClick = onReveal)) {
+                LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.fillMaxSize(),
+                    compact = true, textSize = settings.textSizeSp, translationSize = settings.translationSizeSp,
+                    onFollow = onFollow, onRetry = onRetry, minimal = true, shadowText = settings.opacity < .85f)
+            } else {
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Row(Modifier.weight(1f).heightIn(min = 48.dp).then(drag), verticalAlignment = Alignment.CenterVertically) {
@@ -70,16 +91,32 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
                         Text(reader.snapshot?.recording?.title ?: "Singalong", Modifier.padding(start = 8.dp),
                             style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Close floating lyrics", Modifier.size(20.dp)) }
+                    FilledTonalIconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Close floating lyrics", Modifier.size(20.dp)) }
                 }
                 LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null),
                     Modifier.weight(1f), compact = !panel.expanded, textSize = settings.textSizeSp,
-                    translationSize = settings.translationSizeSp, onFollow = onFollow, onRetry = onRetry)
-                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onDock) { Icon(Icons.Outlined.VerticalAlignCenter, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Dock") }
+                    translationSize = settings.translationSizeSp, onFollow = onFollow, onRetry = onRetry, shadowText = settings.opacity < .85f)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FilledTonalIconButton(onClick = onDock) { Icon(Icons.Outlined.VerticalAlignCenter, "Dock lyrics", Modifier.size(20.dp)) }
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onExpand) { Text(if (panel.expanded) "Compact" else "Expand"); Spacer(Modifier.width(6.dp)); Icon(if (panel.expanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore, null, Modifier.size(18.dp)) }
+                    val syncOn = if (reader.experimental) reader.allowUncertainSync else reader.canSync && reader.following
+                    FilledTonalIconToggleButton(checked = syncOn, onCheckedChange = { onSync() }, enabled = reader.canTrySync || syncOn) {
+                        Icon(if (syncOn) Icons.Outlined.Sync else Icons.Outlined.SyncDisabled,
+                            "${if (syncOn) "Turn off" else "Try"} ${if (reader.experimental) "experimental sync" else "lyric following"}", Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Box {
+                        FilledTonalIconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreHoriz, "Floating display options") }
+                        DropdownMenu(menu, { menu = false }) {
+                            DropdownMenuItem(text = { Text(if (settings.minimalMode) "Hide controls · lyrics only" else "Minimal · lyrics only") }, onClick = { menu = false; onMinimal() })
+                            DropdownMenuItem(text = { Text(if (panel.expanded && !settings.minimalMode) "Compact view" else "Expanded view") }, onClick = { menu = false; onExpand() })
+                            DropdownMenuItem(text = { Text(if (syncOn) "Turn sync off" else if (reader.experimental) "Try experimental sync" else "Follow lyrics") },
+                                enabled = reader.canTrySync || syncOn, onClick = { menu = false; onSync() })
+                        }
+                    }
                 }
+            }
+            }
             }
         }
     }

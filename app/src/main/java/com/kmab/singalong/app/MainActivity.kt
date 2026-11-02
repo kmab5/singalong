@@ -40,6 +40,16 @@ class MainActivity : ComponentActivity() {
                         musicAccess = { openSettings(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
                         overlayAccess = { openSettings(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri())) },
                         notificationAccess = ::requestNotifications,
+                        trackingNotificationSettings = {
+                            com.kmab.singalong.tracking.TrackingNotification.ensureChannel(this)
+                            openSettings(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                                .putExtra(Settings.EXTRA_CHANNEL_ID, com.kmab.singalong.tracking.TrackingNotification.CHANNEL))
+                        },
+                        openLink = { url ->
+                            try { startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+                            catch (_: ActivityNotFoundException) { container.message("No browser is available to open this link.") }
+                        },
                     ),
                 )
             }

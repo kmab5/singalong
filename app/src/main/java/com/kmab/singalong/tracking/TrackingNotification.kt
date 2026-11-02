@@ -12,14 +12,21 @@ import com.kmab.singalong.app.MainActivity
 
 object TrackingNotification {
     const val ID = 100
-    private const val CHANNEL = "tracking"
+    const val CHANNEL = "tracking"
+
+    fun ensureChannel(context: Context) {
+        context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel(CHANNEL, "Music tracking", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Silent music tracking and floating lyric controls"
+                setSound(null, null); enableVibration(false); enableLights(false); setShowBadge(false)
+            },
+        )
+    }
 
     // This action updates the service-owned overlay; it never launches an Activity through a trampoline.
     @android.annotation.SuppressLint("LaunchActivityFromNotification")
     fun create(context: Context, tracking: Boolean): Notification {
-        context.getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CHANNEL, "Music tracking", NotificationManager.IMPORTANCE_LOW),
-        )
+        ensureChannel(context)
         val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val showLyrics = PendingIntent.getService(context, 1, Intent(context, TrackingService::class.java)
             .setAction(TrackingService.ACTION_SHOW_OVERLAY), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -34,6 +41,11 @@ object TrackingNotification {
             .setContentIntent(showLyrics)
             .setOngoing(true)
             .setSilent(true)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setLocalOnly(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .addAction(0, "show lyrics", showLyrics)
             .addAction(0, "open app", open)
             .addAction(0, "stop", action(TrackingService.ACTION_STOP, 2))

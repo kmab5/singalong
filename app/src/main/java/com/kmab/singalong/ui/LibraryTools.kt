@@ -83,7 +83,7 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
     } }
     BackHandler { if (dirty) discard = true else close() }
     if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text("Discard unsaved lyrics?") },
-        confirmButton = { TextButton(onClick = ::close) { Text("discard") } }, dismissButton = { TextButton(onClick = { discard = false }) { Text("keep editing") } })
+        confirmButton = { ActionButton(onClick = ::close) { Text("discard") } }, dismissButton = { ActionButton(onClick = { discard = false }) { Text("keep editing") } })
     Scaffold(containerColor = androidx.compose.ui.graphics.Color.Transparent, contentColor = SingalongColors.Text, topBar = {
         TopAppBar(title = { Text(if (id == null) "Add lyrics" else "Your version") },
             navigationIcon = { IconButton(onClick = { if (dirty) discard = true else close() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") } },
@@ -102,9 +102,9 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
             } }
         } }
         AnimatedVisibility(message != null) { GlassPanel { Text(message.orEmpty(), Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium) } }
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(enabled = !busy && !dirty, onClick = { action { val r = recording(); val result = container.manualLookup(r.id, title, artist, album); versions = container.library.versions(r.id); message = if (result == "available") "Choose a matching version below. Timing is manual until you try sync." else lookupMessage(result) } }) { Text("find lyrics") }
-            TextButton(enabled = !busy && !dirty, onClick = { importFile.launch(arrayOf("text/*", "application/octet-stream")) }) { Text("import TXT / LRC") }
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionButton(enabled = !busy && !dirty, onClick = { action { val r = recording(); val result = container.manualLookup(r.id, title, artist, album); versions = container.library.versions(r.id); message = if (result == "available") "Choose a matching version below. Timing is manual until you try sync." else lookupMessage(result) } }) { Text("find lyrics") }
+            ActionButton(enabled = !busy && !dirty, onClick = { importFile.launch(arrayOf("text/*", "application/octet-stream")) }) { Text("import TXT / LRC") }
         }
         if (versions.isNotEmpty()) Box {
             OutlinedButton(enabled = !dirty && !busy, onClick = { chooseVersion = true }, modifier = Modifier.fillMaxWidth()) {
@@ -120,7 +120,7 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
         source?.sourceUrl?.let { Text("Source: $it", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
         if (timed) {
             Text("Timed copy · edit words without adding or removing lines.")
-            TextButton(onClick = { timed = false; dirty = true }) { Text("create an untimed version") }
+            ActionButton(onClick = { timed = false; dirty = true }) { Text("create an untimed version") }
         }
         OutlinedTextField(text, { text = it; dirty = true }, label = { Text(if (timed) "Lyrics · keep line count" else "Lyrics") }, modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp, max = 600.dp),
             shape = RoundedCornerShape(24.dp), textStyle = MaterialTheme.typography.bodyLarge, enabled = !busy,
@@ -173,16 +173,16 @@ fun BackupControls(container: AppContainer) {
     Text("library storage", style = MaterialTheme.typography.titleLarge)
     storageBytes?.let { Text("${it / 1024} KiB of original lyric text · excludes database overhead", style = MaterialTheme.typography.bodySmall) }
     message?.let { Text(it) }
-    FlowRow { TextButton(enabled = !busy, onClick = { export.launch("singalong-backup.json") }) { Text("export backup") }
-        TextButton(enabled = !busy, onClick = { restore.launch(arrayOf("application/json", "text/*")) }) { Text("restore backup") } }
-    FlowRow { TextButton(enabled = !busy, onClick = { clear = "history" }) { Text("clear history") }
-        TextButton(enabled = !busy, onClick = { clear = "downloads" }) { Text("clear downloads") } }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { ActionButton(enabled = !busy, onClick = { export.launch("singalong-backup.json") }) { Text("export backup") }
+        ActionButton(enabled = !busy, onClick = { restore.launch(arrayOf("application/json", "text/*")) }) { Text("restore backup") } }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { ActionButton(enabled = !busy, onClick = { clear = "history" }) { Text("clear history") }
+        ActionButton(enabled = !busy, onClick = { clear = "downloads" }) { Text("clear downloads") } }
     pending?.let { document -> AlertDialog(onDismissRequest = { if (!busy) pending = null }, title = { Text("Restore ${document.songs.size} songs?") },
         text = { Text("Merge saved versions and history. Current settings and selected versions stay unchanged. Tracking will not be enabled.") },
-        confirmButton = { TextButton(enabled = !busy, onClick = { action { val added = container.library.restore(document); pending = null; message = "Restored $added new records. Existing selections and settings retained." } }) { Text("restore") } },
-        dismissButton = { TextButton(enabled = !busy, onClick = { pending = null }) { Text("cancel") } }) }
+        confirmButton = { ActionButton(enabled = !busy, onClick = { action { val added = container.library.restore(document); pending = null; message = "Restored $added new records. Existing selections and settings retained." } }) { Text("restore") } },
+        dismissButton = { ActionButton(enabled = !busy, onClick = { pending = null }) { Text("cancel") } }) }
     clear?.let { kind -> AlertDialog(onDismissRequest = { clear = null }, title = { Text("Clear $kind?") },
         text = { Text(if (kind == "history") "Lyrics and favorites will be retained." else "Favorites, imports and personal edits will be retained. Other downloaded versions will be removed.") },
-        confirmButton = { TextButton(onClick = { clear = null; action { if (kind == "history") container.library.clearHistory() else container.library.clearDownloads(); container.reader.refreshLocal(); message = "$kind cleared." } }) { Text("clear") } },
-        dismissButton = { TextButton(onClick = { clear = null }) { Text("cancel") } }) }
+        confirmButton = { ActionButton(onClick = { clear = null; action { if (kind == "history") container.library.clearHistory() else container.library.clearDownloads(); container.reader.refreshLocal(); message = "$kind cleared." } }) { Text("clear") } },
+        dismissButton = { ActionButton(onClick = { clear = null }) { Text("cancel") } }) }
 }

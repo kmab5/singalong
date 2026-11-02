@@ -23,10 +23,22 @@ class OverlayGeometryTest {
         assertTrue(left.width >= 96)
         assertTrue(left.height > left.width)
     }
-    @Test fun rotationAndLargeFontsStayWithinAvailableSpace() {
+    @Test fun rotationStaysWithinAvailableSpace() {
         val safe = PanelBounds(40, 30, 500, 250)
         val actual = OverlayGeometry.bounds(OverlayState().show().copy(expanded = true),
-            AppSettings(widthDp = 560f, heightDp = 640f, xFraction = 1f, yFraction = 1f), safe, 3f, 2f)
+            AppSettings(widthDp = 560f, heightDp = 640f, xFraction = 1f, yFraction = 1f), safe, 3f)
         assertEquals(safe, actual)
+    }
+    @Test fun minimalModeHonorsSmallBoundsAndRevealingControlsDoesNotOverwriteThem() {
+        val safe = PanelBounds(0, 40, 1080, 2200)
+        val settings = AppSettings(minimalMode = true, widthDp = 160f, minimalHeightDp = 56f, heightDp = 120f)
+        val panel = OverlayState().show()
+        val minimal = OverlayGeometry.bounds(panel, settings, safe, 3f)
+        assertEquals(480, minimal.width)
+        assertEquals(168, minimal.height)
+        val controls = OverlayGeometry.bounds(panel.copy(controlsVisible = true), settings, safe, 3f)
+        assertEquals(minimal.width, controls.width)
+        assertTrue(controls.height >= 660)
+        assertEquals(minimal, OverlayGeometry.bounds(panel, settings, safe, 3f))
     }
 }

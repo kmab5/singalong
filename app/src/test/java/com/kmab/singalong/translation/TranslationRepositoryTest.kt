@@ -7,6 +7,28 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TranslationRepositoryTest {
+    @Test fun partialResultsAreValidatedAndNeverPersistedAsACompleteVersion() = runTest {
+        var saved: TranslationRecord? = null
+        val original = LyricsEditor.import("r", "Bir\nİki")
+        val partial = TranslationRecord(original.id, original.contentHash, "fixture", "tr", mapOf(original.lines.first().id to "One"), "Fixture")
+        val received = mutableListOf<TranslationRecord>()
+        val repository = TranslationRepository(object : TranslationStore {
+            override suspend fun translation(versionId: String) = saved
+            override suspend fun saveTranslation(record: TranslationRecord) { saved = record }
+        }, object : ProgressiveTranslationProvider {
+            override val id = "fixture"
+            override suspend fun translate(version: LyricVersion) = error("Use progressive translation")
+            override suspend fun translateProgressively(version: LyricVersion, online: Boolean, onProgress: suspend (TranslationRecord) -> Unit): TranslationResult {
+                onProgress(partial.copy(versionId = "another version"))
+                onProgress(partial.copy(lines = mapOf("unknown" to "Wrong line")))
+                onProgress(partial)
+                return TranslationResult.Unavailable
+            }
+        })
+        assertEquals(TranslationResult.Unavailable, repository.resolve(original, true, true, false) { received += it })
+        assertEquals(listOf(partial), received)
+        assertNull(saved)
+    }
     @Test fun optInAndOpenedGateNetworkAndValidatedCacheSurvivesOffline() = runTest {
         var calls = 0
         var cache: TranslationRecord? = null

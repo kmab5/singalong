@@ -1,10 +1,12 @@
 package com.kmab.singalong.translation
 
 import com.kmab.singalong.editor.LyricsEditor
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import okhttp3.mockwebserver.*
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class MyMemoryProviderTest {
     private class Cache(var allowance: Int = 5000) : SegmentCache {
@@ -15,6 +17,48 @@ class MyMemoryProviderTest {
         override suspend fun reserve(characters: Int): Boolean {
             if (reserved + characters > allowance) return false
             reserved += characters; return true
+        }
+    }
+    @Test fun publishesBeforeSlowSegmentsFinishAndLimitsEachBatchToTwoRequests() = runBlocking {
+        MockWebServer().use { server ->
+            val secondStarted = CountDownLatch(1)
+            val releaseSecond = CountDownLatch(1)
+            server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse {
+                    val text = request.requestUrl!!.queryParameter("q")
+                    if (text == "İki") {
+                        secondStarted.countDown()
+                        check(releaseSecond.await(5, TimeUnit.SECONDS))
+                    }
+                    return MockResponse().setBody("""{"responseStatus":200,"responseData":{"translatedText":"Meaning $text"}}""")
+                }
+            }
+            val provider = MyMemoryProvider(LanguageDetector { "tr" }, Cache(), baseUrl = server.url("/get").toString())
+            val original = LyricsEditor.import("r", "Bir\nİki\nÜç")
+            val first = CompletableDeferred<TranslationRecord>()
+            val result = async { provider.translateProgressively(original, true) { first.complete(it) } }
+            try {
+                val partial = withTimeout(5000) { first.await() }
+                assertEquals(1, partial.lines.size)
+                assertTrue(withContext(Dispatchers.IO) { secondStarted.await(5, TimeUnit.SECONDS) })
+                assertEquals(2, server.requestCount)
+                assertFalse(result.isCompleted)
+            } finally { releaseSecond.countDown() }
+            val complete = withTimeout(5000) { result.await() } as TranslationResult.Available
+            assertEquals(3, complete.record.lines.size)
+            assertEquals(3, server.requestCount)
+        }
+    }
+    @Test fun cachedSegmentsAfterMissingLinesAppearOfflineWithoutQuotaOrNetworkUse() = runBlocking {
+        MockWebServer().use { server ->
+            val cache = Cache().apply { lines["tr:İki"] = "Two" }
+            val original = LyricsEditor.import("r", "Bir\nİki\nİki")
+            val received = mutableListOf<TranslationRecord>()
+            val provider = MyMemoryProvider(LanguageDetector { "tr" }, cache, baseUrl = server.url("/get").toString())
+            assertEquals(TranslationResult.Unavailable, provider.translateProgressively(original, false) { received += it })
+            assertEquals(original.lines.drop(1).map { it.id }.toSet(), received.single().lines.keys)
+            assertEquals(0, server.requestCount)
+            assertEquals(0, cache.reserved)
         }
     }
     @Test fun repeatedLinesReuseTranslationAndKeepOriginalLineIds() = runBlocking {

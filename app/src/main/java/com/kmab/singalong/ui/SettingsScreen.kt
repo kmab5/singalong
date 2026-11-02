@@ -35,15 +35,15 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
     BackHandler(page != "index") { page = "index" }
     if (consent) AlertDialog(onDismissRequest = { consent = false }, title = { Text("Translate opened lyrics?") },
         text = { Text("MyMemory receives each lyric line and stores submitted text on its servers. English translations are saved on this phone with the original lyrics. Its free daily limit may interrupt translation. Original lyrics stay available.") },
-        confirmButton = { TextButton(onClick = { consent = false; container.translation(true) }) { Text("Enable translations") } },
-        dismissButton = { TextButton(onClick = { consent = false }) { Text("Not now") } })
+        confirmButton = { ActionButton(onClick = { consent = false; container.translation(true) }) { Text("Enable translations") } },
+        dismissButton = { ActionButton(onClick = { consent = false }) { Text("Not now") } })
     AnimatedContent(page, Modifier.weight(1f), transitionSpec = {
         (fadeIn(SingalongMotion.tween()) + slideInHorizontally { it / 12 }) togetherWith fadeOut(SingalongMotion.tween())
     }, label = "Settings page") { section ->
         LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
             item {
-                if (section != "index") TextButton(onClick = { page = "index" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, null); Spacer(Modifier.width(8.dp)); Text("Settings") }
-                PageHeading(when (section) { "access" -> "Music access"; "players" -> "Music apps"; "appearance" -> "Look & feel"; "translation" -> "English subtext"; "storage" -> "Library & backup"; else -> "Your setup" })
+                if (section != "index") ActionButton(onClick = { page = "index" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, null); Spacer(Modifier.width(8.dp)); Text("Settings") }
+                PageHeading(when (section) { "access" -> "Music access"; "players" -> "Music apps"; "appearance" -> "Look & feel"; "translation" -> "English subtext"; "storage" -> "Library & backup"; "about" -> "About Singalong"; else -> "Your setup" })
             }
             when (section) {
                 "index" -> {
@@ -58,6 +58,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     item { SettingsLink("Look & feel", "Lyric size, glass and edge position", Icons.Outlined.Palette) { page = "appearance" } }
                     item { SettingsLink("English subtext", "Optional translations beneath the original", Icons.Outlined.Translate) { page = "translation" } }
                     item { SettingsLink("Library & backup", "Export, restore and manage saved words", Icons.Outlined.FolderOpen) { page = "storage" } }
+                    item { SettingsLink("About Singalong", "App details, credits and feedback", Icons.Outlined.Info) { page = "about" } }
                     item { Text("Singalong · by KMAB", Modifier.padding(8.dp), style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted) }
                 }
                 "access" -> {
@@ -65,6 +66,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     item { PermissionRow("Music access", permissions.music, actions.musicAccess) }
                     item { PermissionRow("Display over other apps", permissions.overlay, actions.overlayAccess) }
                     item { PermissionRow("Notifications", permissions.notifications, actions.notificationAccess) }
+                    item { SettingsLink("Quiet tracking notification", "Silent while tracking. Status-bar visibility follows your phone's notification settings.", Icons.Outlined.NotificationsOff, actions.trackingNotificationSettings) }
                     item { ToggleSetting("Download on Wi-Fi only", "Saved lyrics remain available on any connection.", settings.wifiOnly, container::wifiOnly) }
                     item { Text("Open Singalong after restarting your phone to resume tracking.", Modifier.padding(8.dp), style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
                 }
@@ -76,18 +78,21 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                         .filter { it.label.contains(query, true) || it.packageName.contains(query, true) }
                     items(apps, key = { it.packageName }) { app ->
                         GlassPanel { Row(Modifier.fillMaxWidth().clickable { container.allowPlayer(app.packageName, app.packageName !in settings.allowedPlayers) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f).padding(start = 4.dp)) { Text(app.label, style = MaterialTheme.typography.titleMedium); Text(app.packageName, style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted) }
+                            PlayerIcon(app.packageName)
+                            Column(Modifier.weight(1f).padding(start = 12.dp)) { Text(app.label, style = MaterialTheme.typography.titleMedium); Text(app.packageName, style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted) }
                             Checkbox(app.packageName in settings.allowedPlayers, { container.allowPlayer(app.packageName, it) }, Modifier.semantics { contentDescription = "Follow ${app.label}" })
                         } }
                     }
                 }
                 "appearance" -> {
                     item { PreviewLyricsPanel(settings.translationEnabled, Modifier.fillMaxWidth(), textSize = settings.textSizeSp, translationSize = settings.translationSizeSp) }
-                    item { SettingSlider("Lyric size", settings.textSizeSp, 18f..32f, "${settings.textSizeSp.roundToInt()} sp", container::textSize) }
-                    item { SettingSlider("Glass opacity", settings.opacity, .85f.. .96f, "${(settings.opacity * 100).roundToInt()}%", container::opacity) }
-                    item { Text("Background blur follows your phone's settings. A solid panel keeps words readable when blur is unavailable.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
-                    item { SettingSlider("Floating width", settings.widthDp, 280f..520f, "${settings.widthDp.roundToInt()}", { container.geometry(settings.xFraction, settings.yFraction, it, settings.heightDp) }) }
-                    item { SettingSlider("Expanded height", settings.heightDp.coerceAtLeast(420f), 420f..640f, "${settings.heightDp.coerceAtLeast(420f).roundToInt()}", { container.geometry(settings.xFraction, settings.yFraction, settings.widthDp, it) }) }
+                    item { ToggleSetting("Minimal floating lyrics", "Only the words. Tap to reveal controls; long-press and drag to move.", settings.minimalMode, container::minimalPanel) }
+                    item { SettingSlider("Lyric size", settings.textSizeSp, 12f..32f, "${settings.textSizeSp.roundToInt()} sp", container::textSize) }
+                    item { SettingSlider("Glass opacity", settings.opacity, .20f.. .96f, "${(settings.opacity * 100).roundToInt()}%", container::opacity) }
+                    item { Text("Background blur follows your phone's settings. A text shadow helps at lower opacity; readability also depends on the app underneath.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
+                    item { SettingSlider("Floating width", settings.widthDp, 160f..560f, "${settings.widthDp.roundToInt()} dp", { container.geometry(settings.xFraction, settings.yFraction, it, settings.heightDp) }) }
+                    item { SettingSlider("Floating height", settings.heightDp, 120f..640f, "${settings.heightDp.roundToInt()} dp", { container.geometry(settings.xFraction, settings.yFraction, settings.widthDp, it) }) }
+                    item { SettingSlider("Minimal height", settings.minimalHeightDp, 56f..240f, "${settings.minimalHeightDp.roundToInt()} dp", container::minimalHeight) }
                     item { GlassPanel { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Edge handle", style = MaterialTheme.typography.titleMedium)
                         Text("Dock the lyrics, then tap or swipe the tab inward to reopen. Drag it up or down to move it.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
@@ -102,10 +107,10 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                 "translation" -> {
                     item { ToggleSetting("English beneath the original", "Translate only lyrics you open. Originals always appear first.", settings.translationEnabled,
                         { if (it) consent = true else container.translation(false) }) }
-                    item { SettingSlider("English text size", settings.translationSizeSp, 14f..22f, "${settings.translationSizeSp.roundToInt()} sp", container::translationSize) }
+                    item { SettingSlider("English text size", settings.translationSizeSp, 10f..22f, "${settings.translationSizeSp.roundToInt()} sp", container::translationSize) }
                     item { GlassPanel { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("MyMemory", style = MaterialTheme.typography.titleMedium)
-                        Text("Online English translations, saved for offline reading. Language detection happens on this phone.", color = SingalongColors.Muted)
+                        Text("English lines appear as they arrive, with repeated lines reused. Translations are saved for offline reading. Language detection happens on this phone.", color = SingalongColors.Muted)
                         Text("MyMemory stores submitted text. Its anonymous allowance is limited; unavailable translations never hide the original lyrics.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
                     } } }
                 }
@@ -117,6 +122,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                         Text("Each saved version keeps its source. Coverage varies by song.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
                     } } }
                 }
+                "about" -> item { AboutContent(actions.openLink) }
             }
         }
     }

@@ -20,11 +20,11 @@ android {
         applicationId = "com.kmab.singalong"
         minSdk = 31
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.3.0-feedback"
+        versionCode = 5
+        versionName = "0.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     signingConfigs {
         create("release") {
             releaseSigning.getProperty("storeFile")?.let { storeFile = rootProject.file(it) }

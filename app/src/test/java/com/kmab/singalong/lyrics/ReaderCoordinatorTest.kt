@@ -13,16 +13,78 @@ import org.junit.Test
 class ReaderCoordinatorTest {
     private class Store : LyricsStore, ReaderStore {
         val saved = mutableMapOf<String, List<LyricVersion>>()
+        val adjustments = mutableMapOf<String, AdjustmentEntity>()
         override suspend fun selectedVersion(recordingId: String) = saved[recordingId]?.firstOrNull()
         override suspend fun saveCandidates(recording: Recording, versions: List<LyricVersion>) { saved[recording.id] = versions }
         override suspend fun setLookupStatus(recordingId: String, status: String) = Unit
         override suspend fun versions(recordingId: String) = saved[recordingId].orEmpty()
         override suspend fun selectVersion(recordingId: String, versionId: String) = Unit
-        override suspend fun adjustment(versionId: String) = AdjustmentEntity(versionId)
-        override suspend fun adjust(value: AdjustmentEntity) = Unit
+        override suspend fun adjustment(versionId: String) = adjustments[versionId] ?: AdjustmentEntity(versionId)
+        override suspend fun adjust(value: AdjustmentEntity) { adjustments[value.versionId] = value }
     }
     private fun snapshot(id: String, position: Long? = 0) = PlaybackSnapshot("session", "player", "Player",
         Recording(id, id, listOf("Artist"), "Album", 120_000), PlaybackStatus.PLAYING, position, 0, 1f)
+
+    @Test fun aSingleUntimedVersionOffersOptionalPersistentSyncAndFineAdjustment() = runTest {
+        val store = Store()
+        val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(
+            ProviderSong(1, recording.title, "Artist", "Album", 120.0, plainLyrics = "First\nOther"))) }
+        val current = MutableStateFlow<PlaybackSnapshot?>(snapshot("A", 20_000).copy(status = PlaybackStatus.PAUSED))
+        val reader = ReaderCoordinator(backgroundScope, current, store, LyricsRepository(store, provider), { true }, { 0 })
+        reader.visible(true); runCurrent()
+        assertEquals(1, reader.state.value.candidates.size)
+        assertTrue(reader.state.value.canTrySync)
+        assertFalse(reader.state.value.canSync)
+        val original = reader.state.value.version!!
+        reader.toggleSync(); runCurrent()
+        assertTrue(reader.state.value.estimated)
+        assertTrue(store.adjustments[original.id]!!.allowUncertainSync)
+        reader.adjust(50); runCurrent()
+        assertEquals(50, reader.state.value.delayMs)
+        reader.alignLine(1); runCurrent()
+        assertEquals(-40_000, reader.state.value.delayMs)
+        assertEquals(-40_000, store.adjustments[original.id]!!.delayMs)
+        reader.refreshLocal(); runCurrent()
+        assertTrue(reader.state.value.estimated)
+        reader.toggleSync(); runCurrent()
+        assertFalse(reader.state.value.canSync)
+        assertFalse(store.adjustments[original.id]!!.allowUncertainSync)
+        assertEquals(original, reader.state.value.version)
+        assertTrue(original.lines.all { it.startMs == null })
+        current.value = current.value!!.let { it.copy(recording = it.recording!!.copy(durationMs = null)) }; runCurrent()
+        reader.experimentalSync(true)
+        assertFalse(reader.state.value.canTrySync)
+        assertFalse(reader.state.value.canSync)
+    }
+
+    @Test fun refreshingSameVersionKeepsProgressAndDoesNotRestartTranslation() = runTest {
+        val store = Store()
+        val finish = CompletableDeferred<Unit>()
+        var calls = 0
+        val translations = TranslationRepository(object : TranslationStore {
+            override suspend fun translation(versionId: String): TranslationRecord? = null
+            override suspend fun saveTranslation(record: TranslationRecord) = Unit
+        }, object : ProgressiveTranslationProvider {
+            override val id = "fixture"
+            override suspend fun translate(version: LyricVersion) = error("Use progressive translation")
+            override suspend fun translateProgressively(version: LyricVersion, online: Boolean, onProgress: suspend (TranslationRecord) -> Unit): TranslationResult {
+                calls++
+                onProgress(TranslationRecord(version.id, version.contentHash, id, "tr", mapOf(version.lines.first().id to "First"), "Fixture"))
+                finish.await()
+                return TranslationResult.Unavailable
+            }
+        })
+        val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(
+            ProviderSong(1, recording.title, "Artist", "Album", 120.0, plainLyrics = "Bir\nİki"))) }
+        val reader = ReaderCoordinator(backgroundScope, MutableStateFlow(snapshot("A")), store, LyricsRepository(store, provider), { true }, { 0 }, translations) { true }
+        reader.visible(true); runCurrent()
+        assertEquals(1, reader.state.value.translation!!.lines.size)
+        reader.refreshLocal(); runCurrent()
+        assertEquals(1, calls)
+        assertEquals(1, reader.state.value.translation!!.lines.size)
+        finish.complete(Unit); runCurrent()
+        assertEquals(1, reader.state.value.translation!!.lines.size)
+    }
 
     @Test fun lateResultCannotReplaceNewSongAndNewSongClearsOldWords() = runTest {
         val releaseA = CompletableDeferred<Unit>()
@@ -82,12 +144,15 @@ class ReaderCoordinatorTest {
         val translations = TranslationRepository(object : TranslationStore {
             override suspend fun translation(versionId: String): TranslationRecord? = null
             override suspend fun saveTranslation(record: TranslationRecord) = Unit
-        }, object : TranslationProvider {
+        }, object : ProgressiveTranslationProvider {
             override val id = "fixture"
-            override suspend fun translate(version: LyricVersion): TranslationResult {
+            override suspend fun translate(version: LyricVersion) = error("Use progressive translation")
+            override suspend fun translateProgressively(version: LyricVersion, online: Boolean, onProgress: suspend (TranslationRecord) -> Unit): TranslationResult {
                 withContext(NonCancellable) { pending.await() }
-                return TranslationResult.Available(TranslationRecord(version.id, version.contentHash, id, "ja",
-                    version.lines.associate { it.id to "English ${version.recordingId}" }, "Fixture"))
+                val translated = TranslationRecord(version.id, version.contentHash, id, "ja",
+                    version.lines.associate { it.id to "English ${version.recordingId}" }, "Fixture")
+                onProgress(translated)
+                return TranslationResult.Available(translated)
             }
         })
         val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(

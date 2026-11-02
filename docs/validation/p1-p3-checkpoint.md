@@ -1,5 +1,7 @@
 # P1–P3 source checkpoint
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 Date: 2026-11-01. Requested scope: implement P1, P2 and P3, commit and push. The user's instruction to skip builds/device verification and use the existing SDK remains in force. No Gradle, lint, emulator, SDK installation, APK installation or test-execution commands were run for this checkpoint.
 
 Implementation commit: `1388692` on `feat/p0-foundation` (the existing development branch retained for continuity). This checkpoint records source delivery, not passed M1/M2/M3 acceptance.

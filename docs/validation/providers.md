@@ -1,5 +1,7 @@
 # provider feasibility — p0
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 The sections below record the original November 1 assessment. The November 2 phone-feedback revision supersedes its translation-unavailable disposition; see the update at the end and the [feedback checkpoint](feedback-checkpoint.md).
 
 ## LRCLIB

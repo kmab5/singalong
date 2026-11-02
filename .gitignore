@@ -12,3 +12,4 @@
 /.signing/
 /signing.properties
 feedback/
+**/__pycache__/

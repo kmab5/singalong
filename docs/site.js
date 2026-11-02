@@ -56,4 +56,23 @@
     showLine();
   });
   translation.addEventListener("change", showLine);
+  const download = document.querySelector("#apk-download");
+  const releaseStatus = document.querySelector("#release-status");
+  fetch("https://api.github.com/repos/kmab5/singalong/releases?per_page=100", {
+    headers: { Accept: "application/vnd.github+json" },
+    signal: AbortSignal.timeout(5000),
+  }).then((response) => {
+    if (!response.ok) throw new Error("Release lookup unavailable");
+    return response.json();
+  }).then((releases) => {
+    const release = releases.find((item) => !item.draft && !item.prerelease &&
+      item.assets?.some((asset) => asset.name === "singalong.apk"));
+    const asset = release?.assets.find((item) => item.name === "singalong.apk");
+    if (!asset?.browser_download_url?.startsWith("https://github.com/kmab5/singalong/releases/download/")) return;
+    download.href = asset.browser_download_url;
+    download.textContent = `Download APK · ${release.tag_name}`;
+    releaseStatus.textContent = "Android 12 and newer. Signed with the same release key for updates. Checksums and source are on GitHub Releases.";
+  }).catch(() => {
+    releaseStatus.textContent = "Android 12 and newer. Open GitHub Releases to check available APKs.";
+  });
 })();

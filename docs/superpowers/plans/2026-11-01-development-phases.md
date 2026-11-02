@@ -1,5 +1,7 @@
 # singalong — development phases and checkpoints
 
+> Historical design/plan snapshot. Later accepted scope and current release instructions are in the [documentation index](../../README.md). Preserve this record as dated evidence.
+
 Status: P0–P5 source implemented; P6 automated build/unit/lint checks passed and signed release candidate delivered. Device and instrumented acceptance pending user phone tests. See [P6 checkpoint](../../validation/p6-checkpoint.md).
 
 This roadmap sequences the [implementation tasks](2026-11-01-singalong.md) against the [confirmed design](../specs/2026-11-01-singalong-design.md). It adds delivery checkpoints without changing confirmed product behavior.

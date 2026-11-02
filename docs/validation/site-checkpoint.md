@@ -1,5 +1,7 @@
 # Landing-page verification
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 Static HTML/CSS/JavaScript lives directly in `docs/`. The existing app icon is exported with its original geometry; the wordmark uses outlined Inter glyphs. SVG and transparent PNG copies in `docs/assets/` and `public/docs/` are byte-identical. WOFF2 fonts and their license notices are hosted locally. No personal feedback screenshots or real lyric/provider data are used.
 
 The frontend-design and ui-ux-pro-max guidance was applied to the accepted dark glass/purple direction. The interactive panel uses labelled original sample text and demonstrates floating/minimal/docked modes, edge restore, a next-line action and optional English subtext. Source/setup and feedback actions target real repository/form links; no fabricated APK/store URL is present.

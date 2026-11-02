@@ -1,5 +1,7 @@
 # P6 automated validation and signed candidate
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 Date: 2026-11-01. The user authorized builds, lint, unit tests and release signing. Physical testing remains with the user. No emulator, system image or SDK package was installed.
 
 ## Results

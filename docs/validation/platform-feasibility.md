@@ -1,5 +1,7 @@
 # p0 platform feasibility
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 Updated 2026-11-01. **Source implemented; M0 verification deferred by explicit user direction.**
 
 ## user direction during implementation

@@ -1,5 +1,7 @@
 # Compact controls: 0.3.1
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 ## Implemented source
 
 - Minimal floating mode shows only lyrics/subtext. Tap reveals controls; long-press drag moves the window. Accessible actions reveal, dock, close and move it. The existing edge handle remains available. Mode and minimal height persist; revealing controls temporarily grows the window without rewriting saved dimensions.

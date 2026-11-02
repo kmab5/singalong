@@ -1,5 +1,7 @@
 # P4–P5 source checkpoint
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 Source implemented; compilation, lint, test execution, migrations, screenshots and physical-device acceptance remain unverified at the user's instruction. No SDK package or emulator was installed. M4/M5 are not claimed passed.
 
 ## P4

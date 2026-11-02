@@ -1,0 +1,15 @@
+# Privacy and external services
+
+Singalong reads metadata and playback position from music apps you select. It does not capture playback audio or record the microphone. Audio recognition is not implemented. Lyrics, translations, history, favorites and edits are stored in the app's local database. Android backup is disabled; exporting a backup is an explicit action.
+
+Online lyric lookup sends song search details, including supported filename-derived hints, to LRCLIB and lyrics.ovh. Their servers see normal network information such as IP address. Downloaded lyrics retain source attribution and are not bundled with the APK or published through this repository.
+
+Optional English translation sends lyric text to MyMemory after consent. MyMemory stores submitted text and applies its own limits and [terms](https://mymemory.translated.net/terms-and-conditions). Originals remain available when translation is disabled or unavailable.
+
+Language identification uses Google's ML Kit on this device. Google states that input text and identification results are processed locally, but the SDK may contact Google for updates and send usage/performance metrics. See [ML Kit terms and privacy](https://developers.google.com/ml-kit/terms). Singalong has no separate application analytics service; this does not mean third-party SDKs or providers make no network requests.
+
+One bounded uncaught Java/Kotlin crash log is kept in private no-backup storage. It includes app/Android versions, timestamp, exception types and code locations; exception messages, song details and lyrics are excluded. On the next launch, a prompt offers review and export. Logs are not uploaded automatically. Choosing feedback opens the kmab form; the user attaches the exported log and submits it there. Native crashes, operating-system kills and all possible ANRs are not guaranteed to be captured by this handler.
+
+The static GitHub Pages site has no app analytics or third-party fonts. Its download section checks public GitHub release metadata; GitHub's hosting/API terms apply. The feedback form is a separate service with its own submission and attachment handling.
+
+Use Settings → Library & backup to export or clear supported data. Clearing Android app storage removes local settings and content. Keep backups you want to retain before doing so.

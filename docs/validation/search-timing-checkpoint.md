@@ -1,5 +1,7 @@
 # 0.3.3: filename search and optional line timing
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 ## Implemented source
 
 - Automatic and manual lyric search share a bounded query planner. It understands common audio/video file extensions, underscores, numbered prefixes, bracketed upload decorations, `Artist - Title`, title-first names when the known artist corroborates them, and `Artist - Album - 03 - Title`.

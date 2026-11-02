@@ -1,5 +1,7 @@
 # Retry stability and the singalong landing page
 
+> Historical design/plan snapshot. Later accepted scope and current release instructions are in the [documentation index](../../README.md). Preserve this record as dated evidence.
+
 User-authorized follow-up: Musicolet song changes and missing-song retries can terminate the app, with or without the overlay. A log supplied during investigation confirms `NetworkOnMainThreadException` while canceling a pending request. Its map ID matches the saved 0.3.1 mapping and resolves to `LrclibClient.search` closing the response on main. Keep verification of the fix on the phone separate from the regression tests.
 
 ## Android

@@ -303,8 +303,9 @@
           </div>
           <a
             class="button secondary"
-            href="https://github.com/kmab5/singalong#build-and-release-signing"
-            >Source &amp; build guide <span aria-hidden="true">↗</span></a
+            id="apk-download"
+            href="https://github.com/kmab5/singalong/releases"
+            >View APK releases <span aria-hidden="true">↗</span></a
           >
         </div>
         <ol class="steps">
@@ -333,9 +334,9 @@
             </p>
           </li>
         </ol>
-        <p class="build-note">
-          Build the personal Android app from the repository. Setup instructions
-          are included.
+        <p class="build-note" id="release-status" aria-live="polite">
+          Android 12 and newer. Signed APKs are published on GitHub Releases.
+          The first public release is being prepared.
         </p>
       </section>
       <section class="details shell" aria-label="Things to know">
@@ -362,6 +363,7 @@
               Song titles and artists are sent to lyric providers. If you enable
               English subtext, opened lyric text is sent to MyMemory, which
               stores submitted text. Language detection happens on your phone.
+              Google's ML Kit SDK may send usage and performance metrics.
               This website has no analytics.
             </p>
           </details>

@@ -1,5 +1,7 @@
 # November 2 phone-feedback revision
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 Historical `0.3.0-feedback` evidence. The [0.3.1 checkpoint](compact-controls-checkpoint.md) supersedes sizing, opacity, sync and translation behavior below.
 
 ## Implemented source

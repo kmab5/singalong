@@ -1,5 +1,7 @@
 # singalong — personal Android app design
 
+> Historical design/plan snapshot. Later accepted scope and current release instructions are in the [documentation index](../../README.md). Preserve this record as dated evidence.
+
 Status: scope confirmed by the user on 2026-11-01; implementation has not started.
 
 ## Purpose and release boundary

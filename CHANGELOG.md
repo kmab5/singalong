@@ -1,0 +1,23 @@
+# Changelog
+
+## 1.0.0-rc.1 — pending phone acceptance
+
+- Bottom floating controls, tap-to-open Now and adaptive missing-lyrics docking/recovery.
+- Independent Now typography, alignment, animation and tap-to-focus.
+- Next-launch crash-log prompt with explicit review/export and feedback handoff.
+- Versioned, certificate-verified GitHub signing and release workflows; no public release is claimed yet.
+- GPL v3 with the ML Kit linking permission, privacy/community/release guides and indexed historical evidence.
+
+## 0.3.3 — 2026-11-02
+
+- Filename-aware lyric search preserving original metadata and uncertainty.
+- Optional line timing while keeping simple text editing as the default.
+- Debug/release automated verification: 78 unit tests per variant; phone checks separate.
+
+## 0.3.2 — 2026-11-02
+
+- Moved HTTP response read/close entirely onto OkHttp callbacks to address song-change cancellation crashes.
+- Timed/Untimed version labels, lowercase kmab branding and local crash export.
+- Static landing page with reusable PNG/SVG artwork.
+
+Earlier development and evidence are preserved in the [documentation index](docs/README.md).

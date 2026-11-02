@@ -1,5 +1,7 @@
 # Smart lyric search and optional timing editor
 
+> Historical design/plan snapshot. Later accepted scope and current release instructions are in the [documentation index](../../README.md). Preserve this record as dated evidence.
+
 ## Scope
 
 Implement filename-aware lyric lookup and opt-in line timing on the existing feature branch. Audio recognition is deferred to a future version at the user's request. Do not add audio capture, permissions or service credentials.

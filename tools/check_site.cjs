@@ -56,11 +56,13 @@ const docs = path.join(root, "docs");
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1100 },
     });
+    await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", (route) => route.fulfill({ contentType: "application/json", body: "[]" }));
     page.on("pageerror", (e) => errors.push(String(e)));
     page.on("response", (r) => {
       if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`);
     });
     await page.goto(base, { waitUntil: "networkidle" });
+    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases");
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
       path: path.join(root, "artifacts/site-desktop.png"),
@@ -172,6 +174,18 @@ const docs = path.join(root, "docs");
       /Enable JavaScript/,
     );
     await noJs.close();
+    await page.unroute("https://api.github.com/repos/kmab5/singalong/releases?*");
+    await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify([
+      { tag_name: "v2.0.0-rc.1", prerelease: true, assets: [{ name: "singalong.apk", browser_download_url: "https://github.com/kmab5/singalong/releases/download/v2.0.0-rc.1/singalong.apk" }] },
+      { tag_name: "v1.0.0", prerelease: false, draft: false, assets: [{ name: "singalong.apk", browser_download_url: "https://github.com/kmab5/singalong/releases/download/v1.0.0/singalong.apk" }] },
+    ]) }));
+    await page.reload({ waitUntil: "networkidle" });
+    assert.equal(await page.locator("#apk-download").textContent(), "Download APK · v1.0.0");
+    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/download/v1.0.0/singalong.apk");
+    await page.unroute("https://api.github.com/repos/kmab5/singalong/releases?*");
+    await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", (route) => route.abort());
+    await page.reload({ waitUntil: "networkidle" });
+    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases");
     assert.deepEqual(errors, []);
     console.log(
       JSON.stringify(

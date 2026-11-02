@@ -12,6 +12,8 @@ val releaseSigning = Properties().apply {
     val credentials = rootProject.file("signing.properties")
     if (credentials.exists()) credentials.inputStream().use { load(it) }
 }
+val appVersion = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
+fun signingValue(key: String, environment: String): String? = System.getenv(environment)?.takeIf { it.isNotBlank() } ?: releaseSigning.getProperty(key)
 
 android {
     namespace = "com.kmab.singalong"
@@ -20,17 +22,17 @@ android {
         applicationId = "com.kmab.singalong"
         minSdk = 31
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.3.3"
+        versionCode = appVersion.getProperty("versionCode").toInt()
+        versionName = appVersion.getProperty("versionName")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
     signingConfigs {
         create("release") {
-            releaseSigning.getProperty("storeFile")?.let { storeFile = rootProject.file(it) }
-            storePassword = releaseSigning.getProperty("storePassword")
-            keyAlias = releaseSigning.getProperty("keyAlias")
-            keyPassword = releaseSigning.getProperty("keyPassword")
+            signingValue("storeFile", "SINGALONG_KEYSTORE_PATH")?.let { storeFile = rootProject.file(it) }
+            storePassword = signingValue("storePassword", "ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = signingValue("keyAlias", "ANDROID_KEY_ALIAS")
+            keyPassword = signingValue("keyPassword", "ANDROID_KEY_PASSWORD")
         }
     }
     buildTypes {
@@ -54,10 +56,10 @@ ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
 val verifyReleaseSigning by tasks.registering {
     doLast {
-        check(listOf("storeFile", "storePassword", "keyAlias", "keyPassword").all {
-            !releaseSigning.getProperty(it).isNullOrBlank()
+        check(mapOf("storeFile" to "SINGALONG_KEYSTORE_PATH", "storePassword" to "ANDROID_KEYSTORE_PASSWORD", "keyAlias" to "ANDROID_KEY_ALIAS", "keyPassword" to "ANDROID_KEY_PASSWORD").all { (key, env) ->
+            !signingValue(key, env).isNullOrBlank()
         }) { "Release signing requires local signing.properties. See docs/validation/release-signing.md." }
-        check(rootProject.file(releaseSigning.getProperty("storeFile")).isFile) { "Release keystore is missing. Restore the existing key; do not replace it." }
+        check(rootProject.file(requireNotNull(signingValue("storeFile", "SINGALONG_KEYSTORE_PATH"))).isFile) { "Release keystore is missing. Restore the existing key; do not replace it." }
     }
 }
 tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(verifyReleaseSigning) }

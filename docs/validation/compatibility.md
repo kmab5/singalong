@@ -7,7 +7,7 @@ Target device: Samsung S25 FE, Android 16 (user-reported). Device testing is per
 | Samsung Music | Record on phone | Not tested | Not tested | Not tested | Pending user test |
 | Spotify | Record on phone | Not tested | Not tested | Not tested | Pending user test |
 | SoundCloud | Record on phone | Not tested | Not tested | Not tested | Pending user test |
-| Musicolet | Record on phone | Not tested | Not tested | Not tested | Pending user test |
+| Musicolet | Version not supplied | User exercised song changes; full timing matrix pending | Used inside/outside app, floating open/closed; Settings suppression/recovery being retested | Pending | User reports original crash appears fixed on Singalong 0.3.3 (7); not full compatibility acceptance |
 | AMPlayer | Record on phone | Not tested | Not tested | Not tested | Pending user test |
 
 For each result record date, exact package/version, device/OS, observed behavior and reproduction steps. Media-session information varies by player; this table does not imply universal support. API 31 compatibility and Room migration/recovery tests also remain unverified on hardware. No emulator is installed for this task.

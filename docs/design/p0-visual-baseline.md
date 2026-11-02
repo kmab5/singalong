@@ -1,5 +1,7 @@
 # p0 visual baseline
 
+> Historical design/plan snapshot. Later accepted scope and current release instructions are in the [documentation index](../README.md). Preserve this record as dated evidence.
+
 Status: implemented in Compose source; preview rendering and screenshots deferred at the user's request.
 
 The subject is reading lyrics while another app plays music. Original text is the primary content. The audience is the owner using a phone; the primary action is opening a small lyric panel without replacing the player.

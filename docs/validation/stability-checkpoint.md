@@ -1,5 +1,7 @@
 # 0.3.2: request cancellation stability
 
+> Historical checkpoint: results and APK versions below describe that revision. See the [current documentation index](../README.md) and [pre-merge checkpoint](premerge-checkpoint.md) for later changes and verification.
+
 ## Confirmed cause and source correction
 
 The user's Musicolet crash log shows `NetworkOnMainThreadException` while a song change cancels a pending lookup. Its R8 map ID `c3d42ed4476e4fabc4cdb17f1cae83af8f5c84e7d57b512bcf594100d6110226` matches the archived 0.3.1 mapping. The obfuscated `h7.m.b:461` frame resolves to `LrclibClient.search` at the response `use` boundary; the close chain includes OkHttp's HTTP/2 framing source and a TLS write/flush. This confirms network cleanup running on `Dispatchers.Main.immediate`, independent of whether the overlay is open.

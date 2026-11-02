@@ -1,5 +1,7 @@
 # Singalong Implementation Plan
 
+> Historical design/plan snapshot. Later accepted scope and current release instructions are in the [documentation index](../../README.md). Preserve this record as dated evidence.
+
 > **For agentic workers:** Use the executing-plans skill to implement this plan task-by-task, inline. Steps use checkbox syntax for tracking. Do not dispatch agents unless the user authorizes delegation. This document does not itself authorize starting app implementation.
 
 **Goal:** Deliver the confirmed personal Android lyrics companion with automatic collection, a synchronized floating reader, local editing and backup.

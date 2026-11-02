@@ -1,0 +1,26 @@
+name: Bug report
+description: Report a reproducible problem in Singalong
+body:
+  - type: markdown
+    attributes:
+      value: "For private logs or screenshots, use https://kmab5.github.io/kmab-feedback/?product=singalong&type=bug . Do not post signing credentials, full lyrics or personal listening history here."
+  - type: input
+    id: version
+    attributes:
+      label: Singalong version and build code
+      description: Find these in Settings → About.
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone, Android version, and music app/version
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps and observed behavior
+      description: Include whether floating lyrics was visible, docked or closed, and what you expected.
+    validations:
+      required: true

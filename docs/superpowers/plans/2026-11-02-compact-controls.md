@@ -1,5 +1,7 @@
 # Compact reading and control refinements
 
+> Historical design/plan snapshot. Later accepted scope and current release instructions are in the [documentation index](../../README.md). Preserve this record as dated evidence.
+
 User-authorized follow-up to the phone-feedback revision; keep the accepted visual direction. New feedback images remain local and ignored. Execute inline.
 
 1. Add persisted minimal floating mode: lyric-only surface, tap to reveal actions, drag to move, switch back to compact/expanded. Keep the edge handle and clear accessible exits. Allow 12–32sp originals, 10–22sp translations, 20–96% glass opacity, 160–560dp width, 120–640dp regular height and 56–240dp minimal height. Keep text fully opaque with a shadow at low panel opacity; preserve a readable fallback when blur is unavailable.

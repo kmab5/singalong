@@ -1,0 +1,19 @@
+Additional permission under GNU GPL version 3, section 7
+
+Copyright (C) 2026 Samuel (kmab)
+
+If you modify this Program, or any covered work, by linking or combining it
+with Google's ML Kit Language Identification SDK and the Google Play services
+and ML Kit runtime components required by that SDK (the "Google Components"),
+the copyright holders of this Program grant you additional permission to
+convey the resulting work. You must comply with the licenses and terms of
+the Google Components, and with GNU GPL version 3 for the covered work.
+
+This permission applies only to the Google Components needed for ML Kit
+language identification. It does not exempt other proprietary libraries,
+change the terms of the Google Components, or remove the obligation to
+provide Corresponding Source for the GPL-covered portions of the work.
+
+You may remove this additional permission from your version as allowed by
+GNU GPL version 3, section 7. If you remove it, distribution of a combined
+work must otherwise comply with GNU GPL version 3.

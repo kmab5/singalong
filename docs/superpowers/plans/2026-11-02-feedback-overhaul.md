@@ -1,5 +1,7 @@
 # Phone feedback overhaul
 
+> Historical design/plan snapshot. Later accepted scope and current release instructions are in the [documentation index](../../README.md). Preserve this record as dated evidence.
+
 The user's November 2 feedback authorizes this cross-screen revision beyond the original phase roadmap. Feedback media stays in the ignored local `feedback/` directory. Execute inline; physical verification belongs to the user.
 
 ## Design

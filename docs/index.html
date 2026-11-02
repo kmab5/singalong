@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0e0e11" />
     <meta
       name="description"
-      content="Keep the words close. Singalong is a personal Android companion for floating lyrics, optional English subtext and a library that stays with you."
+      content="Download Singalong for Android. Floating lyrics over your music player, optional English translations and a library you can read offline."
     />
     <meta property="og:title" content="singalong — stay with the song" />
     <meta
@@ -36,42 +36,39 @@
         /><span>singalong<span class="byline">by kmab</span></span></a
       >
       <nav aria-label="Main navigation">
-        <a href="#experience">The experience</a><a href="#start">Get started</a
-        ><a class="nav-source" href="https://github.com/kmab5/singalong"
-          >GitHub <span aria-hidden="true">↗</span></a
+        <a href="#experience">Features</a><a href="#start">Setup</a
+        ><a class="nav-source" data-apk-download href="https://github.com/kmab5/singalong/releases/latest/download/singalong.apk"
+          >Download <span aria-hidden="true">↓</span></a
         >
       </nav>
     </header>
     <main id="main">
       <section class="hero shell" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow">
-            <span class="status-dot" aria-hidden="true"></span> A lyrics
-            companion for Android
-          </p>
+          <a class="release-badge" data-release-link href="https://github.com/kmab5/singalong/releases/tag/v1.0.0">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-release-version>v1.0.0</span> is here <span aria-hidden="true">↗</span>
+          </a>
           <h1 id="hero-title">Stay with<br />the <span>song.</span></h1>
           <p class="intro">
             Your player keeps playing.<br />The words come to you.
           </p>
           <p class="hero-description">
-            A small, floating window for the lines you know,<br
-              class="desktop-break"
-            />
-            and the ones you’re about to learn.
+            Floating lyrics over your music player. Follow the line,
+            find the meaning, and keep your favorites for next time.
           </p>
           <div class="hero-actions">
-            <a class="button primary" href="#demo"
+            <a class="button primary" id="apk-download" data-apk-download href="https://github.com/kmab5/singalong/releases/latest/download/singalong.apk"
+              >Download for Android <span aria-hidden="true">↓</span></a
+            ><a class="button secondary" href="#demo"
               >Try the display <span aria-hidden="true">↘</span></a
-            ><a
-              class="button secondary"
-              href="https://github.com/kmab5/singalong#build-and-release-signing"
-              >Get the source <span aria-hidden="true">↗</span></a
             >
           </div>
-          <p class="availability">
-            Android 12+ <span aria-hidden="true">/</span> Personal app, in
-            active development
-          </p>
+          <p class="availability">Android 12+ <span aria-hidden="true">·</span> <span data-release-size>9.6 MB</span> APK <span aria-hidden="true">·</span> Free to download</p>
+          <div class="release-links">
+            <a data-release-link href="https://github.com/kmab5/singalong/releases/tag/v1.0.0">Release notes &amp; checksums <span aria-hidden="true">↗</span></a>
+            <a href="https://github.com/kmab5/singalong">View source <span aria-hidden="true">↗</span></a>
+          </div>
         </div>
         <div
           class="demo"
@@ -79,8 +76,8 @@
           aria-label="Interactive floating lyrics demonstration"
         >
           <div class="demo-topline">
-            <span class="mono">THE WORDS, WITHIN REACH</span
-            ><span class="demo-index" aria-hidden="true">[ Aa ]</span>
+            <span class="mono">MAKE A LITTLE ROOM FOR THE WORDS</span
+            ><span class="demo-index">Interactive preview</span>
           </div>
           <div class="demo-stage" data-mode="floating">
             <div class="record-art" aria-hidden="true">
@@ -108,9 +105,10 @@
                     <path d="M4 9h16M4 15h16" />
                   </svg>
                   singalong</span
-                ><span class="mono">LYRICS</span>
+                ><span class="mono">FOLLOWING THE LINE</span>
               </div>
               <div class="lyric-content" aria-live="polite" aria-atomic="true">
+                <p class="previous-line" id="sample-previous" aria-hidden="true">Keep the window open. Keep the words close.</p>
                 <p class="active-line" id="sample-line">
                   Let the next line<br />find you here.
                 </p>
@@ -122,8 +120,15 @@
                 </p>
               </div>
               <div class="lyric-footer">
-                <span class="cue-label">Original sample</span
-                ><button
+                <span class="cue-label">Original sample</span>
+                <div class="lyric-tools">
+                  <button class="icon-button" id="demo-dock" type="button" aria-label="Dock sample lyrics" title="Dock lyrics">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 4v16M5 12h10m-4-4 4 4-4 4"/></svg>
+                  </button>
+                  <button class="icon-button" id="demo-expand" type="button" aria-label="Expand sample lyrics" title="Expand lyrics">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M14 5h5v5M19 5l-6 6M10 19H5v-5m0 5 6-6"/></svg>
+                  </button>
+                  <button
                   class="icon-button"
                   id="next-line"
                   aria-label="Show next sample lyric line"
@@ -140,6 +145,7 @@
                     <path d="m9 5 7 7-7 7" />
                   </svg>
                 </button>
+                </div>
               </div>
             </article>
             <button
@@ -169,6 +175,8 @@
             >
               <button type="button" data-mode="floating" aria-pressed="true">
                 Floating</button
+              ><button type="button" data-mode="expanded" aria-pressed="false">
+                Expanded</button
               ><button type="button" data-mode="minimal" aria-pressed="false">
                 Minimal</button
               ><button type="button" data-mode="docked" aria-pressed="false">
@@ -181,9 +189,8 @@
               ></label
             >
           </div>
-          <p class="demo-note">
-            Interactive preview · original sample words, no audio.
-          </p>
+          <p class="mode-description" id="mode-description" aria-live="polite">Your player underneath. Your lyrics within reach.</p>
+          <p class="demo-note">Original sample words. This preview does not play audio.</p>
           <noscript
             ><p class="demo-note">
               Enable JavaScript to try the display controls. This static preview
@@ -196,7 +203,7 @@
         class="player-strip shell"
         aria-label="Music player compatibility"
       >
-        <p>KEEP YOUR PLAYER</p>
+        <p>KEEP THE PLAYER YOU LOVE</p>
         <div>
           <span>Spotify</span><span>Musicolet</span><span>Samsung Music</span
           ><span>SoundCloud</span><span class="muted">and more</span>
@@ -265,9 +272,16 @@
               <h3>Good words are worth keeping.</h3>
               <p>
                 Build a personal library as you listen. Reopen saved lyrics
-                offline, mark favorites, import your own text and make a
-                personal edit.
+                offline, mark favorites, import TXT or LRC files and edit a
+                personal copy. Your originals stay intact.
               </p>
+            </div>
+          </article>
+          <article>
+            <span class="feature-glyph" aria-hidden="true">≡</span>
+            <div>
+              <h3>A reading view that feels like you.</h3>
+              <p>Set the Now tab’s text size, alignment and spacing. Choose a gentle line animation, tap to focus, or turn following off and read at your own pace.</p>
             </div>
           </article>
         </div>
@@ -287,7 +301,8 @@
           <p>
             Follow real timestamps when they’re available. Nudge the timing in
             50ms steps, enter an offset, or align a line with the moment you
-            hear it.
+            hear it. Want to add your own timestamps? Turn on timing editing
+            and set each line; the editor stays simple text by default.
           </p>
           <p class="fine-print">
             Untimed lyrics can use optional experimental sync. It estimates a
@@ -298,23 +313,24 @@
       <section class="setup shell" id="start" aria-labelledby="setup-title">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Make room for the words</p>
+            <p class="eyebrow">Download. Set up. Sing.</p>
             <h2 id="setup-title">Your first singalong.</h2>
           </div>
           <a
-            class="button secondary"
-            id="apk-download"
+            class="button primary"
+            data-apk-download
             href="https://github.com/kmab5/singalong/releases/latest/download/singalong.apk"
-            >Download APK <span aria-hidden="true">↗</span></a
+            >Download for Android <span aria-hidden="true">↓</span></a
           >
         </div>
+        <p class="install-note">Open the downloaded APK on your phone. If Android asks, allow this installation from your browser or file manager. Updating an existing release-signed install keeps your library.</p>
         <ol class="steps">
           <li>
             <span class="step-number">01</span>
             <h3>Choose your players.</h3>
             <p>
-              Allow music access, then pick the apps you want singalong to
-              follow.
+              Enable notification access so Singalong can read what’s playing,
+              then choose the music apps you want it to follow.
             </p>
           </li>
           <li>
@@ -335,8 +351,8 @@
           </li>
         </ol>
         <p class="build-note" id="release-status" aria-live="polite">
-          Android 12 and newer. Signed APKs are published on GitHub Releases.
-          Open GitHub Releases for signed APKs, checksums and source.
+          Android 12 and newer. Signed with the same release key for updates.
+          Release notes, checksums and source are available on GitHub.
         </p>
       </section>
       <section class="details shell" aria-label="Things to know">
@@ -379,13 +395,13 @@
           <details>
             <summary>Something didn’t work?</summary>
             <p>
-              This is a personal app in active development. Use About → Send
+              Use About → Send
               feedback in the app, or
               <a
                 href="https://kmab5.github.io/kmab-feedback/?product=singalong&amp;source=web&amp;type=bug&amp;ctx_screen=landing"
                 >send feedback here</a
-              >. If a crash was recorded, About lets you save its details and
-              attach them yourself.
+              >. After a recorded crash, the next launch offers a log to review
+              and save. Attach it to your report yourself; logs aren’t uploaded automatically.
             </p>
           </details>
         </div>
@@ -434,6 +450,7 @@
       >
       <p>Keep the words close. <span>Made by kmab.</span></p>
       <div>
+        <a data-release-link href="https://github.com/kmab5/singalong/releases/tag/v1.0.0">Releases ↗</a>
         <a href="https://github.com/kmab5/singalong">GitHub ↗</a
         ><a
           href="https://kmab5.github.io/kmab-feedback/?product=singalong&amp;source=web&amp;type=other&amp;ctx_screen=landing"

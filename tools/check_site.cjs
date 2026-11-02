@@ -69,6 +69,14 @@ const docs = path.join(root, "docs");
       fullPage: true,
     });
     assert.equal(await page.locator("h1").innerText(), "Stay with\nthe song.");
+    await page.getByRole("button", { name: "Expand sample lyrics", exact: true }).click();
+    assert.equal(await page.locator(".demo-stage").getAttribute("data-mode"), "expanded");
+    assert.equal(await page.locator("#sample-previous").isVisible(), true);
+    await page.getByRole("button", { name: "Compact sample lyrics", exact: true }).click();
+    assert.equal(await page.locator(".demo-stage").getAttribute("data-mode"), "floating");
+    await page.getByRole("button", { name: "Dock sample lyrics", exact: true }).click();
+    assert.equal(await page.locator("#edge-handle").evaluate(el => el === document.activeElement), true);
+    await page.getByRole("button", { name: "Restore sample floating lyrics" }).click();
     await page.getByRole("button", { name: "Minimal", exact: true }).click();
     assert.equal(
       await page.locator(".demo-stage").getAttribute("data-mode"),
@@ -128,6 +136,22 @@ const docs = path.join(root, "docs");
         return b.bottom > p.bottom + 1;
       });
       assert.equal(clipping, false, `Translated panel clipped at ${width}`);
+      for (const mode of ["Expanded", "Minimal", "Floating"]) {
+        await page.getByRole("button", { name: mode, exact: true }).click();
+        await page.waitForFunction(() => {
+          const panel = document.querySelector(".lyric-window");
+          panel.getBoundingClientRect();
+          return !panel.getAnimations({subtree:true}).some(animation => animation.playState === "running");
+        });
+        assert.ok(await page.locator(".lyric-window").evaluate(el => {
+          const b = el.getBoundingClientRect(), p = el.parentElement.getBoundingClientRect();
+          return b.bottom <= p.bottom + 1 && b.right <= p.right + 1 && b.left >= p.left;
+        }), `${mode} panel clipped at ${width}`);
+      }
+      assert.ok(await page.locator("#apk-download").evaluate(el => {
+        const b = el.getBoundingClientRect();
+        return b.width >= 44 && b.height >= 44 && b.top + window.scrollY < 750;
+      }), `Hero download should be prominent at ${width}`);
       if (width === 390) {
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.screenshot({
@@ -143,6 +167,8 @@ const docs = path.join(root, "docs");
         .evaluate((el) => getComputedStyle(el).transitionDuration),
       "0s",
     );
+    await page.getByRole("button", { name: "Show next sample lyric line" }).click();
+    assert.equal(await page.locator(".lyric-content").evaluate(el => el.getAnimations().length), 0);
     await page.reload({ waitUntil: "networkidle" });
     await page.keyboard.press("Tab");
     assert.equal(
@@ -169,6 +195,8 @@ const docs = path.join(root, "docs");
     });
     await noJs.goto(base, { waitUntil: "networkidle" });
     assert.equal(await noJs.locator("h1").isVisible(), true);
+    assert.ok(await noJs.locator("[data-apk-download]").evaluateAll(nodes =>
+      nodes.length === 3 && nodes.every(node => node.href === "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk")));
     assert.match(
       await noJs.locator("noscript").innerText(),
       /Enable JavaScript/,
@@ -177,11 +205,17 @@ const docs = path.join(root, "docs");
     await page.unroute("https://api.github.com/repos/kmab5/singalong/releases?*");
     await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify([
       { tag_name: "v2.0.0-rc.1", prerelease: true, assets: [{ name: "singalong.apk", browser_download_url: "https://github.com/kmab5/singalong/releases/download/v2.0.0-rc.1/singalong.apk" }] },
-      { tag_name: "v1.0.0", prerelease: false, draft: false, assets: [{ name: "singalong.apk", browser_download_url: "https://github.com/kmab5/singalong/releases/download/v1.0.0/singalong.apk" }] },
+      { tag_name: "v1.1.0", prerelease: false, draft: false, assets: [{ name: "singalong.apk", size: 10100000, browser_download_url: "https://github.com/kmab5/singalong/releases/download/v1.1.0/singalong.apk" }] },
     ]) }));
     await page.reload({ waitUntil: "networkidle" });
-    assert.equal(await page.locator("#apk-download").textContent(), "Download APK · v1.0.0");
-    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/download/v1.0.0/singalong.apk");
+    assert.ok(await page.locator("[data-apk-download]").evaluateAll(nodes => nodes.length === 3 && nodes.every(node => node.href === "https://github.com/kmab5/singalong/releases/download/v1.1.0/singalong.apk")));
+    assert.equal(await page.locator("[data-release-version]").textContent(), "v1.1.0");
+    assert.equal(await page.locator("[data-release-size]").textContent(), "10.1 MB");
+    assert.ok(await page.locator("[data-release-link]").evaluateAll(nodes => nodes.every(node => node.href.endsWith("/releases/tag/v1.1.0"))));
+    await page.unroute("https://api.github.com/repos/kmab5/singalong/releases?*");
+    await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", route => route.fulfill({contentType:"application/json",body:'{"message":"API unavailable"}'}));
+    await page.reload({waitUntil:"networkidle"});
+    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk");
     await page.unroute("https://api.github.com/repos/kmab5/singalong/releases?*");
     await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", (route) => route.abort());
     await page.reload({ waitUntil: "networkidle" });
@@ -194,6 +228,9 @@ const docs = path.join(root, "docs");
           viewports: [320, 390, 768, 1024, 1440],
           checks: [
             "panel modes",
+            "bottom controls and focus on dock",
+            "consistent release downloads and metadata",
+            "malformed response and network fallback",
             "edge restore",
             "subtext",
             "next line",

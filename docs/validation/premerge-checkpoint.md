@@ -16,7 +16,19 @@ Pre-merge work includes version/tag validation, signed CI artifacts, tag-driven 
 
 ## Evidence
 
-Final automated verification and remote signing results are recorded here after execution. Device interaction and acceptance remain with the user; no emulator or SDK packages are installed.
+Verified source commit: `bff224f94826375406f315b659ca628c098ed6b3`, version **1.0.0-rc.1 (8)**. These are automated results, not physical-device acceptance.
+
+- Local Gradle debug/release unit tests, debug/release lint, debug APK, instrumentation APK compilation and signed release APK assembly passed. Each unit-test variant ran 82 tests with zero failures, errors or skips. Lint reported zero errors and 22 warnings per variant: 21 dependency-update notices and one `UseKtx` style suggestion.
+- Five release-tool tests, version/tag validation, 35-file Markdown link check, and actionlint workflow validation passed.
+- Website browser checks passed at widths 320, 390, 768, 1024 and 1440, including keyboard navigation, reduced motion, no JavaScript, release selection and network failure fallback. GitHub Pages deployment passed, and the live page returned HTTP 200 with its release download control.
+- APK signature, package/version, 16 KB ZIP alignment and matching R8 mapping checks passed. All packaged 64-bit native library load segments have at least 16 KB alignment. The local APK is 9,598,421 bytes.
+- Local APK SHA-256: `9a04bc2f080ca73bac00d16493f07bbff6acb8d79fa5197b5b56d7b9310465ec`.
+- Signing certificate SHA-256: `8bbe1da96dd01e32f971d516f1619b67c5a15b5222b40864ad3179f62aef6a04`. This is the existing installation key, also configured in the repository's encrypted Actions secrets. No new key was generated.
+- Local R8 map ID: `b1872a0a11f64cd93570dae3837e305fc40b57e8b1c4bd86403c331f148cd7ec`. The matching mapping and build metadata are packaged beside the APK.
+
+The [candidate CI run](https://github.com/kmab5/singalong/actions/runs/41508618345) passed both debug checks and the signed-candidate job, including release unit tests/lint/build, certificate verification and artifact upload. This exercises the configured GitHub secrets with the existing signing key. Public tag-triggered publication has deliberately not been exercised before release authorization.
+
+Device interaction and acceptance remain with the user. Instrumentation tests were compiled but not executed; no emulator or SDK packages were installed.
 
 ## Phone checks
 

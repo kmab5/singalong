@@ -8,7 +8,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 data class LookupResult(val status: String, val version: LyricVersion? = null, val retryAfterMs: Long? = null)
 
-class LyricsRepository(private val store: LyricsStore, private val provider: LyricsProvider) {
+class LyricsRepository(private val store: LyricsStore, provider: LyricsProvider) {
+    private val search = LyricSearch(provider)
     private val locks = Array(32) { Mutex() }
     private val recent = ConcurrentHashMap<String, Pair<Long, LookupResult>>()
     suspend fun lookup(recording: Recording, permitsNetwork: () -> Boolean, nowMs: () -> Long = System::currentTimeMillis, forceRefresh: Boolean = false): LookupResult =
@@ -24,17 +25,11 @@ class LyricsRepository(private val store: LyricsStore, private val provider: Lyr
                 if (!forceRefresh || cached.retryAfterMs != null)
                     return@withLock cached.copy(retryAfterMs = (deadline - nowMs()).coerceAtLeast(0))
             }
-            val result = when (val response = provider.search(recording)) {
-                is ProviderResult.Failed -> LookupResult(response.reason, retryAfterMs = response.retryAfterMs)
-                is ProviderResult.Songs -> {
-                    val versions = LyricsMatcher.versions(recording, response.songs)
-                    if (versions.isNotEmpty()) {
-                        store.saveCandidates(recording, versions)
-                        LookupResult("available", store.selectedVersion(recording.id))
-                    } else if (response.songs.any { it.instrumental && LyricsMatcher.confidence(recording, it) == MatchConfidence.CONFIDENT })
-                        LookupResult("instrumental") else LookupResult("not_found")
-                }
-            }
+            val response = search.search(recording, permitsNetwork)
+            val result = if (response.versions.isNotEmpty()) {
+                store.saveCandidates(recording, response.versions)
+                LookupResult("available", store.selectedVersion(recording.id))
+            } else LookupResult(response.status, retryAfterMs = response.retryAfterMs)
             store.setLookupStatus(recording.id, result.status)
             if (recent.size > 256) recent.clear()
             if (result.version == null) recent[recording.id] = (nowMs() + (result.retryAfterMs ?: if (result.status in listOf("not_found", "instrumental")) 600_000 else 2_000)) to result

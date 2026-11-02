@@ -165,14 +165,11 @@ class AppContainer(private val context: Context) {
         val recording = requireNotNull(library.recording(id))
         if (!networkAllowed()) return "offline"
         val query = recording.copy(title = title.trim(), artists = listOf(artist.trim()), album = album.ifBlank { null }, durationMs = null)
-        require(query.title.isNotBlank() && artist.isNotBlank()) { "Enter title and artist to search." }
-        return when (val result = provider.search(query)) {
-            is ProviderResult.Failed -> result.reason
-            is ProviderResult.Songs -> {
-                val candidates = LyricsMatcher.versions(query, result.songs).map { it.copy(id = it.id + ":manual", confidence = MatchConfidence.UNCERTAIN) }
-                if (candidates.isEmpty()) "not_found" else { library.saveCandidates(recording, candidates); "available" }
-            }
-        }
+        require(SearchQueries.plan(query).isNotEmpty()) { "Enter a title and artist, or a filename such as Artist - Title.mp3." }
+        val result = LyricSearch(provider).search(query, ::networkAllowed)
+        val candidates = result.versions.map { it.copy(id = it.id + ":manual", confidence = MatchConfidence.UNCERTAIN) }
+        if (candidates.isNotEmpty()) library.saveCandidates(recording, candidates)
+        return result.status
     }
     private fun startService(action: String) {
         try { ContextCompat.startForegroundService(context, Intent(context, TrackingService::class.java).setAction(action)) }

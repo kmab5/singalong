@@ -4,11 +4,13 @@ An Android companion for floating lyrics over your music player. Personal app; m
 
 ## current phase
 
-The latest phone-feedback revision (`0.3.1`) adds minimal floating lyrics, optional estimated sync and finer controls while keeping the glass design. See the [compact-controls checkpoint](docs/validation/compact-controls-checkpoint.md) for current evidence and phone checks. The signed, minified release APK is kept locally at `artifacts/singalong-release.apk`. The [previous feedback checkpoint](docs/validation/feedback-checkpoint.md) and [P6 checkpoint](docs/validation/p6-checkpoint.md) record earlier baselines.
+The latest revision (`0.3.2`) fixes the response-cleanup crash when changing songs or retrying a request, adds Timed/Untimed version labels and keeps local crash details available for manual export. See the [stability checkpoint](docs/validation/stability-checkpoint.md) for evidence and phone checks. The signed, minified release APK is kept locally at `artifacts/singalong-release.apk`. Earlier [compact-controls](docs/validation/compact-controls-checkpoint.md), [feedback](docs/validation/feedback-checkpoint.md) and [P6](docs/validation/p6-checkpoint.md) checkpoints record prior baselines.
+
+The static landing page is in [docs/index.html](docs/index.html); [GitHub Pages setup and site checks](docs/SITE.md) describe hosting and local preview. Downloadable SVG/PNG icons and wordmarks live in `docs/assets/` and `public/docs/`.
 
 Included:
 
-- KMAB dark theme, bundled Inter variable/optical-display typography and PT Mono.
+- kmab dark theme, bundled Inter variable/optical-display typography and PT Mono.
 - Live reader, saved-library browsing, play history and settings.
 - Explicit music/overlay/notification permission flows.
 - User-started foreground service with a `specialUse` declaration on Android 14+.
@@ -24,7 +26,7 @@ Included:
 - Separate close, manual-minimize and 15-second automatic pause-minimize behavior.
 - Notification tap/action opens floating lyrics over the current app; separate actions open Singalong or stop tracking.
 - Silent tracking notification with a channel-settings shortcut. Android controls status-bar icon visibility.
-- About page with version, author, source/privacy details and the KMAB feedback form prefilled for `singalong`. Reports and attachments are submitted by the user in the browser.
+- About page with version, author, source/privacy details and the kmab feedback form prefilled for `singalong`. Reports and attachments are submitted by the user in the browser. A bounded private crash report can be exported manually; it excludes exception messages, song metadata and lyric text.
 - Behavior-focused unit tests and compiled Room/Compose device tests; see the checkpoint for executed checks.
 
 Search, favorites, TXT/LRC import preview, personal timed/untimed editing, version selection, protected cleanup and JSON backup/restore remain available. English subtext uses opt-in MyMemory translation with bundled on-device language detection, a local quota guard, reusable line cache and version-bound saved translations. Original lyrics publish first; cached/new English lines appear progressively, with at most two requests in flight. Same-version refreshes preserve active translation progress. No direct Genius/Musixmatch or key-based integration is included. Sample panels are explicitly labelled previews; runtime readers display actual data or explicit empty/error states.
@@ -73,6 +75,6 @@ No boot receiver or sticky restart is used. The listener may be rebound by Andro
 
 ## assets
 
-Brand colors, typography roles and lambda submark come from [kmab-brand](https://github.com/kmab5/kmab-brand). The Android submark preserves the SVG's path geometry. The app icon uses the lyric-cue motif rather than altering the KMAB logo.
+Brand colors, typography roles and lambda submark follow the kmab visual identity. The Android submark preserves the original SVG's path geometry. The app icon uses a lyric-cue motif; its PNG/SVG exports and outlined wordmark are available in `public/docs/` and on the landing page.
 
 Inter is bundled from [rsms/inter](https://github.com/rsms/inter) and PT Mono from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/ptmono). See `licenses/Inter-OFL.txt` and `licenses/PTMono-OFL.txt`. Inter's optical-size axis provides the display/body distinction. PT Mono is used in its real regular weight, without a fabricated bold file.

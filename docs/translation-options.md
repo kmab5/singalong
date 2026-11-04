@@ -2,6 +2,8 @@
 
 Research only. No provider, SDK, permission, API key or billing change is implemented in this candidate.
 
+The 1.1 source separately adds an explicit **Open in Google Translate** action. It copies the original lyrics, attempts to prefill a browser with English selected, and keeps manual paste available if the receiver ignores the input. This is not a new API provider and does not import translated results. The provider alternatives below remain research only.
+
 ## Why the current translation can stop early
 
 The current MyMemory adapter translates two unique lines at a time and returns on the first failed batch. A line over 500 UTF-8 bytes is rejected. The local cache also reserves against 5,000 characters per day, and completed lines remain visible if a later request fails. Language detection can reject a song before requests start. These are code paths that can explain partial results; no device network trace was supplied to identify which caused each observed song's failure.

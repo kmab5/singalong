@@ -651,6 +651,58 @@ h1 > span {
   gap: 100px;
   padding-block: 80px;
 }
+.release-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  gap: 32px 56px;
+  margin-top: 48px;
+  padding: 36px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--glass);
+}
+.preview-intro .eyebrow {
+  margin-bottom: 16px;
+  line-height: 1.8;
+}
+.preview-intro h2 {
+  font-size: clamp(30px, 3vw, 40px);
+}
+.preview-intro > p:not(.eyebrow),
+.preview-features p,
+.preview-privacy {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.preview-intro > p:not(.eyebrow) {
+  margin-top: 18px;
+}
+.preview-intro .preview-status {
+  color: var(--lilac);
+  font-size: 12px;
+}
+.preview-features {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+.preview-features article {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.preview-features h3 {
+  font-size: 18px;
+}
+.preview-features p {
+  margin-top: 10px;
+}
+.preview-privacy {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  font-size: 12px;
+}
 .section-intro > p:not(.eyebrow) {
   color: var(--muted);
   max-width: 340px;
@@ -992,6 +1044,10 @@ h1 > span {
   }
 }
 @media (max-width: 800px) {
+  .release-preview {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
   .site-header {
     height: 86px;
   }
@@ -1095,6 +1151,14 @@ h1 > span {
   }
 }
 @media (max-width: 480px) {
+  .release-preview {
+    margin-top: 32px;
+    padding: 24px;
+  }
+  .preview-features {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
   .shell {
     width: calc(100% - 40px);
   }

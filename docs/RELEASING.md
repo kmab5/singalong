@@ -1,18 +1,18 @@
 # Releasing Singalong
 
-Merge and publish releases only when the maintainer explicitly approves them. The maintainer authorized the first stable release, v1.0.0 (9), on 2026-11-02. Workflow preparation and signed CI artifacts alone are not a public release.
+Merge and publish releases only when the maintainer explicitly approves them. The maintainer authorized v1.0.0 (9) publication on 2026-11-02 and the 1.1 feature merge on 2026-11-04. The prepared source version is **1.1.0 (15)**; no v1.1.0 tag is created by the merge task. Workflow preparation and signed CI artifacts alone are not a public release.
 
 ## One version source
 
 `version.properties` supplies `versionName` and the monotonically increasing Android `versionCode` to Gradle. Use `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-rc.N` for candidates. Every distributed build needs a larger code. APK names alone do not identify the installed version; check About and `build-info.json`.
 
-For the next patch release, increment the version with a focused change, for example:
+The promotion from rc.5 (14) to the prepared 1.1.0 source used:
 
 ```sh
-python3 tools/release_version.py set 1.0.1 --code 10
+python3 tools/release_version.py set 1.1.0 --code 15
 ```
 
-Use the next unused code if additional candidates have already consumed 10. Update `RELEASE_NOTES.md`, run checks, and commit. After an authorized merge to main, create an annotated tag matching the version exactly (`v1.0.1` in this example) and push that tag only when publication is authorized. Never reuse/move a published version tag. Ordinary branch checks allow the current published name/code unchanged; creating a new version still requires both to increase.
+Do not rerun that promotion on the already-updated source. Future distributed builds need the next unused code above 15 and an appropriate later version. Update `RELEASE_NOTES.md`, run checks, and commit. After the authorized merge to main, create an annotated tag matching the version exactly (`v1.1.0` for this prepared version) and push that tag only when publication is authorized. Never reuse/move a published version tag. Ordinary branch checks allow the current published name/code unchanged; creating a new version still requires both to increase.
 
 ## CI checks and signing
 

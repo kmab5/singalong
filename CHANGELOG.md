@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 — prepared, not yet published
+
+- Added library sorting and selected-folder/subfolder lyric lookup using audio metadata and filename hints, with cancellation and duplicate prevention.
+- Made floating actions responsive to panel width; preserved long-press movement of the minimized display and tap-to-expand.
+- Added independent timed-line sizing, full-width setting selections, smoother line transitions and Glow word motion.
+- Added stored LRCLIB word timing, word/line/untimed version labels and backup support. A persistent Word tracking switch stops word processing while retaining line sync and source timestamps.
+- Prefer timed lyrics and closest known duration for automatic matching; preserve explicit selections and personal edits.
+- Added a Google Translate handoff with English selected. Copy full original lyrics before opening, prefer a browser, and keep a clipboard fallback when the receiver ignores input or the URL is too long. Report clipboard/launch failures without truncating text.
+- Updated release documentation, privacy details and the website's 1.1 preview while retaining downloads for the latest published release.
+
+The following candidate entries record development history, not separate published releases.
+
 ## 1.1.0-rc.5 — unreleased
 
 - Added a persistent Word tracking switch under Settings → Now. Turning it off stops per-word processing and motion while retaining line sync and saved word timestamps.

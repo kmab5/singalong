@@ -1,21 +1,17 @@
-# Singalong 1.1.0-rc.5 — testing candidate
+# Singalong 1.1.0
 
-Version 1.1.0-rc.5 (14). Prepared for phone testing; this update has not been merged or published. The latest public release remains v1.0.0. Merge and official 1.1.0 publication await the user's approval after testing.
+Prepared source version **1.1.0 (15)**. The feature merge is authorized; this is not a published GitHub Release until a matching tag is explicitly approved and pushed. The current public download remains v1.0.0.
 
-- Settings → Now → **Word tracking** is on by default. Turn it off to stop word highlighting, word motion and word-clock processing while keeping line following. The choice persists and saved word timestamps remain intact.
-- Lyric options → **Open in Google Translate** opens the complete selected original lyrics with English output. Google has a 5,000-character input limit, explained for longer songs; oversized links are disabled without truncation. External results are not saved into Singalong.
+- **Word-synced Glow:** supplied LRCLIB word timestamps drive highlights, including unequal word durations and gaps. Line-only lyrics retain estimated progression. Version choices distinguish word-synced, partially word-synced, line-synced and untimed lyrics.
+- **Word tracking switch:** turn off per-word processing and motion in Settings → Now while keeping line following. Saved timestamps remain intact; turn it back on to restore word behavior.
+- **Google Translate fallback:** Lyric options copies the full original text before attempting to open Google Translate in a browser with English selected. Paste if Google opens empty. Longer lyrics may need sections; copying or launch failures are reported without truncating text. Results stay in Google Translate.
+- **Folder lyric collection:** select a folder in Library to find and save lyrics for its audio files and subfolders using metadata and filename hints. Existing matches are skipped; scans can be cancelled. Audio stays on the device.
+- **Library sorting:** organize saved lyrics by title, artist, album, recent playback or play count.
+- **Reader and floating controls:** bottom actions wrap to fit, Now has an independent timed-line size and full-width setting selections, and line transitions and Glow motion are smoother. Long-press dragging of the minimized panel and tap-to-expand are preserved.
+- **Better automatic selection:** prefer timed matches, then the closest known song duration. Explicit selections and personal versions remain saved. Real timestamps follow automatically; untimed estimated sync remains opt-in.
 
-- Glow now follows supplied LRCLIB word timestamps, including gaps and unequal word durations; line-only lyrics keep estimated progression. Version choices distinguish Word-synced, Word-synced · some lines, Line-synced and Untimed.
-- Word timing is retained in saved versions and backups. Editing a line's text or timestamp clears its word timing in the personal copy; the original remains saved.
-- The user confirmed rc.4 word syncing and the Glow animation work. Their appearance and the black-shadow correction are retained. The new switch and external Translate action await phone testing.
-- The Now animation settings are named Gentle and Glow. Untimed text is unaffected by the current timed-line size setting when estimated sync is off.
-- New automatic lyric choices prefer timed matches, then the closest known song duration. The version list uses the same preference. Explicit selections and personal versions remain saved.
-- Real timestamps start following automatically even for an uncertain match; the uncertainty label stays visible. Refreshing the same version preserves a manual following pause. Untimed estimated sync remains opt-in.
-- Long-press dragging of minimal lyrics is unchanged, as requested. Folder scanning, sorting and responsive floating controls from rc.1 remain available.
-- Translation alternatives are documented for discussion; the provider is unchanged.
+Word timing is retained offline and in backups. Editing a line's text or timestamp drops stale word timing from the personal copy while retaining the original. On a cached song, use **Find, import or edit lyrics → find lyrics** to look for additional word-synced versions. Coverage depends on provider contributions.
 
-Requires Android 12 or newer. Install over an existing release-signed installation to retain data. The signing key is unchanged. Debug APKs use a different key.
+Requires Android 12 or newer. Install over an existing release-signed installation to retain data. The signing key is unchanged; debug APKs use a different key. In-app translation still uses MyMemory; the Google Translate button is an external handoff, not a new translation API.
 
-To look for word timing on an already cached song, open **Find, import or edit lyrics → find lyrics**, then select a **Word-synced** version if one is returned. Existing cached versions are not silently replaced. Word timing coverage depends on provider contributions.
-
-See [the latest checkpoint](docs/validation/word-tracking-controls-checkpoint.md) for this candidate's evidence and phone checks, [word-sync evidence](docs/validation/word-sync-checkpoint.md) and [translation research](docs/translation-options.md). Same-key packaging includes APK/checksum/build metadata and the matching R8 mapping. No new release tag is created by this work.
+See the [integration checkpoint](docs/validation/1.1-main-checkpoint.md), [website checkpoint](docs/validation/1.1-site-checkpoint.md), and [privacy details](PRIVACY.md). Automated evidence is separate from phone testing; the clipboard/browser change still needs validation on the user's device. Packaging includes the APK, checksums, build metadata and matching R8 crash mapping.

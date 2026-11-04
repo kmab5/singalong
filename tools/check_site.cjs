@@ -63,6 +63,9 @@ const docs = path.join(root, "docs");
     });
     await page.goto(base, { waitUntil: "networkidle" });
     assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk");
+    assert.equal(await page.locator("[data-release-version]").textContent(), "v1.0.0");
+    assert.match(await page.locator("#coming-next").innerText(), /Preparing 1\.1 · not yet released/i);
+    assert.equal(await page.locator("#coming-next article").count(), 4);
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
       path: path.join(root, "artifacts/site-desktop.png"),
@@ -129,6 +132,11 @@ const docs = path.join(root, "docs");
         ),
         `Overflow at ${width}`,
       );
+      assert.ok(await page.locator("#coming-next").evaluate(section =>
+        [...section.querySelectorAll("h2, h3, p")].every(element => {
+          const bounds = element.getBoundingClientRect();
+          return bounds.left >= 0 && bounds.right <= innerWidth && element.scrollWidth <= element.clientWidth + 1;
+        })), `Preparation content clipped at ${width}`);
       await page.getByRole("checkbox", { name: "English subtext" }).check();
       const clipping = await page.locator(".lyric-window").evaluate((el) => {
         const b = el.getBoundingClientRect(),
@@ -195,6 +203,7 @@ const docs = path.join(root, "docs");
     });
     await noJs.goto(base, { waitUntil: "networkidle" });
     assert.equal(await noJs.locator("h1").isVisible(), true);
+    assert.equal(await noJs.locator("#coming-next").isVisible(), true);
     assert.ok(await noJs.locator("[data-apk-download]").evaluateAll(nodes =>
       nodes.length === 3 && nodes.every(node => node.href === "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk")));
     assert.match(
@@ -230,6 +239,7 @@ const docs = path.join(root, "docs");
             "panel modes",
             "bottom controls and focus on dock",
             "consistent release downloads and metadata",
+            "unreleased preparation content at every viewport and without JS",
             "malformed response and network fallback",
             "edge restore",
             "subtext",

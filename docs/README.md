@@ -17,17 +17,19 @@ This index describes the current source. Earlier phase plans and validation repo
 - [Glow hidden-shadow correction checkpoint](validation/glow-shadow-checkpoint.md)
 - [Provider word-sync checkpoint](validation/word-sync-checkpoint.md)
 - [Word tracking switch and Google Translate checkpoint](validation/word-tracking-controls-checkpoint.md)
+- [1.1 main integration and Translate fallback checkpoint](validation/1.1-main-checkpoint.md)
+- [1.1 website preparation checkpoint](validation/1.1-site-checkpoint.md)
 - [Translation alternatives, research only](translation-options.md)
 
 ## Accepted changes since the initial design
 
 The current app includes simple text editing plus an opt-in per-line timing editor, filename-aware search, optional estimated sync for untimed lyrics, minimal floating lyrics, bottom icon controls, automatic failure docking/recovery, independent Now-tab typography/motion, and a next-launch crash-report prompt. Original metadata/content is preserved; inferred matches and estimated timing remain distinguishable from verified timed lyrics.
 
-The 1.1.0 candidates add responsive floating actions, tap-only edge expansion, library sorting, selected-folder lyric lookup and an independent current timed-line size. Glow now follows supplied LRCLIB word timing, falling back to estimated progression for line-only lyrics. The user confirmed rc.4 word syncing works. Candidate rc.5 adds a persistent switch to disable word tracking and an explicit Google Translate handoff. See the [initial implementation plan](superpowers/plans/2026-11-04-library-folder-and-lyrics-controls.md) and [latest additions](superpowers/plans/2026-11-04-word-tracking-controls.md).
+The 1.1.0 source adds responsive floating actions, tap-only edge expansion, library sorting, selected-folder lyric lookup and an independent current timed-line size. Glow follows supplied LRCLIB word timing, falling back to estimated progression for line-only lyrics. The user confirmed rc.4 word syncing works. Word tracking can be disabled, keeping line sync. Google Translate opens through a browser-first handoff that copies full original lyrics for manual paste if needed. See the [initial implementation plan](superpowers/plans/2026-11-04-library-folder-and-lyrics-controls.md) and [integration plan](superpowers/plans/2026-11-04-translate-fallback-and-main.md).
 
 Audio recognition and microphone/playback capture remain out of scope. Supplied word timestamps are supported; generating word timestamps from audio is not. Some Android screens may suppress overlays by policy; Singalong must respect that policy. Player compatibility and device acceptance must be based on testing, not inferred from a successful build.
 
-The maintainer authorized merging to main and publishing v1.0.0 on 2026-11-02. The stable version is 1.0.0 with Android version code 9, promoted from candidate code 8. Future releases follow the [release guide](RELEASING.md) and retain the existing signing certificate.
+The maintainer authorized merging these changes to main on 2026-11-04. Source version **1.1.0 (15)** is prepared; the latest published APK is still **1.0.0 (9)** until a separate release tag is pushed. Publication follows the [release guide](RELEASING.md) and retains the existing signing certificate.
 
 ## Historical evidence
 

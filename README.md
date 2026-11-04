@@ -4,7 +4,7 @@ An Android companion that keeps lyrics over your music player. Made by kmab. Req
 
 ## Status and downloads
 
-The latest published version is **1.0.0 (9)**. This branch prepares **1.1.0-rc.5 (14)** for phone testing, with its version source in `version.properties`; it is not a published release. Download the stable APK from [the v1.0.0 release](https://github.com/kmab5/singalong/releases/tag/v1.0.0). See the [latest checkpoint](docs/validation/word-tracking-controls-checkpoint.md) for verification and pending device checks.
+The source is prepared as **1.1.0 (15)**, with its version in `version.properties`. The latest published APK remains **1.0.0 (9)** until the 1.1.0 release is tagged and published. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). See the [latest checkpoint](docs/validation/1.1-main-checkpoint.md) for verification and remaining phone checks.
 
 [Website](https://kmab5.github.io/singalong/) · [GitHub Releases](https://github.com/kmab5/singalong/releases) · [Feedback](https://kmab5.github.io/kmab-feedback/?product=singalong)
 
@@ -21,7 +21,7 @@ Each GitHub Release includes `singalong.apk`, checksums, build metadata and the 
 - Keeps a local library, favorites and play history. Supports TXT/LRC import, simple text editing, opt-in per-line timing, personal versions and JSON backup/restore. User edits never overwrite originals.
 - Sorts saved lyrics by title, artist, album, recent playback or play count. The Library folder action scans a selected folder and subfolders, reads audio metadata/filenames locally and saves found lyrics. Existing saved matches are skipped, misses create no empty entries, and the scan supports progress/cancellation. Keep the app open; reselect the folder after an interruption to continue without saving duplicates.
 - Optionally translates opened lyrics into English through MyMemory, progressively saving translations beside originals. Language identification uses on-device ML Kit; its SDK may send usage/performance metrics to Google. Read the [privacy details](PRIVACY.md).
-- Settings → Now → Word tracking can disable per-word processing and animation while keeping line sync. Lyric options → Open in Google Translate opens the full selected original lyrics with English output; external results are not saved back into Singalong.
+- Settings → Now → Word tracking can disable per-word processing and animation while keeping line sync. Lyric options → Open in Google Translate copies the full original lyrics and attempts to prefill a browser with English output. Paste if the input opens empty; long lyrics may need sections. External results are not saved back into Singalong.
 - Offers a quiet tracking notification, About/feedback, and a next-launch prompt to review/save a recorded Java/Kotlin crash log. Feedback is submitted by the user; nothing is automatically uploaded.
 
 Ten seconds of observed playback qualifies a history entry; pauses, buffering and seeking do not count as listening. Tracking resumes after a process restart only when the app is opened. Closing floating lyrics does not stop authorized background collection. Locks/screens-off suppress rendering, and Android may intentionally suppress overlays on sensitive screens. No universal player/device compatibility is claimed; see [compatibility](docs/validation/compatibility.md).

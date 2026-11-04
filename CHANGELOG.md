@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0-rc.3 — unreleased
+
+- Corrected black overlapping text in Glow by making hidden words' shadows explicitly transparent. Word drift, enlargement, glow and stable wrapping are preserved.
+- Added a device pixel-rendering regression test covering wrapped text, RTL text and outgoing focus.
+
 ## 1.1.0-rc.2 — unreleased
 
 - Brighter Glow with slow word lift/drift and gentle enlargement; stable wrapping and eased line handovers. Now animation labels are Gentle and Glow.

@@ -77,7 +77,10 @@ fun AnimatedLyricText(
             if (!glow) emptyList() else words.map { word ->
                 val masked = buildAnnotatedString {
                     append(text)
-                    val hidden = SpanStyle(color = Color.Transparent, shadow = Shadow.None)
+                    // Shadow.None has a black color and zero radius. Android's span path
+                    // converts that radius to a tiny positive blur, drawing black copies of
+                    // otherwise transparent glyphs. Mask the shadow color explicitly too.
+                    val hidden = SpanStyle(color = Color.Transparent, shadow = Shadow(color = Color.Transparent))
                     if (word.start > 0) addStyle(hidden, 0, word.start)
                     if (word.end < text.length) addStyle(hidden, word.end, text.length)
                 }

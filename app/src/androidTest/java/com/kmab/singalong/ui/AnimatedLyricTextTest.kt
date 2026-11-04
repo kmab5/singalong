@@ -21,6 +21,45 @@ import org.junit.Test
 class AnimatedLyricTextTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun disablingGlowStopsWordClockReadsAndEstimatedWordMotion() {
+        val glow = mutableStateOf(true)
+        val progress = mutableFloatStateOf(.1f)
+        val useWordTimes = mutableStateOf(true)
+        val clockReads = java.util.concurrent.atomic.AtomicInteger()
+        val clock: () -> Long = { clockReads.incrementAndGet(); 2000L }
+        val words = listOf(com.kmab.singalong.model.LyricWord("Alpha ", 0, 3000),
+            com.kmab.singalong.model.LyricWord("beta", 3000, 6000))
+        val playback = com.kmab.singalong.model.PlaybackSnapshot("s", "p", "p", null,
+            com.kmab.singalong.model.PlaybackStatus.PLAYING, 0, 0, 1f)
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            Box(Modifier.width(260.dp)) {
+                AnimatedLyricText("Alpha beta", 20f, 28f, current = true, glow = glow.value,
+                    gentle = false, animate = true, progress = progress.floatValue, playing = true,
+                    style = TextStyle(color = Color.White), lineSpacing = 1.45f, alignment = TextAlign.Center,
+                    modifier = Modifier.background(Color(0xFF404040)),
+                    wordTimings = if (useWordTimes.value) words else emptyList(),
+                    playback = playback, wordLineEndMs = 6000, elapsedMs = clock)
+            }
+        }
+        compose.mainClock.advanceTimeBy(100)
+        assertTrue(clockReads.get() > 0)
+        compose.runOnIdle { glow.value = false }
+        compose.mainClock.advanceTimeBy(800)
+        val stoppedReads = clockReads.get()
+        val before = compose.onNodeWithText("Alpha beta").captureToImage().toPixelMap()
+        compose.runOnIdle { useWordTimes.value = false; progress.floatValue = .9f }
+        compose.mainClock.advanceTimeBy(1000)
+        org.junit.Assert.assertEquals(stoppedReads, clockReads.get())
+        val after = compose.onNodeWithText("Alpha beta").captureToImage().toPixelMap()
+        for (y in 0 until before.height) for (x in 0 until before.width) {
+            org.junit.Assert.assertEquals("Disabled word tracking must leave text still", before[x, y], after[x, y])
+        }
+        compose.runOnIdle { useWordTimes.value = true; glow.value = true }
+        compose.mainClock.advanceTimeBy(100)
+        assertTrue(clockReads.get() > stoppedReads)
+    }
+
     @Test fun suppliedWordTimesOverrideEstimatedProgressAndFollowPausedSeeks() {
         val progress = mutableFloatStateOf(0f)
         val playback = mutableStateOf(com.kmab.singalong.model.PlaybackSnapshot("s", "p", "p", null,

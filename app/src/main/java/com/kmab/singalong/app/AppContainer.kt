@@ -61,7 +61,9 @@ class AppContainer(private val context: Context) {
         permitsNetwork = { networkAllowed() && settings.state.value.translationEnabled },
     )
     val translations = com.kmab.singalong.translation.TranslationRepository(library, translationProvider)
-    val reader = ReaderCoordinator(scope, tracking.current, library, repository, ::networkAllowed, SystemClock::elapsedRealtime, translations) { settings.state.value.translationEnabled }
+    val reader = ReaderCoordinator(scope, tracking.current, library, repository, ::networkAllowed, SystemClock::elapsedRealtime, translations,
+        wordTrackingEnabled = { settings.state.value.now.wordTrackingEnabled },
+        translationEnabled = { settings.state.value.translationEnabled })
     private val mutablePanel = MutableStateFlow(OverlayState())
     val panel = mutablePanel.asStateFlow()
     private val mutablePlayers = MutableStateFlow<List<PlayerApp>>(emptyList())

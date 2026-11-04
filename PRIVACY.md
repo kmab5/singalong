@@ -8,6 +8,8 @@ The optional folder scan reads files only within a folder and subfolders selecte
 
 Optional English translation sends lyric text to MyMemory after consent. MyMemory stores submitted text and applies its own limits and [terms](https://mymemory.translated.net/terms-and-conditions). Originals remain available when translation is disabled or unavailable.
 
+Choosing **Open in Google Translate** in Lyric options sends the selected original lyrics to Google in a browser URL, with automatic source detection and English output. This happens only when you tap the button; Google's privacy terms and input limits apply. The text may appear in browser history. This external action is separate from MyMemory and Singalong's Wi-Fi-only lookup setting; results are not imported or saved automatically.
+
 Language identification uses Google's ML Kit on this device. Google states that input text and identification results are processed locally, but the SDK may contact Google for updates and send usage/performance metrics. See [ML Kit terms and privacy](https://developers.google.com/ml-kit/terms). Singalong has no separate application analytics service; this does not mean third-party SDKs or providers make no network requests.
 
 One bounded uncaught Java/Kotlin crash log is kept in private no-backup storage. It includes app/Android versions, timestamp, exception types and code locations; exception messages, song details and lyrics are excluded. On the next launch, a prompt offers review and export. Logs are not uploaded automatically. Choosing feedback opens the kmab form; the user attaches the exported log and submits it there. Native crashes, operating-system kills and all possible ANRs are not guaranteed to be captured by this handler.

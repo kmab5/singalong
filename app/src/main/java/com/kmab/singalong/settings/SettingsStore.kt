@@ -59,6 +59,7 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
         val nowSpacing = floatPreferencesKey("now_line_spacing")
         val nowDim = booleanPreferencesKey("now_dim_inactive")
         val nowTap = booleanPreferencesKey("now_tap_focus")
+        val nowWords = booleanPreferencesKey("now_word_tracking")
     }
     val state = store.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map { p ->
         AppSettings(
@@ -77,7 +78,8 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
                 LyricAlignment.entries.firstOrNull { it.name == p[Keys.nowAlignment] } ?: LyricAlignment.START,
                 LyricAnimation.entries.firstOrNull { it.name == p[Keys.nowAnimation] } ?: LyricAnimation.FOCUS,
                 p[Keys.nowSpacing] ?: 1.45f, p[Keys.nowDim] ?: true, p[Keys.nowTap] ?: true,
-                p[Keys.nowTimedSize] ?: p[Keys.nowSize] ?: p[Keys.size] ?: 22f).sanitized(),
+                p[Keys.nowTimedSize] ?: p[Keys.nowSize] ?: p[Keys.size] ?: 22f,
+                p[Keys.nowWords] ?: true).sanitized(),
             librarySort = com.kmab.singalong.library.LibrarySort.entries.firstOrNull { it.name == p[Keys.librarySort] } ?: com.kmab.singalong.library.LibrarySort.TITLE,
         )
     }.stateIn(scope, SharingStarted.Eagerly, AppSettings())
@@ -87,6 +89,7 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
     suspend fun nowAppearance(value: NowAppearance) { val v = value.sanitized(); store.edit {
         it[Keys.nowSize] = v.textSizeSp; it[Keys.nowTimedSize] = v.timedTextSizeSp; it[Keys.nowAlignment] = v.alignment.name; it[Keys.nowAnimation] = v.animation.name
         it[Keys.nowSpacing] = v.lineSpacing; it[Keys.nowDim] = v.dimInactive; it[Keys.nowTap] = v.tapToFocus
+        it[Keys.nowWords] = v.wordTrackingEnabled
     } }
     suspend fun translationSize(value: Float) { store.edit { it[Keys.translationSize] = value.safe(10f, 22f, 16f) } }
     suspend fun minimal(enabled: Boolean) { store.edit { it[Keys.minimal] = enabled } }

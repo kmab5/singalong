@@ -51,9 +51,11 @@ fun AnimatedLyricText(
     val focus = animateFloatAsState(if (current) 1f else 0f,
         if (animate) tween(650, easing = FastOutSlowInEasing) else snap(), label = "Lyric focus")
     val sweep = remember(text) { Animatable(progress) }
-    val wordTimeline = remember(wordTimings, wordLineEndMs) { WordSync.Timeline(wordTimings, wordLineEndMs) }
+    val wordTimeline = remember(glow, wordTimings, wordLineEndMs) { if (glow) WordSync.Timeline(wordTimings, wordLineEndMs) else null }
     var seconds by remember(text) { mutableFloatStateOf(0f) }
-    var wordPosition by remember(playback, wordTimings) { mutableStateOf(PlaybackClock.position(playback, elapsedMs())) }
+    var wordPosition by remember(glow, playback, wordTimings) {
+        mutableStateOf(if (glow && wordTimings.isNotEmpty()) PlaybackClock.position(playback, elapsedMs()) else null)
+    }
     // Follow the player's clock on drawing frames. Real word timing must not inherit the
     // estimated sweep's smoothing delay or Android's decorative animation-duration scale.
     LaunchedEffect(playback, wordTimings, current, glow, elapsedMs) {
@@ -62,7 +64,8 @@ fun AnimatedLyricText(
             wordPosition = PlaybackClock.position(playback, elapsedMs())
         }
     }
-    LaunchedEffect(text, progress, playing) {
+    LaunchedEffect(text, progress, playing, glow, wordTimings) {
+        if (!glow || wordTimings.isNotEmpty()) return@LaunchedEffect
         if (!playing || abs(progress - sweep.value) > .25f) sweep.snapTo(progress)
         else sweep.animateTo(progress, tween(180, easing = LinearEasing))
     }
@@ -91,7 +94,9 @@ fun AnimatedLyricText(
         val layout = measurer.measure(text, layoutStyle, constraints = constraints)
         // Mask other ranges, rather than re-laying out individual words: wrapping, RTL shaping,
         // punctuation, explicit whitespace and the accessible sentence remain intact.
-        val words = remember(text, wordTimings) { if (wordTimings.isNotEmpty()) WordSync.ranges(wordTimings) else WordSweep.words(text) }
+        val words = remember(glow, text, wordTimings) {
+            if (!glow) emptyList() else if (wordTimings.isNotEmpty()) WordSync.ranges(wordTimings) else WordSweep.words(text)
+        }
         // Pathological provider lines remain readable without allocating thousands of layouts.
         // This drawing budget never truncates or changes stored text/timestamps.
         val wordMotionAllowed = words.size <= 128 && text.length <= 4096
@@ -125,7 +130,7 @@ fun AnimatedLyricText(
                     if (!glow || amount == 0f || !wordMotionAllowed) drawText(layout, color = style.color, shadow = style.shadow)
                     else masks.forEachIndexed { index, (mask, pivot) ->
                         val emphasis = (if (wordTimings.isNotEmpty())
-                            wordTimeline.emphasis(index, wordPosition, delayMs)
+                            wordTimeline!!.emphasis(index, wordPosition, delayMs)
                             else WordSweep.emphasis(index, words.size, sweep.value)) * amount
                         val motion = GlowMotion.transform(index, seconds, emphasis)
                         translate(motion.xDp.dp.toPx(), motion.yDp.dp.toPx()) {

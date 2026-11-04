@@ -39,6 +39,7 @@ class ReaderCoordinator(
     private val networkAllowed: () -> Boolean,
     private val elapsedMs: () -> Long,
     private val translations: TranslationRepository? = null,
+    private val wordTrackingEnabled: () -> Boolean = { true },
     private val translationEnabled: () -> Boolean = { false },
 ) {
     private val mutableState = MutableStateFlow(ReaderState())
@@ -75,7 +76,7 @@ class ReaderCoordinator(
                             s.estimated -> EstimatedTimeline.at(s.version!!.lines, position, s.snapshot?.recording?.durationMs ?: 0, s.delayMs)
                             else -> LyricTimeline.at(s.version!!.lines, position, s.delayMs)
                         }
-                        s.copy(moment = moment, wordProgress = if (position != null && s.canSync && s.hasTiming)
+                        s.copy(moment = moment, wordProgress = if (wordTrackingEnabled() && position != null && s.canSync && s.hasTiming)
                             WordSweep.progress(s.version!!.lines, moment.index, position, s.delayMs, s.snapshot?.recording?.durationMs) else null)
                     }
                     delay(200)

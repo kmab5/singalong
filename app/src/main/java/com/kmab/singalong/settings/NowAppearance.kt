@@ -11,6 +11,7 @@ data class NowAppearance(
     val dimInactive: Boolean = true,
     val tapToFocus: Boolean = true,
     val timedTextSizeSp: Float = textSizeSp,
+    val wordTrackingEnabled: Boolean = true,
 ) {
     fun sanitized() = copy(textSizeSp = if (textSizeSp.isFinite()) textSizeSp.coerceIn(12f, 40f) else 22f,
         timedTextSizeSp = if (timedTextSizeSp.isFinite()) timedTextSizeSp.coerceIn(12f, 56f) else 22f,

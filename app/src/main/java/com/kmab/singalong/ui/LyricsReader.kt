@@ -92,7 +92,8 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                 }
                 if (state.estimated && !compact && !minimal) Text("Experimental · estimated sync", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.labelSmall, color = SingalongColors.PurpleText)
                 if (appearance?.animation == LyricAnimation.WORD_GLOW && state.hasTiming && state.canSync && !compact && !minimal)
-                    Text(if (version.lines.getOrNull(state.moment.index)?.let(com.kmab.singalong.lyrics.WordSync::valid) == true)
+                    Text(if (!appearance.wordTrackingEnabled) "Word tracking off · following lines"
+                        else if (version.lines.getOrNull(state.moment.index)?.let(com.kmab.singalong.lyrics.WordSync::valid) == true)
                         "Glow · word-synced" else "Glow · estimated word progression",
                         Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
                 if (version.confidence == MatchConfidence.UNCERTAIN && state.hasTiming && state.canSync && !compact && !minimal)
@@ -132,14 +133,14 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                             val lineStyle = textStyle.copy(fontSize = size.sp, lineHeight = (size * (appearance?.lineSpacing ?: 1.45f)).sp, fontWeight = FontWeight.SemiBold, color = color)
                             if (appearance != null) AnimatedLyricText(line.text, size,
                                 if (state.hasTiming || state.allowUncertainSync) appearance.timedTextSizeSp else size, timedActive,
-                                glow = appearance.animation == LyricAnimation.WORD_GLOW && state.hasTiming,
+                                glow = appearance.wordTrackingEnabled && appearance.animation == LyricAnimation.WORD_GLOW && state.hasTiming,
                                 gentle = appearance.animation == LyricAnimation.FOCUS, animate = animateText,
                                 progress = if (index < state.moment.index) 1f else if (index == state.moment.index) state.wordProgress ?: 0f else 0f,
                                 playing = state.snapshot?.status == PlaybackStatus.PLAYING, style = lineStyle,
                                 lineSpacing = appearance.lineSpacing, alignment = alignment,
-                                wordTimings = if (com.kmab.singalong.lyrics.WordSync.valid(line)) line.words else emptyList(),
+                                wordTimings = if (appearance.wordTrackingEnabled && com.kmab.singalong.lyrics.WordSync.valid(line)) line.words else emptyList(),
                                 playback = state.snapshot, delayMs = state.delayMs,
-                                wordLineEndMs = com.kmab.singalong.lyrics.WordSync.displayEnd(version.lines, index, state.snapshot?.recording?.durationMs))
+                                wordLineEndMs = if (appearance.wordTrackingEnabled) com.kmab.singalong.lyrics.WordSync.displayEnd(version.lines, index, state.snapshot?.recording?.durationMs) else null)
                             else Text(line.text.ifBlank { "♪" }, Modifier.fillMaxWidth(), textAlign = alignment, style = lineStyle)
                             AnimatedVisibility(state.translation?.lines?.containsKey(line.id) == true) {
                                 Text(state.translation?.lines?.get(line.id).orEmpty(), Modifier.fillMaxWidth().padding(top = if (minimal) 4.dp else 8.dp), textAlign = alignment, style = textStyle,

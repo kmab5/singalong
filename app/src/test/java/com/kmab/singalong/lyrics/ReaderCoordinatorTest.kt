@@ -25,6 +25,30 @@ class ReaderCoordinatorTest {
     private fun snapshot(id: String, position: Long? = 0) = PlaybackSnapshot("session", "player", "Player",
         Recording(id, id, listOf("Artist"), "Album", 120_000), PlaybackStatus.PLAYING, position, 0, 1f)
 
+    @Test fun disablingWordTrackingKeepsLineSyncAndReenablingResumesWordProgress() = runTest {
+        val store = Store()
+        var wordsEnabled = true
+        val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(
+            ProviderSong(1, recording.title, "Artist", "Album", 120.0,
+                syncedLyrics = "[00:00.00]First line\n[00:01.00]Second line"))) }
+        val reader = ReaderCoordinator(backgroundScope, MutableStateFlow(snapshot("A")), store,
+            LyricsRepository(store, provider, UnconfinedTestDispatcher(testScheduler)), { true },
+            { testScheduler.currentTime }, wordTrackingEnabled = { wordsEnabled })
+        reader.visible(true); runCurrent()
+        advanceTimeBy(400); runCurrent()
+        assertNotNull(reader.state.value.wordProgress)
+        val original = reader.state.value.version
+        wordsEnabled = false
+        advanceTimeBy(1000); runCurrent()
+        assertNull(reader.state.value.wordProgress)
+        assertEquals(1, reader.state.value.moment.index)
+        assertTrue(reader.state.value.following)
+        assertEquals(original, reader.state.value.version)
+        wordsEnabled = true
+        advanceTimeBy(200); runCurrent()
+        assertNotNull(reader.state.value.wordProgress)
+    }
+
     @Test fun uncertainTimedLyricsFollowAutomaticallyButRefreshingDoesNotUndoManualPause() = runTest {
         val store = Store()
         val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(

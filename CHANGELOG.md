@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0-rc.5 — unreleased
+
+- Added a persistent Word tracking switch under Settings → Now. Turning it off stops per-word processing and motion while retaining line sync and saved word timestamps.
+- Added Open in Google Translate to Lyric options, passing the selected original lyrics with English output. Complete text is preserved; long-input limits are explained and oversized browser links are disabled.
+- The user confirmed rc.4 word syncing works. These two additions await phone testing before merge and official 1.1.0 publication.
+
 ## 1.1.0-rc.4 — unreleased
 
 - LRCLIB Lyricsfile word segments and timestamps are saved offline and drive the existing Glow animation from the playback clock. Line-only lyrics retain estimated progression.

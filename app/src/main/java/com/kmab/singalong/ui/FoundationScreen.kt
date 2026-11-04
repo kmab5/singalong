@@ -206,6 +206,20 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                 OutlinedButton(onClick = { toolsId = reader.snapshot?.recording?.id; tools = true; options = false }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Find, import or edit lyrics")
                 }
+                val originalLines = reader.version?.lines.orEmpty()
+                val translateLink = remember(originalLines) { com.kmab.singalong.translation.GoogleTranslateLink.from(originalLines) }
+                if (originalLines.any { it.text.isNotBlank() }) {
+                    OutlinedButton(onClick = { translateLink?.let { actions.openLink(it.url) } },
+                        enabled = translateLink != null, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Outlined.Translate, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp)); Text("Open in Google Translate")
+                    }
+                    Text(when {
+                        translateLink == null -> "These lyrics are too long to open safely in a browser link. Export the text to translate it in sections."
+                        translateLink.exceedsInputLimit -> "Sends the full original lyrics to Google with English selected. Google limits text input to 5,000 characters; longer lyrics may need translating in sections."
+                        else -> "Sends the full original lyrics to Google with English selected. Results stay in Google Translate."
+                    }, style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                }
                 ActionButton(onClick = { destination = "settings"; options = false }) { Text("Appearance & translation settings") }
             }
         }

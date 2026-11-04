@@ -47,9 +47,14 @@ object SearchQueries {
         val derived = original.copy(title = inferredTitle, artists = inferredArtists, album = inferredAlbum)
         // Try recognized hints before asking slow fallback sources about a literal filename.
         val candidates = listOf(derived, original)
-        return candidates.filter { it.title.isNotBlank() && it.artists.isNotEmpty() && it.artists.all(::known) }
-            .distinctBy { Triple(it.title, it.artists, it.album) }.take(3)
+        val tagged = candidates.filter { it.title.isNotBlank() && it.artists.isNotEmpty() && it.artists.all(::known) }
             .map { SearchQuery(it, it != original) }
+        val fromFile = original.fileName?.takeIf { it.isNotBlank() && it != original.title }?.let { name ->
+            plan(original.copy(title = name, fileName = null)).map {
+                SearchQuery(it.recording.copy(fileName = name), inferred = true)
+            }
+        }.orEmpty()
+        return (tagged + fromFile).distinctBy { Triple(it.recording.title, it.recording.artists, it.recording.album) }.take(3)
     }
 
     fun suggestion(original: Recording): Recording? = plan(original).firstOrNull { it.inferred }?.recording

@@ -7,6 +7,19 @@ import org.junit.Test
 
 class SearchQueriesTest {
     private fun recording(title: String, artist: String = "<unknown>") = Recording("r", title, listOf(artist), null, 120_000)
+    @Test fun separateFilenameFillsMissingArtistWithoutReplacingTags() {
+        val original = recording("Song").copy(fileName = "Artist - Song.mp3", album = "Tagged Album")
+        val query = SearchQueries.plan(original).first()
+        assertEquals("Song", query.recording.title)
+        assertEquals(listOf("Artist"), query.recording.artists)
+        assertEquals("Tagged Album", query.recording.album)
+        assertTrue(query.inferred)
+        assertEquals(listOf("<unknown>"), original.artists)
+        assertEquals("Song", original.title)
+        val tagged = original.copy(artists = listOf("Tagged Artist"))
+        assertEquals(SearchQuery(tagged, false), SearchQueries.plan(tagged).first())
+        assertTrue(SearchQueries.plan(tagged).all { it.recording.artists == tagged.artists })
+    }
     @Test fun explicitAlbumLayoutAndUnicodeAreUnderstood() {
         val query = SearchQueries.plan(recording("歌手 - 夜のアルバム - 03 - 月の歌.flac")).first()
         assertEquals("月の歌", query.recording.title)

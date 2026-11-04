@@ -29,5 +29,6 @@ object RecordingIdentity {
         album = incoming.album?.takeIf(String::isNotBlank) ?: existing.album,
         durationMs = incoming.durationMs ?: existing.durationMs,
         versionLabel = incoming.versionLabel ?: existing.versionLabel,
+        fileName = incoming.fileName ?: existing.fileName,
     )
 }

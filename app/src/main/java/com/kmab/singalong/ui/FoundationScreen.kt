@@ -51,6 +51,8 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
     var savedStatus by remember { mutableStateOf("loading") }
     var options by remember { mutableStateOf(false) }
     var controlTab by rememberSaveable { mutableStateOf(true) }
+    var folderScanOpen by rememberSaveable { mutableStateOf(false) }
+    val folderScan by container.folderScan.state.collectAsStateWithLifecycle()
     val openNow by container.openNowRequested.collectAsStateWithLifecycle()
     LaunchedEffect(openNow) { if (openNow) { destination = "now"; savedId = null; tools = false; container.openedNow() } }
     fun acceptsSavedTranslation(id: String, version: LyricVersion) = savedId == id && !tools && settings.translationEnabled &&
@@ -162,12 +164,15 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                         }
                         "library", "history" -> CollectionScreen(entries, page == "history",
                             onOpen = { savedId = it }, onAdd = { toolsId = null; tools = true },
-                            onFavorite = { entry -> scope.launch { container.library.favorite(entry.recording.id, !entry.favorite) } })
+                            onFavorite = { entry -> scope.launch { container.library.favorite(entry.recording.id, !entry.favorite) } },
+                            sort = settings.librarySort, onSort = { scope.launch { container.settings.librarySort(it) } },
+                            onScanFolder = { folderScanOpen = true }, scanning = folderScan.running)
                         "settings" -> SettingsScreen(container, permissions, actions, settings, state.tracking, installed, sessions)
                     }
                 }
             }
         }
+        if (folderScanOpen) FolderScanSheet(container) { folderScanOpen = false }
         if (options) ModalBottomSheet(onDismissRequest = { options = false }, containerColor = SingalongColors.Surface,
             contentColor = SingalongColors.Text) {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 32.dp),

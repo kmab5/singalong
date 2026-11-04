@@ -4,7 +4,7 @@ An Android companion that keeps lyrics over your music player. Made by kmab. Req
 
 ## Status and downloads
 
-The current version is **1.0.0 (9)**, with its version source in `version.properties`. Download the signed APK from [the v1.0.0 release](https://github.com/kmab5/singalong/releases/tag/v1.0.0). The [candidate checkpoint](docs/validation/premerge-checkpoint.md) records automated checks and the device-testing checklist; it does not claim universal player compatibility.
+The latest published version is **1.0.0 (9)**. This branch prepares **1.1.0-rc.1 (10)** for phone testing, with its version source in `version.properties`; it is not a published release. Download the stable APK from [the v1.0.0 release](https://github.com/kmab5/singalong/releases/tag/v1.0.0). See the [new feature checkpoint](docs/validation/library-folder-checkpoint.md) for verification and pending device checks.
 
 [Website](https://kmab5.github.io/singalong/) · [GitHub Releases](https://github.com/kmab5/singalong/releases) · [Feedback](https://kmab5.github.io/kmab-feedback/?product=singalong)
 
@@ -16,8 +16,9 @@ Each GitHub Release includes `singalong.apk`, checksums, build metadata and the 
 - Shows glass floating lyrics in compact, expanded or minimal mode, with bottom icon controls and a draggable edge handle. Tap expanded lyrics to open Now. Missing lyrics dock after a grace period; successful lyrics restore automatically unless you manually docked or closed the panel.
 - Searches LRCLIB and lyrics.ovh, including conservative filename-derived title/artist/album hints. Preserves original metadata, source attribution and uncertainty. Lyrics are cached locally; transient failures retry with bounded attempts and provider cooldowns.
 - Offers timed following, manual scrolling, optional estimated sync for untimed lyrics, and precise sync offsets. Estimated timing is explicitly approximate.
-- Provides independent Now-tab text size, alignment, spacing, line animation, dimming and tap-to-focus controls. Floating size/opacity remain separate.
+- Provides independent Now-tab text and current timed-line sizes, alignment, spacing, line animation, dimming and tap-to-focus controls. Optional Word glow estimates word emphasis between line timestamps; it does not add exact word timings. Floating size/opacity remain separate. Settings panels fill the available width.
 - Keeps a local library, favorites and play history. Supports TXT/LRC import, simple text editing, opt-in per-line timing, personal versions and JSON backup/restore. User edits never overwrite originals.
+- Sorts saved lyrics by title, artist, album, recent playback or play count. The Library folder action scans a selected folder and subfolders, reads audio metadata/filenames locally and saves found lyrics. Existing saved matches are skipped, misses create no empty entries, and the scan supports progress/cancellation. Keep the app open; reselect the folder after an interruption to continue without saving duplicates.
 - Optionally translates opened lyrics into English through MyMemory, progressively saving translations beside originals. Language identification uses on-device ML Kit; its SDK may send usage/performance metrics to Google. Read the [privacy details](PRIVACY.md).
 - Offers a quiet tracking notification, About/feedback, and a next-launch prompt to review/save a recorded Java/Kotlin crash log. Feedback is submitted by the user; nothing is automatically uploaded.
 

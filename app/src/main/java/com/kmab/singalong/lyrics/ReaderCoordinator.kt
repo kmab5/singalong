@@ -18,6 +18,7 @@ data class ReaderState(
     val moment: LyricMoment = LyricMoment(),
     val retryInSeconds: Int? = null,
     val translationStatus: String? = null,
+    val wordProgress: Float? = null,
 ) {
     val hasTiming: Boolean get() = version?.lines?.any { it.startMs != null } == true
     val experimental: Boolean get() = version != null && (!hasTiming || version.confidence == MatchConfidence.UNCERTAIN)
@@ -70,11 +71,13 @@ class ReaderCoordinator(
                 while (currentCoroutineContext().isActive) {
                     mutableState.update { s ->
                         val position = PlaybackClock.position(s.snapshot, elapsedMs())
-                        s.copy(moment = when {
+                        val moment = when {
                             position == null || !s.canSync -> LyricMoment()
                             s.estimated -> EstimatedTimeline.at(s.version!!.lines, position, s.snapshot?.recording?.durationMs ?: 0, s.delayMs)
                             else -> LyricTimeline.at(s.version!!.lines, position, s.delayMs)
-                        })
+                        }
+                        s.copy(moment = moment, wordProgress = if (position != null && s.canSync && s.hasTiming)
+                            WordSweep.progress(s.version!!.lines, moment.index, position, s.delayMs, s.snapshot?.recording?.durationMs) else null)
                     }
                     delay(200)
                 }

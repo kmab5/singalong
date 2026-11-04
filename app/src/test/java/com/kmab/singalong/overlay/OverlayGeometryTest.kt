@@ -5,6 +5,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class OverlayGeometryTest {
+    @Test fun narrowControlsWrapAndPreserveRoomForLyrics() {
+        val narrow = OverlayGeometry.bounds(OverlayState().show(), AppSettings(widthDp = 160f, heightDp = 120f), PanelBounds(0, 0, 600, 1200), 1f)
+        assertEquals(3, OverlayControlsLayout.columns(narrow.width.toFloat()))
+        assertEquals(2, OverlayControlsLayout.rows(narrow.width.toFloat()))
+        assertTrue(narrow.height - 48 - 96 >= 96)
+        assertEquals(1, OverlayControlsLayout.rows(344f))
+        assertEquals(1, OverlayControlsLayout.columns(80f))
+    }
     @Test fun firstOpenHasUsableBoundsWithoutASecondRender() {
         val safe = PanelBounds(0, 72, 1080, 2100)
         val actual = OverlayGeometry.bounds(OverlayState().show(), AppSettings(), safe, 3f)

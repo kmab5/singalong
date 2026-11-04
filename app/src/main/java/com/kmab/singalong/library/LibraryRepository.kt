@@ -36,7 +36,10 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
             ?.takeIf { RecordingIdentity.sameObservation(it.toModel(), incoming) }
         val candidates = if (previous == null) dao.candidates(RecordingIdentity.normalize(incoming.title))
             .filter { RecordingIdentity.compatible(it.toModel(), incoming) } else emptyList()
-        val existing = previous ?: candidates.singleOrNull()
+        val imported = if (previous == null && candidates.isEmpty()) {
+            FolderIdentity.match(dao.folderRecordings().map { it.toModel() }, incoming)?.let { dao.recording(it.id) }
+        } else null
+        val existing = previous ?: candidates.singleOrNull() ?: imported
         val result = if (existing != null) RecordingIdentity.enrich(existing.toModel(), incoming)
             else incoming.copy(id = UUID.randomUUID().toString())
         dao.upsert(result.toEntity(existing))
@@ -44,6 +47,26 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
     }
 
     suspend fun recording(id: String): Recording? = dao.recording(id)?.toModel()
+    suspend fun folderHasLyrics(incoming: Recording): Boolean {
+        val match = FolderIdentity.match(dao.allRecordings().map { it.toModel() }, incoming) ?: return false
+        return dao.versions(match.id).isNotEmpty()
+    }
+
+    /** Recheck inside the same transaction as insertion, including concurrent playback collection. */
+    suspend fun saveFolderMatch(incoming: Recording, candidates: List<LyricVersion>): Boolean = database.withTransaction {
+        require(candidates.isNotEmpty() && candidates.all { v -> v.recordingId == incoming.id && v.lines.any { it.text.isNotBlank() } })
+        val rows = dao.allRecordings()
+        val match = FolderIdentity.match(rows.map { it.toModel() }, incoming)
+        if (match != null && dao.versions(match.id).isNotEmpty()) return@withTransaction false
+        val recording = match?.copy(fileName = match.fileName ?: incoming.fileName)
+            ?: incoming.copy(id = UUID.randomUUID().toString())
+        dao.upsert(recording.toEntity(rows.firstOrNull { it.id == recording.id }))
+        val versions = candidates.distinctBy { it.contentHash }.map { version ->
+            version.copy(recordingId = recording.id, id = UUID.nameUUIDFromBytes("${recording.id}:${version.contentHash}".toByteArray(Charsets.UTF_8)).toString())
+        }
+        saveCandidates(recording, versions)
+        true
+    }
     override suspend fun translation(versionId: String): TranslationRecord? = dao.translation(versionId)?.let { json.decodeFromString(it.contentJson) }
     override suspend fun saveTranslation(record: TranslationRecord) {
         val version = requireNotNull(dao.version(record.versionId)).let { json.decodeFromString<LyricVersion>(it.contentJson) }
@@ -142,9 +165,10 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
         dao.adjust(value)
     }
 
-    private fun RecordingEntity.toModel() = Recording(id, title, json.decodeFromString(artistsJson), album, durationMs, versionLabel)
+    private fun RecordingEntity.toModel() = Recording(id, title, json.decodeFromString(artistsJson), album, durationMs, versionLabel, fileName)
     private fun Recording.toEntity(existing: RecordingEntity?) = RecordingEntity(
         id, title, RecordingIdentity.normalize(title), json.encodeToString(artists), album, durationMs, versionLabel,
         existing?.lastPlayedAtMs, existing?.playCount ?: 0, existing?.lookupStatus ?: "not_requested", existing?.favorite ?: false,
+        fileName ?: existing?.fileName,
     )
 }

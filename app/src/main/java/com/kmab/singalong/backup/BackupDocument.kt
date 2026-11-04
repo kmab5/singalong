@@ -43,6 +43,7 @@ object BackupCodec {
             val r = song.recording
             require(r.id.isNotBlank() && r.id.length <= 200 && r.title.isNotBlank() && r.title.length <= 4096 && r.artists.size <= 100 && r.artists.all { it.length <= 4096 } && (r.album?.length ?: 0) <= 4096)
             require(song.plays >= 0 && (song.lastPlayed ?: 0) >= 0 && (r.durationMs ?: 0) >= 0)
+            require((r.fileName?.length ?: 0) <= 4096)
             require(song.versions.size <= 500)
             song.versions.forEach { v ->
                 require(ids.add(v.id) && v.id.isNotBlank() && v.id.length <= 512 && v.recordingId == r.id)

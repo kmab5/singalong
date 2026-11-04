@@ -10,6 +10,7 @@ data class Recording(
     val album: String?,
     val durationMs: Long?,
     val versionLabel: String? = null,
+    val fileName: String? = null,
 )
 
 enum class PlaybackStatus { PLAYING, PAUSED, BUFFERING, STOPPED, UNKNOWN }

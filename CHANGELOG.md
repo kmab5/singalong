@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0-rc.1 — unreleased
+
+- Floating actions wrap to fit narrow panels; dragging the minimized edge handle moves it without opening it.
+- Persistent library sorting and cancellable folder/subfolder lyric lookup with duplicate prevention, network-policy handling and filename hints retained alongside original tags.
+- Independent current timed-line size and optional Word glow, an estimated visual progression between existing line timestamps.
+- Full-width settings selection panels and a non-destructive database migration for filename hints.
+
 ## 1.0.0 — 2026-11-02
 
 - First stable release, promoted from 1.0.0-rc.1 with Android version code 9.

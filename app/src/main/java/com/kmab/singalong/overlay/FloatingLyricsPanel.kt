@@ -42,18 +42,13 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
         customActions = buildList {
             add(CustomAccessibilityAction("Move up") { onMove(0f, -48 * density); onDragEnd(); true })
             add(CustomAccessibilityAction("Move down") { onMove(0f, 48 * density); onDragEnd(); true })
-            if (!docked) {
-                add(CustomAccessibilityAction("Move left") { onMove(-48 * density, 0f); onDragEnd(); true })
-                add(CustomAccessibilityAction("Move right") { onMove(48 * density, 0f); onDragEnd(); true })
-            }
+            add(CustomAccessibilityAction("Move left") { onDragStart(); onMove(-48 * density, 0f); onDragEnd(); true })
+            add(CustomAccessibilityAction("Move right") { onDragStart(); onMove(48 * density, 0f); onDragEnd(); true })
         }
     }.pointerInput(docked, left) {
-        var horizontal = 0f
-        detectDragGestures(onDragStart = { horizontal = 0f; onDragStart() },
-            onDragCancel = onDragEnd, onDragEnd = {
-                onDragEnd()
-                if (docked && (if (left) horizontal else -horizontal) > 24 * density) onOpen()
-            }) { change, offset -> change.consume(); horizontal += offset.x; onMove(offset.x, offset.y) }
+        detectDragGestures(onDragStart = { onDragStart() },
+            onDragCancel = onDragEnd, onDragEnd = onDragEnd
+        ) { change, offset -> change.consume(); onMove(offset.x, offset.y) }
     }
     Crossfade(docked, animationSpec = SingalongMotion.tween(), label = "Edge panel") { minimized ->
         if (minimized) Box(Modifier.fillMaxSize().then(drag).clickable(onClickLabel = "Open floating lyrics", onClick = onOpen), contentAlignment = if (left) Alignment.CenterStart else Alignment.CenterEnd) {
@@ -101,17 +96,19 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
                         Modifier.fillMaxSize(), compact = !panel.expanded, textSize = settings.textSizeSp,
                         translationSize = settings.translationSizeSp, onFollow = onFollow, onRetry = onRetry, shadowText = settings.opacity < .85f)
                 }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    FilledTonalIconButton(onClick = onDock) { Icon(Icons.Outlined.VerticalAlignCenter, "Dock lyrics", Modifier.size(20.dp)) }
-                    val syncOn = if (reader.experimental) reader.allowUncertainSync else reader.canSync && reader.following
-                    FilledTonalIconToggleButton(checked = syncOn, onCheckedChange = { onSync() }, enabled = reader.canTrySync || syncOn) {
-                        Icon(if (syncOn) Icons.Outlined.Sync else Icons.Outlined.SyncDisabled,
-                            "${if (syncOn) "Turn off" else "Try"} ${if (reader.experimental) "experimental sync" else "lyric following"}", Modifier.size(20.dp))
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    FlowRow(Modifier.fillMaxWidth().padding(horizontal = 4.dp), maxItemsInEachRow = OverlayControlsLayout.columns(maxWidth.value)) {
+                        FilledTonalIconButton(onClick = onDock, modifier = Modifier.weight(1f).height(48.dp)) { Icon(Icons.Outlined.VerticalAlignCenter, "Dock lyrics", Modifier.size(20.dp)) }
+                        val syncOn = if (reader.experimental) reader.allowUncertainSync else reader.canSync && reader.following
+                        FilledTonalIconToggleButton(checked = syncOn, onCheckedChange = { onSync() }, enabled = reader.canTrySync || syncOn, modifier = Modifier.weight(1f).height(48.dp)) {
+                            Icon(if (syncOn) Icons.Outlined.Sync else Icons.Outlined.SyncDisabled,
+                                "${if (syncOn) "Turn off" else "Try"} ${if (reader.experimental) "experimental sync" else "lyric following"}", Modifier.size(20.dp))
+                        }
+                        FilledTonalIconButton(onClick = onMinimal, modifier = Modifier.weight(1f).height(48.dp)) { Icon(Icons.AutoMirrored.Outlined.ShortText, "Minimal lyrics", Modifier.size(20.dp)) }
+                        FilledTonalIconButton(onClick = onExpand, modifier = Modifier.weight(1f).height(48.dp)) { Icon(if (panel.expanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
+                            if (panel.expanded) "Compact view" else "Expanded view", Modifier.size(20.dp)) }
+                        FilledTonalIconButton(onClick = onOpenApp, modifier = Modifier.weight(1f).height(48.dp)) { Icon(Icons.AutoMirrored.Outlined.OpenInNew, "Open Singalong", Modifier.size(20.dp)) }
                     }
-                    FilledTonalIconButton(onClick = onMinimal) { Icon(Icons.AutoMirrored.Outlined.ShortText, "Minimal lyrics", Modifier.size(20.dp)) }
-                    FilledTonalIconButton(onClick = onExpand) { Icon(if (panel.expanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
-                        if (panel.expanded) "Compact view" else "Expanded view", Modifier.size(20.dp)) }
-                    FilledTonalIconButton(onClick = onOpenApp) { Icon(Icons.AutoMirrored.Outlined.OpenInNew, "Open Singalong", Modifier.size(20.dp)) }
                 }
             }
             }

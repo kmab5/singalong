@@ -42,6 +42,17 @@ class AppContainer(private val context: Context) {
     private val connection = NetworkMonitor(context).changes.stateIn(scope, SharingStarted.Eagerly, Connectivity())
     private val provider = FallbackLyricsProvider(LrclibClient(permitsNetwork = ::networkAllowed), LyricsOvhClient(permitsNetwork = ::networkAllowed))
     private val repository = LyricsRepository(library, provider)
+    private val folderProvider = FallbackLyricsProvider(LrclibClient(permitsNetwork = ::networkAllowed), LyricsOvhClient(permitsNetwork = ::networkAllowed))
+    private val folderSearch = LyricSearch(folderProvider)
+    val folderScan = FolderScanCoordinator(CoroutineScope(scope.coroutineContext + Dispatchers.IO), object : FolderImportStore {
+        override suspend fun hasLyrics(recording: Recording): Boolean = storage { library.folderHasLyrics(recording) }
+        override suspend fun save(recording: Recording, versions: List<LyricVersion>): Boolean = storage { library.saveFolderMatch(recording, versions) }
+        private suspend fun <T> storage(block: suspend () -> T): T = try { block() }
+            catch (error: android.database.sqlite.SQLiteException) { throw java.io.IOException("Folder import storage unavailable", error) }
+    }, { folderSearch.search(it, ::networkAllowed) }, ::networkAllowed, {
+        combine(connection, settings.state) { net, prefs -> prefs.ready && net.permits(prefs.wifiOnly) }.first { it }
+    })
+    fun scanFolder(uri: android.net.Uri) { folderScan.start(AudioFolderSource(context.applicationContext).files(uri)) }
     private val collectionJobs = mutableMapOf<String, Job>()
     val tracking = TrackingCoordinator(scope, observer, settings.state, library, SystemClock::elapsedRealtime, System::currentTimeMillis, ::collectLyrics)
     private val translationProvider = com.kmab.singalong.translation.MyMemoryProvider(
@@ -64,7 +75,7 @@ class AppContainer(private val context: Context) {
 
     init {
         scope.launch { combine(connection, settings.state.map { it.wifiOnly to it.translationEnabled }.distinctUntilChanged()) { net, prefs -> net to prefs }.distinctUntilChanged().collect {
-            if (!networkAllowed()) provider.cancelRequests()
+            if (!networkAllowed()) { provider.cancelRequests(); folderProvider.cancelRequests() }
             if (!networkAllowed() || !settings.state.value.translationEnabled) translationProvider.cancelRequests()
             reader.networkChanged()
         } }

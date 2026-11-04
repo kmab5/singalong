@@ -13,6 +13,36 @@ class LibraryRepositoryTest {
     private val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, LibraryDatabase::class.java).build()
     private val repository = LibraryRepository(db)
     @After fun closeDatabase() { db.close() }
+    @Test fun filenameSearchHintsSurvivePersistenceAndDeduplicateTaggedCopies() = runTest {
+        val song = Recording("file", "Song", emptyList(), "Album", 120_000, fileName = "Artist - Song.mp3")
+        val version = LyricVersion("provider", song.id, "hash", LyricOrigin.PROVIDER,
+            listOf(LyricLine("1", null, "Synthetic words")), "Test source", null, MatchConfidence.CONFIDENT)
+        assertTrue(repository.saveFolderMatch(song, listOf(version)))
+        val saved = repository.entries.first().single().recording
+        assertEquals(song.fileName, saved.fileName)
+        assertTrue(saved.artists.isEmpty())
+        assertTrue(repository.folderHasLyrics(song.copy(id = "another", artists = listOf("Artist"), fileName = null)))
+        val playing = repository.resolveRecording(song.copy(id = "player", artists = listOf("Artist"), fileName = null))
+        assertEquals(saved.id, playing.id)
+        assertNotNull(repository.selectedVersion(playing.id))
+        assertEquals(1, repository.entries.first().size)
+    }
+    @Test fun folderImportDeduplicatesFilesAndPreservesSelectedPersonalLyricsAndHistory() = runTest {
+        val song = Recording("file-one", "Song", listOf("Artist"), "Album", 120_000)
+        val version = LyricVersion("provider", song.id, "content", LyricOrigin.PROVIDER,
+            listOf(LyricLine("1", 0, "Synthetic words")), "Test source", null, MatchConfidence.CONFIDENT)
+        assertTrue(repository.saveFolderMatch(song, listOf(version, version.copy(id = "same-content"))))
+        val entry = repository.entries.first().single()
+        assertEquals(0, entry.playCount.toInt()); assertNull(entry.lastPlayedAtMs)
+        assertEquals(1, repository.versions(entry.recording.id).size)
+        val personal = version.copy(id = "personal", recordingId = entry.recording.id, origin = LyricOrigin.PERSONAL, contentHash = "personal-hash")
+        repository.savePersonal(personal)
+        val copy = song.copy(id = "file-two", title = "01 - Artist - Song.mp3", artists = emptyList(), album = null)
+        assertTrue(repository.folderHasLyrics(copy))
+        assertFalse(repository.saveFolderMatch(copy, listOf(version.copy(recordingId = copy.id))))
+        assertEquals(1, repository.entries.first().size)
+        assertEquals("personal", repository.selectedVersion(entry.recording.id)?.id)
+    }
 
     @Test fun qualifiedOccurrencesAreIdempotent() = runTest {
         val song = repository.resolveRecording(Recording("raw", "Song", listOf("Artist"), null, 120_000))

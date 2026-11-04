@@ -4,6 +4,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NowAppearanceTest {
+    @Test fun currentTimedSizeCanDifferFromOtherLinesAndIsSafelyBounded() {
+        val appearance = NowAppearance(textSizeSp = 18f, timedTextSizeSp = 48f).sanitized()
+        assertEquals(18f, appearance.textSizeSp, .001f)
+        assertEquals(48f, appearance.timedTextSizeSp, .001f)
+        assertEquals(56f, appearance.copy(timedTextSizeSp = 200f).sanitized().timedTextSizeSp, .001f)
+        assertEquals(22f, appearance.copy(timedTextSizeSp = Float.NaN).sanitized().timedTextSizeSp, .001f)
+    }
     @Test fun invalidImportedOrStoredSizesCannotBreakTheReader() {
         val invalid = NowAppearance(Float.NaN, LyricAlignment.END, LyricAnimation.NONE, Float.POSITIVE_INFINITY, false, false).sanitized()
         assertEquals(22f, invalid.textSizeSp, .001f)

@@ -50,7 +50,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
             }
             when (section) {
                 "index" -> {
-                    item { GlassPanel { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    item { GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(if (tracking) "Following your music" else "Ready to follow your music", style = MaterialTheme.typography.titleMedium)
                         Text("${settings.allowedPlayers.size} apps selected · lyrics saved as you listen", color = SingalongColors.Muted, style = MaterialTheme.typography.bodyMedium)
                         Button(onClick = if (tracking) container::disableTracking else container::enableTracking, enabled = settings.ready,
@@ -81,7 +81,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                         .distinctBy { it.packageName }.sortedWith(compareByDescending<PlayerApp> { it.packageName in settings.allowedPlayers }.thenBy { it.label.lowercase() })
                         .filter { it.label.contains(query, true) || it.packageName.contains(query, true) }
                     items(apps, key = { it.packageName }) { app ->
-                        GlassPanel { Row(Modifier.fillMaxWidth().clickable { container.allowPlayer(app.packageName, app.packageName !in settings.allowedPlayers) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        GlassPanel(Modifier.fillMaxWidth()) { Row(Modifier.fillMaxWidth().clickable { container.allowPlayer(app.packageName, app.packageName !in settings.allowedPlayers) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             PlayerIcon(app.packageName)
                             Column(Modifier.weight(1f).padding(start = 12.dp)) { Text(app.label, style = MaterialTheme.typography.titleMedium); Text(app.packageName, style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted) }
                             Checkbox(app.packageName in settings.allowedPlayers, { container.allowPlayer(app.packageName, it) }, Modifier.semantics { contentDescription = "Follow ${app.label}" })
@@ -96,14 +96,14 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     item { Text("Background blur follows your phone's settings. A text shadow helps at lower opacity; readability also depends on the app underneath.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
                     item { SettingSlider("Floating width", settings.widthDp, 160f..560f, "${settings.widthDp.roundToInt()} dp", { container.geometry(settings.xFraction, settings.yFraction, it, settings.heightDp) }) }
                     item { SettingSlider("Floating height", settings.heightDp, 120f..640f, "${settings.heightDp.roundToInt()} dp", { container.geometry(settings.xFraction, settings.yFraction, settings.widthDp, it) }) }
-                    item { Text("Views with controls use at least 192 dp so buttons stay usable. Minimal lyrics can be as short as 56 dp.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
+                    item { Text("Controls wrap to fit the width. The panel grows when needed to keep buttons and lyrics usable. Minimal lyrics can be as short as 56 dp.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
                     item { SettingSlider("Minimal height", settings.minimalHeightDp, 56f..240f, "${settings.minimalHeightDp.roundToInt()} dp", container::minimalHeight) }
-                    item { GlassPanel { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item { GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Edge handle", style = MaterialTheme.typography.titleMedium)
-                        Text("Dock the lyrics, then tap or swipe the tab inward to reopen. Drag it up or down to move it.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            FilterChip(settings.xFraction < .5f, { container.geometry(0f, settings.yFraction, settings.widthDp, settings.heightDp) }, label = { Text("Left edge") })
-                            FilterChip(settings.xFraction >= .5f, { container.geometry(1f, settings.yFraction, settings.widthDp, settings.heightDp) }, label = { Text("Right edge") })
+                        Text("Tap the edge handle to reopen. Drag it to move; it settles at the nearest edge.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
+                        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            FilterChip(settings.xFraction < .5f, { container.geometry(0f, settings.yFraction, settings.widthDp, settings.heightDp) }, modifier = Modifier.weight(1f), label = { Text("Left edge") })
+                            FilterChip(settings.xFraction >= .5f, { container.geometry(1f, settings.yFraction, settings.widthDp, settings.heightDp) }, modifier = Modifier.weight(1f), label = { Text("Right edge") })
                         }
                     } } }
                     item { OutlinedButton(onClick = if (permissions.overlay) container::showLyrics else actions.overlayAccess, modifier = Modifier.fillMaxWidth()) { Text("Try floating lyrics") } }
@@ -112,18 +112,20 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                 "now" -> {
                     item { Text("Personalize the full reader independently of floating lyrics.", color = SingalongColors.Muted) }
                     item { SettingSlider("Now lyric size", settings.now.textSizeSp, 12f..40f, "${settings.now.textSizeSp.roundToInt()} sp") { container.nowAppearance(settings.now.copy(textSizeSp = it)) } }
-                    item { GlassPanel { Column(Modifier.padding(20.dp)) {
+                    item { SettingSlider("Current timed-line size", settings.now.timedTextSizeSp, 12f..56f, "${settings.now.timedTextSizeSp.roundToInt()} sp") { container.nowAppearance(settings.now.copy(timedTextSizeSp = it)) } }
+                    item { GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp)) {
                         Text("Text alignment", style = MaterialTheme.typography.titleMedium)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { LyricAlignment.entries.forEach { value ->
-                            FilterChip(settings.now.alignment == value, { container.nowAppearance(settings.now.copy(alignment = value)) }, label = { Text(value.name.lowercase().replaceFirstChar { it.uppercase() }) })
+                        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { LyricAlignment.entries.forEach { value ->
+                            FilterChip(settings.now.alignment == value, { container.nowAppearance(settings.now.copy(alignment = value)) }, modifier = Modifier.weight(1f), label = { Text(value.name.lowercase().replaceFirstChar { it.uppercase() }) })
                         } }
                     } } }
-                    item { GlassPanel { Column(Modifier.padding(20.dp)) {
+                    item { GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp)) {
                         Text("Timed-line animation", style = MaterialTheme.typography.titleMedium)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { LyricAnimation.entries.forEach { value ->
-                            FilterChip(settings.now.animation == value, { container.nowAppearance(settings.now.copy(animation = value)) }, label = { Text(when(value) { LyricAnimation.NONE -> "None"; LyricAnimation.FADE -> "Fade"; LyricAnimation.FOCUS -> "Gentle focus" }) })
+                        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { LyricAnimation.entries.forEach { value ->
+                            FilterChip(settings.now.animation == value, { container.nowAppearance(settings.now.copy(animation = value)) }, modifier = Modifier.weight(1f), label = { Text(when(value) { LyricAnimation.NONE -> "None"; LyricAnimation.FADE -> "Fade"; LyricAnimation.FOCUS -> "Gentle focus"; LyricAnimation.WORD_GLOW -> "Word glow" }) })
                         } }
                     } } }
+                    item { Text("Word glow brightens words in an estimated sequence between line timestamps. It is a visual effect, not exact word timing. Motion follows Android animation settings.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
                     item { SettingSlider("Line spacing", settings.now.lineSpacing, 1.1f..2f, "${(settings.now.lineSpacing * 100).roundToInt()}%") { container.nowAppearance(settings.now.copy(lineSpacing = it)) } }
                     item { ToggleSetting("Dim other lines", "Emphasize the current timed line or the line you select.", settings.now.dimInactive) { container.nowAppearance(settings.now.copy(dimInactive = it)) } }
                     item { ToggleSetting("Tap a line to focus", "Pause following while you read a selected line. Tap Follow lyrics to resume.", settings.now.tapToFocus) { container.nowAppearance(settings.now.copy(tapToFocus = it)) } }
@@ -133,15 +135,15 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     item { ToggleSetting("English beneath the original", "Translate only lyrics you open. Originals always appear first.", settings.translationEnabled,
                         { if (it) consent = true else container.translation(false) }) }
                     item { SettingSlider("English text size", settings.translationSizeSp, 10f..22f, "${settings.translationSizeSp.roundToInt()} sp", container::translationSize) }
-                    item { GlassPanel { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    item { GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("MyMemory", style = MaterialTheme.typography.titleMedium)
                         Text("English lines appear as they arrive, with repeated lines reused. Translations are saved for offline reading. Language detection happens on this phone.", color = SingalongColors.Muted)
                         Text("MyMemory stores submitted text. Its anonymous allowance is limited; unavailable translations never hide the original lyrics.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
                     } } }
                 }
                 "storage" -> {
-                    item { GlassPanel { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { BackupControls(container) } } }
-                    item { GlassPanel { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item { GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { BackupControls(container) } } }
+                    item { GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Lyric sources", style = MaterialTheme.typography.titleMedium)
                         Text("LRCLIB · timed and plain lyrics\nlyrics.ovh · plain-lyric fallback", color = SingalongColors.Muted)
                         Text("Each saved version keeps its source. Coverage varies by song.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
@@ -166,14 +168,14 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
     SettingsLink(title, if (allowed) "Allowed · manage" else "Tap to allow", if (allowed) Icons.Outlined.CheckCircle else Icons.Outlined.Security, action)
 }
 @Composable private fun ToggleSetting(title: String, description: String, value: Boolean, onChange: (Boolean) -> Unit) {
-    GlassPanel { Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    GlassPanel(Modifier.fillMaxWidth()) { Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(title, style = MaterialTheme.typography.titleMedium); Text(description, style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
         Switch(value, onChange, Modifier.semantics { contentDescription = title })
     } }
 }
 @Composable private fun SettingSlider(title: String, value: Float, range: ClosedFloatingPointRange<Float>, display: String, onChange: (Float) -> Unit) {
     var draft by remember(value) { mutableFloatStateOf(value.coerceIn(range)) }
-    GlassPanel { Column(Modifier.padding(20.dp)) {
+    GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(title, style = MaterialTheme.typography.titleMedium); Text(display, style = MaterialTheme.typography.labelMedium, color = SingalongColors.PurpleText) }
         Slider(draft, { draft = it }, onValueChangeFinished = { onChange(draft) }, valueRange = range, modifier = Modifier.semantics { contentDescription = title })
     } }

@@ -1,16 +1,16 @@
-# Singalong 1.0.0
+# Singalong 1.1.0-rc.1 — testing candidate
 
-The first stable release of Singalong, a floating lyrics companion for Android. Version 1.0.0 (9); player and device support depends on the metadata and playback controls exposed by each music app.
+Version 1.1.0-rc.1 (10). Prepared for phone testing; this update has not been merged or published. The latest public release remains v1.0.0.
 
-- Floating lyrics with compact, expanded and minimal modes, bottom icon controls and an edge handle.
-- Adaptive lookup/retry states; automatic docking when lyrics remain unavailable, returning after lyrics load.
-- Filename-aware search, LRCLIB and lyrics.ovh sources, local lyric versions and offline reading.
-- Optional English translations, simple text editing and opt-in per-line timing.
-- Now-tab alignment, text size, line spacing, timed-line animation and tap-to-focus controls.
-- A crash-log review/export prompt on the next launch and a link to the feedback form.
+- Floating controls wrap into rows to fit the panel. Drag the minimized handle to move it; tap to reopen.
+- Library sorting by title, artist, album, recent playback and play count.
+- A Library folder action finds and saves lyrics for audio in a chosen folder and its subfolders, skipping saved matches. Progress and Cancel are available; successful saves survive interruption. Keep the app open while scanning.
+- A separate current timed-line size setting in Settings → Now.
+- Optional Word glow: smooth, estimated word emphasis between existing line timestamps, with pause/seek handling. It is not exact karaoke timing.
+- Full-width selection panels in Settings.
 
-Requires Android 12 or newer. Install `singalong.apk` over an existing release-signed installation to retain data. The signing certificate is unchanged. Debug-signed installations use a different key.
+Requires Android 12 or newer. Install the candidate over an existing release-signed installation to retain data. The signing key is unchanged; the database migration retains existing lyrics and selections. Debug APKs use a different key.
 
-Some apps, including sensitive Android Settings screens, intentionally suppress overlays while visible. Lyrics depend on provider coverage and metadata accuracy. Experimental sync for untimed lyrics is approximate. Audio recognition is deferred.
+Folder lookups send song search details to the existing lyric sources, never audio. Metadata accuracy and source coverage determine matches. Inferred matches remain labelled as uncertain. Scans respect Wi-Fi-only settings and source cooldowns. Reselecting a folder after app termination skips already saved matches; unfinished work is not scheduled in the background.
 
-See `build-info.json` for the exact version/code/commit, `SHA256SUMS` for checksums and `mapping.txt` for decoding obfuscated crashes. Source is available from the release tag under GPL v3 with the documented ML Kit linking permission.
+See [the checkpoint](docs/validation/library-folder-checkpoint.md) for automated evidence and pending phone checks. No new universal player/device compatibility claim is made. Same-key packaging includes APK/checksum/build metadata and the matching R8 mapping; no new release tag is created by this work.

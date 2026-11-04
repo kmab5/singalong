@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kmab.singalong.lyrics.ReaderState
 import com.kmab.singalong.model.MatchConfidence
+import com.kmab.singalong.model.PlaybackStatus
 import com.kmab.singalong.ui.theme.SingalongColors
 import com.kmab.singalong.settings.*
 
@@ -85,6 +86,8 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                     }
                 }
                 if (state.estimated && !compact && !minimal) Text("Experimental · estimated sync", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.labelSmall, color = SingalongColors.PurpleText)
+                if (appearance?.animation == LyricAnimation.WORD_GLOW && state.hasTiming && state.canSync && !compact && !minimal)
+                    Text("Word glow · estimated word progression", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
                 if (!state.canSync && !compact && !minimal) Text(
                     if (version.confidence == MatchConfidence.UNCERTAIN && !state.allowUncertainSync) "Possible match · scroll to read" else "Scroll to read",
                     Modifier.padding(horizontal = 24.dp, vertical = 10.dp), style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
@@ -112,14 +115,19 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                     verticalArrangement = Arrangement.spacedBy(if (minimal) 10.dp else if (compact) 18.dp else 28.dp)) {
                     itemsIndexed(version.lines, key = { _, line -> line.id }) { index, line ->
                         val active = if (focusedLine != null && !state.following) index == focusedLine else !state.canSync || !state.following || index == state.moment.index
+                        val timedActive = state.canSync && state.following && index == state.moment.index
+                        val lineSize by animateFloatAsState(if (timedActive) appearance?.timedTextSizeSp ?: size else size,
+                            animationSpec = if (animateText) SingalongMotion.tween() else snap(), label = "Timed line size")
                         val color by animateColorAsState(if (active || appearance?.dimInactive == false) SingalongColors.Text else SingalongColors.Muted,
                             animationSpec = if (animateText) SingalongMotion.tween() else snap(), label = "Line emphasis")
                         val scale by animateFloatAsState(if (appearance?.animation == LyricAnimation.FOCUS && active && (state.canSync || focusedLine != null)) 1.04f else 1f,
                             animationSpec = if (animateText) SingalongMotion.tween() else snap(), label = "Line focus")
                         Column(Modifier.fillMaxWidth().graphicsLayer { scaleX = scale; scaleY = scale }
                             .then(if (appearance?.tapToFocus == true) Modifier.clickable(onClickLabel = "Focus lyric line") { focusedLine = index; onFollow(false) } else Modifier)) {
-                            Text(line.text.ifBlank { "♪" }, Modifier.fillMaxWidth(), textAlign = alignment, style = textStyle, fontSize = size.sp, lineHeight = (size * (appearance?.lineSpacing ?: 1.45f)).sp,
-                                fontWeight = FontWeight.SemiBold, color = color)
+                            val lineStyle = textStyle.copy(fontSize = lineSize.sp, lineHeight = (lineSize * (appearance?.lineSpacing ?: 1.45f)).sp, fontWeight = FontWeight.SemiBold, color = color)
+                            if (timedActive && appearance?.animation == LyricAnimation.WORD_GLOW && state.wordProgress != null)
+                                WordGlowText(line.text, state.wordProgress, state.snapshot?.status == PlaybackStatus.PLAYING, Modifier.fillMaxWidth(), lineStyle, alignment)
+                            else Text(line.text.ifBlank { "♪" }, Modifier.fillMaxWidth(), textAlign = alignment, style = lineStyle)
                             AnimatedVisibility(state.translation?.lines?.containsKey(line.id) == true) {
                                 Text(state.translation?.lines?.get(line.id).orEmpty(), Modifier.fillMaxWidth().padding(top = if (minimal) 4.dp else 8.dp), textAlign = alignment, style = textStyle,
                                     fontSize = subtextSize.sp, lineHeight = (subtextSize * 1.5f).sp,

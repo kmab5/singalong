@@ -149,7 +149,7 @@ class OverlayWindowHost(private val context: Context, private val container: App
     private fun move(dx: Float, dy: Float) {
         val p = dialog?.window?.attributes ?: return
         val safe = safeBounds()
-        val x = if (lastPanel.mode == PanelMode.VISIBLE) (p.x + dx.roundToInt()).coerceIn(safe.x, maxOf(safe.x, safe.x + safe.width - p.width)) else p.x
+        val x = (p.x + dx.roundToInt()).coerceIn(safe.x, maxOf(safe.x, safe.x + safe.width - p.width))
         val y = (p.y + dy.roundToInt()).coerceIn(safe.y, maxOf(safe.y, safe.y + safe.height - p.height))
         applyBounds(PanelBounds(x, y, p.width, p.height))
     }

@@ -12,12 +12,15 @@ This index describes the current source. Earlier phase plans and validation repo
 - [Contributing](../CONTRIBUTING.md), [conduct](../CODE_OF_CONDUCT.md), [security reporting](../SECURITY.md)
 - [Website hosting and checks](SITE.md)
 - [Release-candidate verification checkpoint](validation/premerge-checkpoint.md)
+- [Folder scan and lyric-control candidate checkpoint](validation/library-folder-checkpoint.md)
 
 ## Accepted changes since the initial design
 
 The current app includes simple text editing plus an opt-in per-line timing editor, filename-aware search, optional estimated sync for untimed lyrics, minimal floating lyrics, bottom icon controls, automatic failure docking/recovery, independent Now-tab typography/motion, and a next-launch crash-report prompt. Original metadata/content is preserved; inferred matches and estimated timing remain distinguishable from verified timed lyrics.
 
-Audio recognition, microphone/playback capture and word-level timing remain out of scope. Some Android screens may suppress overlays by policy; Singalong must respect that policy. Player compatibility and device acceptance must be based on testing, not inferred from a successful build.
+The 1.1.0-rc.1 branch adds responsive floating actions, tap-only edge expansion, library sorting, selected-folder lyric lookup and an independent current timed-line size. Word glow is an estimated visual animation using line timestamps, not word-level timing. See the [implementation plan](superpowers/plans/2026-11-04-library-folder-and-lyrics-controls.md).
+
+Audio recognition, microphone/playback capture and exact word-level timing remain out of scope. Some Android screens may suppress overlays by policy; Singalong must respect that policy. Player compatibility and device acceptance must be based on testing, not inferred from a successful build.
 
 The maintainer authorized merging to main and publishing v1.0.0 on 2026-11-02. The stable version is 1.0.0 with Android version code 9, promoted from candidate code 8. Future releases follow the [release guide](RELEASING.md) and retain the existing signing certificate.
 

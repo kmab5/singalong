@@ -30,6 +30,7 @@ data class AppSettings(
     val minimalMode: Boolean = false,
     val minimalHeightDp: Float = 88f,
     val now: NowAppearance = NowAppearance(),
+    val librarySort: com.kmab.singalong.library.LibrarySort = com.kmab.singalong.library.LibrarySort.TITLE,
 )
 
 class SettingsStore(context: Context, scope: CoroutineScope) {
@@ -51,6 +52,8 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
         val minimal = booleanPreferencesKey("overlay_minimal")
         val minimalHeight = floatPreferencesKey("overlay_minimal_height")
         val nowSize = floatPreferencesKey("now_text_size")
+        val nowTimedSize = floatPreferencesKey("now_timed_text_size")
+        val librarySort = stringPreferencesKey("library_sort")
         val nowAlignment = stringPreferencesKey("now_alignment")
         val nowAnimation = stringPreferencesKey("now_animation")
         val nowSpacing = floatPreferencesKey("now_line_spacing")
@@ -73,13 +76,16 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
             now = NowAppearance(p[Keys.nowSize] ?: p[Keys.size] ?: 22f,
                 LyricAlignment.entries.firstOrNull { it.name == p[Keys.nowAlignment] } ?: LyricAlignment.START,
                 LyricAnimation.entries.firstOrNull { it.name == p[Keys.nowAnimation] } ?: LyricAnimation.FOCUS,
-                p[Keys.nowSpacing] ?: 1.45f, p[Keys.nowDim] ?: true, p[Keys.nowTap] ?: true).sanitized(),
+                p[Keys.nowSpacing] ?: 1.45f, p[Keys.nowDim] ?: true, p[Keys.nowTap] ?: true,
+                p[Keys.nowTimedSize] ?: p[Keys.nowSize] ?: p[Keys.size] ?: 22f).sanitized(),
+            librarySort = com.kmab.singalong.library.LibrarySort.entries.firstOrNull { it.name == p[Keys.librarySort] } ?: com.kmab.singalong.library.LibrarySort.TITLE,
         )
     }.stateIn(scope, SharingStarted.Eagerly, AppSettings())
 
     suspend fun translation(enabled: Boolean) { store.edit { it[Keys.translation] = enabled; it[Keys.translationConsent] = enabled } }
+    suspend fun librarySort(value: com.kmab.singalong.library.LibrarySort) { store.edit { it[Keys.librarySort] = value.name } }
     suspend fun nowAppearance(value: NowAppearance) { val v = value.sanitized(); store.edit {
-        it[Keys.nowSize] = v.textSizeSp; it[Keys.nowAlignment] = v.alignment.name; it[Keys.nowAnimation] = v.animation.name
+        it[Keys.nowSize] = v.textSizeSp; it[Keys.nowTimedSize] = v.timedTextSizeSp; it[Keys.nowAlignment] = v.alignment.name; it[Keys.nowAnimation] = v.animation.name
         it[Keys.nowSpacing] = v.lineSpacing; it[Keys.nowDim] = v.dimInactive; it[Keys.nowTap] = v.tapToFocus
     } }
     suspend fun translationSize(value: Float) { store.edit { it[Keys.translationSize] = value.safe(10f, 22f, 16f) } }

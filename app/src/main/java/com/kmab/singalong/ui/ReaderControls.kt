@@ -29,7 +29,7 @@ fun ReaderControls(state: ReaderState, adjust: (Long?, Boolean) -> Unit, experim
                 Text(when {
                     !state.canTrySync -> "Waiting for playback position${if (!state.hasTiming) " and song duration" else ""}."
                     !state.hasTiming -> "Estimated from line length and song duration. Timing may drift."
-                    state.experimental -> "Try the timestamps of this possible match."
+                    version.confidence == com.kmab.singalong.model.MatchConfidence.UNCERTAIN -> "Following this possible match's saved timestamps. You can turn following off."
                     else -> "Use this version's saved timestamps."
                 }, style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
             }

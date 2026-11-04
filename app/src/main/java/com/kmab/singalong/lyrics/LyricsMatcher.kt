@@ -29,7 +29,7 @@ object LyricsMatcher {
         val albumMatches = !recording.album.isNullOrBlank() && normalize(recording.album) == normalize(song.albumName)
         return if (closeDuration && albumMatches) MatchConfidence.CONFIDENT else MatchConfidence.UNCERTAIN
     }
-    fun versions(recording: Recording, songs: List<ProviderSong>): List<LyricVersion> = songs.mapNotNull { song ->
+    fun versions(recording: Recording, songs: List<ProviderSong>): List<LyricVersion> = LyricPreference.sorted(songs.mapNotNull { song ->
         val confidence = confidence(recording, song) ?: return@mapNotNull null
         val lines = LrcParser.parse(song.syncedLyrics, song.plainLyrics)
         if (lines.isEmpty() || song.instrumental) return@mapNotNull null
@@ -43,6 +43,6 @@ object LyricsMatcher {
         }.joinToString(" · ")
         LyricVersion("${recording.id}:${song.source.lowercase()}:${song.id}:$hash", recording.id, hash, LyricOrigin.PROVIDER, lines,
             song.source, song.sourceUrl ?: "https://lrclib.net/api/get/${song.id}", confidence, song.id.toString(),
-            attribution)
-    }.distinctBy { it.id }.sortedBy { it.confidence.ordinal }
+            attribution, providerDurationMs = song.duration.takeIf { it.isFinite() && it > 0 }?.let { (it * 1000).toLong() })
+    }.distinctBy { it.id }, recording.durationMs)
 }

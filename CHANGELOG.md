@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0-rc.2 — unreleased
+
+- Brighter Glow with slow word lift/drift and gentle enlargement; stable wrapping and eased line handovers. Now animation labels are Gentle and Glow.
+- Timed-first, closest-duration ranking for automatic lyric selection and version lists; real timestamps automatically follow while match uncertainty remains visible.
+- Preserved existing long-press dragging after the user's clarification.
+- Documented translation alternatives without changing the provider; removed superseded local artifacts.
+
 ## 1.1.0-rc.1 — unreleased
 
 - Floating actions wrap to fit narrow panels; dragging the minimized edge handle moves it without opening it.

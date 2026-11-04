@@ -54,6 +54,7 @@ data class LyricVersion(
     val providerId: String? = null,
     val attribution: String? = null,
     val retention: String = "personal offline copy; no redistribution grant",
+    val providerDurationMs: Long? = null,
 )
 
 data class LibraryEntry(

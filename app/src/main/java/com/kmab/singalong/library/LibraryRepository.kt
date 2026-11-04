@@ -141,13 +141,15 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
     }
 
     override suspend fun selectedVersion(recordingId: String): LyricVersion? = dao.selected(recordingId)?.let { json.decodeFromString<LyricVersion>(it.contentJson) }
-    override suspend fun versions(recordingId: String): List<LyricVersion> = dao.versions(recordingId).map { json.decodeFromString(it.contentJson) }
+    override suspend fun versions(recordingId: String): List<LyricVersion> = com.kmab.singalong.lyrics.LyricPreference.sorted(
+        dao.versions(recordingId).map { json.decodeFromString(it.contentJson) }, dao.recording(recordingId)?.durationMs)
 
     override suspend fun saveCandidates(recording: Recording, versions: List<LyricVersion>) = database.withTransaction {
         require(versions.all { it.recordingId == recording.id })
         versions.forEach { dao.upsertLyrics(LyricEntity(it.id, it.recordingId, json.encodeToString(it))) }
         // Preserve every explicit selection, including a personal version created in a later phase.
-        if (dao.selected(recording.id) == null) versions.firstOrNull()?.let { dao.select(SelectionEntity(recording.id, it.id)) }
+        if (dao.selected(recording.id) == null) com.kmab.singalong.lyrics.LyricPreference.sorted(versions, recording.durationMs)
+            .firstOrNull()?.let { dao.select(SelectionEntity(recording.id, it.id)) }
         dao.lookupStatus(recording.id, "available")
     }
 

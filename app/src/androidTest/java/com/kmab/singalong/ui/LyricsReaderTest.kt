@@ -17,6 +17,40 @@ import org.junit.Test
 
 class LyricsReaderTest {
     @get:Rule val compose = createComposeRule()
+    @Test fun timedSizeSettingDoesNotChangeAnUntimedReadersWrapping() {
+        var timedSize by mutableFloatStateOf(20f)
+        val words = "Synthetic untimed words that should keep their normal wrapping"
+        val version = LyricVersion("v", "r", "h", LyricOrigin.PERSONAL,
+            listOf(LyricLine("line", null, words)), null, null, MatchConfidence.CONFIDENT)
+        compose.setContent { SingalongTheme {
+            LyricsReader(ReaderState(version = version), Modifier.width(250.dp).height(600.dp),
+                appearance = com.kmab.singalong.settings.NowAppearance(textSizeSp = 14f, timedTextSizeSp = timedSize))
+        } }
+        val before = compose.onNodeWithText(words).fetchSemanticsNode().boundsInRoot
+        compose.runOnIdle { timedSize = 56f }
+        compose.waitForIdle()
+        org.junit.Assert.assertEquals(before, compose.onNodeWithText(words).fetchSemanticsNode().boundsInRoot)
+    }
+    @Test fun changingCurrentLineSizeDoesNotReflowItsLayoutOrLoseAccessibleText() {
+        var current by mutableStateOf(false)
+        compose.mainClock.autoAdvance = false
+        val words = "Synthetic words long enough to wrap across lines"
+        compose.setContent { SingalongTheme {
+            Box(Modifier.width(220.dp)) {
+                AnimatedLyricText(words, 14f, 30f, current, glow = true, gentle = false, animate = true,
+                    progress = .6f, playing = false, style = androidx.compose.ui.text.TextStyle(color = com.kmab.singalong.ui.theme.SingalongColors.Text),
+                    lineSpacing = 1.45f, alignment = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        } }
+        val before = compose.onNodeWithText(words).fetchSemanticsNode().boundsInRoot
+        compose.runOnIdle { current = true }
+        compose.mainClock.advanceTimeBy(320)
+        val during = compose.onNodeWithText(words).fetchSemanticsNode().boundsInRoot
+        compose.mainClock.advanceTimeBy(600)
+        val after = compose.onNodeWithText(words).fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertEquals(before, during)
+        org.junit.Assert.assertEquals(before, after)
+    }
     @Test fun narrowFloatingControlsAreAllVisibleWithoutHorizontalScrolling() {
         compose.setContent { SingalongTheme { Box(Modifier.width(160.dp).height(280.dp)) {
             FloatingLyricsPanel(OverlayState().show(), AppSettings(widthDp = 160f), ReaderState(),

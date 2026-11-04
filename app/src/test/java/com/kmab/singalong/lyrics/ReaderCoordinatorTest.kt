@@ -25,6 +25,23 @@ class ReaderCoordinatorTest {
     private fun snapshot(id: String, position: Long? = 0) = PlaybackSnapshot("session", "player", "Player",
         Recording(id, id, listOf("Artist"), "Album", 120_000), PlaybackStatus.PLAYING, position, 0, 1f)
 
+    @Test fun uncertainTimedLyricsFollowAutomaticallyButRefreshingDoesNotUndoManualPause() = runTest {
+        val store = Store()
+        val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(
+            ProviderSong(1, recording.title, "Artist", "Different album", 120.0, syncedLyrics = "[00:01.00]Synthetic first\n[00:02.00]Synthetic second"))) }
+        val reader = ReaderCoordinator(backgroundScope, MutableStateFlow(snapshot("A", 1500)), store, LyricsRepository(store, provider), { true }, { 0 })
+        reader.visible(true); runCurrent()
+        assertTrue(reader.state.value.following)
+        assertTrue(reader.state.value.canSync)
+        assertEquals(MatchConfidence.UNCERTAIN, reader.state.value.version!!.confidence)
+        reader.toggleSync(); runCurrent()
+        assertFalse(reader.state.value.following)
+        reader.refreshLocal(); runCurrent()
+        assertFalse(reader.state.value.following)
+        reader.toggleSync(); runCurrent()
+        assertTrue(reader.state.value.following)
+    }
+
     @Test fun aSingleUntimedVersionOffersOptionalPersistentSyncAndFineAdjustment() = runTest {
         val store = Store()
         val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(

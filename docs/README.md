@@ -13,6 +13,8 @@ This index describes the current source. Earlier phase plans and validation repo
 - [Website hosting and checks](SITE.md)
 - [Release-candidate verification checkpoint](validation/premerge-checkpoint.md)
 - [Folder scan and lyric-control candidate checkpoint](validation/library-folder-checkpoint.md)
+- [Glow and timed-selection follow-up checkpoint](validation/glow-selection-checkpoint.md)
+- [Translation alternatives, research only](translation-options.md)
 
 ## Accepted changes since the initial design
 

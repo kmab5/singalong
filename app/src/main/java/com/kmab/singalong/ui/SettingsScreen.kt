@@ -122,10 +122,10 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     item { GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp)) {
                         Text("Timed-line animation", style = MaterialTheme.typography.titleMedium)
                         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { LyricAnimation.entries.forEach { value ->
-                            FilterChip(settings.now.animation == value, { container.nowAppearance(settings.now.copy(animation = value)) }, modifier = Modifier.weight(1f), label = { Text(when(value) { LyricAnimation.NONE -> "None"; LyricAnimation.FADE -> "Fade"; LyricAnimation.FOCUS -> "Gentle focus"; LyricAnimation.WORD_GLOW -> "Word glow" }) })
+                            FilterChip(settings.now.animation == value, { container.nowAppearance(settings.now.copy(animation = value)) }, modifier = Modifier.weight(1f), label = { Text(when(value) { LyricAnimation.NONE -> "None"; LyricAnimation.FADE -> "Fade"; LyricAnimation.FOCUS -> "Gentle"; LyricAnimation.WORD_GLOW -> "Glow" }) })
                         } }
                     } } }
-                    item { Text("Word glow brightens words in an estimated sequence between line timestamps. It is a visual effect, not exact word timing. Motion follows Android animation settings.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
+                    item { Text("Glow softly lifts, enlarges and lights up words between line timestamps. Word timing is estimated. Motion follows Android animation settings.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
                     item { SettingSlider("Line spacing", settings.now.lineSpacing, 1.1f..2f, "${(settings.now.lineSpacing * 100).roundToInt()}%") { container.nowAppearance(settings.now.copy(lineSpacing = it)) } }
                     item { ToggleSetting("Dim other lines", "Emphasize the current timed line or the line you select.", settings.now.dimInactive) { container.nowAppearance(settings.now.copy(dimInactive = it)) } }
                     item { ToggleSetting("Tap a line to focus", "Pause following while you read a selected line. Tap Follow lyrics to resume.", settings.now.tapToFocus) { container.nowAppearance(settings.now.copy(tapToFocus = it)) } }

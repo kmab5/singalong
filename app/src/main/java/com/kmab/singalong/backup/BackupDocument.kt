@@ -46,6 +46,7 @@ object BackupCodec {
             require((r.fileName?.length ?: 0) <= 4096)
             require(song.versions.size <= 500)
             song.versions.forEach { v ->
+                require((v.providerDurationMs ?: 0) >= 0)
                 require(ids.add(v.id) && v.id.isNotBlank() && v.id.length <= 512 && v.recordingId == r.id)
                 require(v.lines.isNotEmpty() && v.lines.size <= 20_000 && v.lines.map { it.id }.distinct().size == v.lines.size)
                 require(v.lines.all { it.id.length <= 200 && it.text.length <= 100_000 && (it.startMs ?: 0) >= 0 })

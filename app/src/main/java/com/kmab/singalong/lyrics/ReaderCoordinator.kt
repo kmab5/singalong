@@ -21,13 +21,12 @@ data class ReaderState(
     val wordProgress: Float? = null,
 ) {
     val hasTiming: Boolean get() = version?.lines?.any { it.startMs != null } == true
-    val experimental: Boolean get() = version != null && (!hasTiming || version.confidence == MatchConfidence.UNCERTAIN)
+    val experimental: Boolean get() = version != null && !hasTiming
     val canTrySync: Boolean get() = (snapshot?.positionMs ?: -1) >= 0 && version?.lines?.any { it.text.isNotBlank() } == true &&
         (hasTiming || (snapshot?.recording?.durationMs ?: 0) > 0)
     val estimated: Boolean get() = !hasTiming && allowUncertainSync && canTrySync
     val canSync: Boolean get() {
-        val lyrics = version ?: return false
-        return canTrySync && (estimated || (hasTiming && (lyrics.confidence == MatchConfidence.CONFIDENT || allowUncertainSync)))
+        return canTrySync && (estimated || hasTiming)
     }
 }
 
@@ -146,6 +145,8 @@ class ReaderCoordinator(
         val alreadyTranslating = keepTranslation && translate?.isActive == true
         if (!alreadyTranslating) translate?.cancel()
         if (state.value.snapshot?.recording?.id == id) mutableState.update { it.copy(status = result.status, version = version,
+            following = if (!sameVersion && version?.lines?.any { line -> line.startMs != null } == true) true else it.following,
+            moment = if (sameVersion) it.moment else LyricMoment(), wordProgress = if (sameVersion) it.wordProgress else null,
             translation = if (keepTranslation) it.translation else null,
             translationStatus = if (keepTranslation) it.translationStatus else null, retryInSeconds = null,
             candidates = candidates, delayMs = adjustment?.delayMs ?: 0, allowUncertainSync = adjustment?.allowUncertainSync ?: false) }

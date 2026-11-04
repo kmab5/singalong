@@ -10,6 +10,7 @@ object LyricPreference {
             .thenBy { version ->
                 if (durationMs != null && durationMs > 0 && version.providerDurationMs != null)
                     abs(durationMs.toDouble() - version.providerDurationMs) else Double.MAX_VALUE
-            }.thenBy { it.confidence.ordinal }.thenBy { it.id },
+            }.thenBy { it.confidence.ordinal }
+            .thenByDescending { it.lines.count(WordSync::valid) }.thenBy { it.id },
     )
 }

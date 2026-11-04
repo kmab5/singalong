@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0-rc.4 — unreleased
+
+- LRCLIB Lyricsfile word segments and timestamps are saved offline and drive the existing Glow animation from the playback clock. Line-only lyrics retain estimated progression.
+- Word-synced, partially word-synced and line-synced versions are labelled separately. Equally matching versions prefer word timing without replacing saved selections.
+- Word timing round-trips through backups. Changed personal-edit lines discard stale word timing; unchanged lines retain it. Multiline timing segments offer explicit untimed conversion for editing.
+- Bounded safe YAML parsing runs off the UI thread; malformed word data falls back to line timing. Existing signing identity and approved Glow appearance are preserved.
+
 ## 1.1.0-rc.3 — unreleased
 
 - Corrected black overlapping text in Glow by making hidden words' shadows explicitly transparent. Word drift, enlargement, glow and stable wrapping are preserved.

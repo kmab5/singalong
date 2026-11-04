@@ -4,12 +4,14 @@ import com.kmab.singalong.library.LyricsStore
 import com.kmab.singalong.model.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import java.util.concurrent.ConcurrentHashMap
 
 data class LookupResult(val status: String, val version: LyricVersion? = null, val retryAfterMs: Long? = null)
 
-class LyricsRepository(private val store: LyricsStore, provider: LyricsProvider) {
-    private val search = LyricSearch(provider)
+class LyricsRepository(private val store: LyricsStore, provider: LyricsProvider, parsingDispatcher: CoroutineDispatcher = Dispatchers.Default) {
+    private val search = LyricSearch(provider, parsingDispatcher)
     private val locks = Array(32) { Mutex() }
     private val recent = ConcurrentHashMap<String, Pair<Long, LookupResult>>()
     suspend fun lookup(recording: Recording, permitsNetwork: () -> Boolean, nowMs: () -> Long = System::currentTimeMillis, forceRefresh: Boolean = false): LookupResult =

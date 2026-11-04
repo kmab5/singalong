@@ -4,6 +4,9 @@ import com.kmab.singalong.model.Recording
 import com.kmab.singalong.model.MatchConfidence
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerializationException
@@ -12,13 +15,14 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.io.IOException
 
 /** Keep LRCLIB's timing and recording evidence when available; broaden plain-text coverage otherwise. */
-class FallbackLyricsProvider(private val primary: LyricsProvider, private val fallback: LyricsProvider) : LyricsProvider {
+class FallbackLyricsProvider(private val primary: LyricsProvider, private val fallback: LyricsProvider,
+    private val parsingDispatcher: CoroutineDispatcher = Dispatchers.Default) : LyricsProvider {
     override suspend fun search(recording: Recording): ProviderResult {
         val first = primary.search(recording)
-        if (first is ProviderResult.Songs && (LyricsMatcher.versions(recording, first.songs).isNotEmpty() ||
+        if (first is ProviderResult.Songs && (withContext(parsingDispatcher) { LyricsMatcher.versions(recording, first.songs).isNotEmpty() } ||
                 first.songs.any { it.instrumental && LyricsMatcher.confidence(recording, it) == MatchConfidence.CONFIDENT })) return first
         val second = fallback.search(recording)
-        if (second is ProviderResult.Songs && LyricsMatcher.versions(recording, second.songs).isNotEmpty()) return second
+        if (second is ProviderResult.Songs && withContext(parsingDispatcher) { LyricsMatcher.versions(recording, second.songs).isNotEmpty() }) return second
         // A failed source cannot establish that no lyrics exist. Retry only after both cooldowns permit it.
         val failures = listOf(first, second).filterIsInstance<ProviderResult.Failed>()
         return if (failures.isEmpty()) ProviderResult.Songs(emptyList()) else ProviderResult.Failed(

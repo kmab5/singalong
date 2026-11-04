@@ -9,6 +9,7 @@ Copyright © 2026 Samuel (kmab). Original Singalong source code, documentation, 
 | Kotlin, kotlinx.coroutines, kotlinx.serialization | Apache License 2.0 |
 | AndroidX / Jetpack Compose, Room, DataStore, Core, Activity, Lifecycle | Apache License 2.0 |
 | OkHttp and Okio | Apache License 2.0 |
+| SnakeYAML | Apache License 2.0; [bundled license](app/src/main/assets/licenses/Apache-2.0.txt). Bounded safe loading of LRCLIB Lyricsfile documents |
 | ML Kit Language Identification and required Google SDK components | [ML Kit terms](https://developers.google.com/ml-kit/terms) and the applicable Google SDK terms; covered by the project's linking permission, not relicensed as GPL |
 | Transitive utility libraries, including Android annotations and transport/support code | Their original package notices and licenses remain applicable |
 | Inter | SIL Open Font License 1.1; [bundled notice](docs/assets/fonts/Inter-OFL.txt) |

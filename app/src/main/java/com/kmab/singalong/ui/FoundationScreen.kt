@@ -192,7 +192,7 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                         Icon(if (reader.version?.id == version.id) Icons.Outlined.RadioButtonChecked else Icons.Outlined.RadioButtonUnchecked, null)
                         Column(Modifier.padding(start = 10.dp)) {
                             Text(version.attribution ?: version.sourceName.orEmpty())
-                            Text(if (version.lines.any { it.startMs != null }) "Timed" else "Untimed", style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted)
+                            Text(com.kmab.singalong.lyrics.WordSync.label(version), style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted)
                         }
                     } }
                 }

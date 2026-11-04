@@ -15,6 +15,7 @@ This index describes the current source. Earlier phase plans and validation repo
 - [Folder scan and lyric-control candidate checkpoint](validation/library-folder-checkpoint.md)
 - [Glow and timed-selection follow-up checkpoint](validation/glow-selection-checkpoint.md)
 - [Glow hidden-shadow correction checkpoint](validation/glow-shadow-checkpoint.md)
+- [Provider word-sync checkpoint](validation/word-sync-checkpoint.md)
 - [Translation alternatives, research only](translation-options.md)
 
 ## Accepted changes since the initial design

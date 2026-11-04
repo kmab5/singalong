@@ -3,6 +3,8 @@ package com.kmab.singalong.lyrics
 import com.kmab.singalong.library.RecordingIdentity.normalize
 import com.kmab.singalong.model.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import kotlin.math.abs
 
@@ -12,6 +14,7 @@ data class ProviderSong(
     val duration: Double = 0.0, val instrumental: Boolean = false,
     val plainLyrics: String? = null, val syncedLyrics: String? = null,
     val source: String = "LRCLIB", val sourceUrl: String? = null,
+    val lyricsfile: String? = null,
 )
 
 object LyricsMatcher {
@@ -31,9 +34,12 @@ object LyricsMatcher {
     }
     fun versions(recording: Recording, songs: List<ProviderSong>): List<LyricVersion> = LyricPreference.sorted(songs.mapNotNull { song ->
         val confidence = confidence(recording, song) ?: return@mapNotNull null
-        val lines = LrcParser.parse(song.syncedLyrics, song.plainLyrics)
+        val lines = LyricsfileParser.parse(song.lyricsfile) ?: LrcParser.parse(song.syncedLyrics, song.plainLyrics)
         if (lines.isEmpty() || song.instrumental) return@mapNotNull null
-        val hash = MessageDigest.getInstance("SHA-256").digest(lines.joinToString("\n") { "${it.startMs}:${it.text}" }.toByteArray(Charsets.UTF_8))
+        // Keep legacy identities stable; new timing changes must not deduplicate as line-only lyrics.
+        val content = if (lines.any { it.words.isNotEmpty() || it.endMs != null }) Json.encodeToString(lines)
+            else lines.joinToString("\n") { "${it.startMs}:${it.text}" }
+        val hash = MessageDigest.getInstance("SHA-256").digest(content.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
         val attribution = buildList {
             add("${song.trackName} — ${song.artistName}")

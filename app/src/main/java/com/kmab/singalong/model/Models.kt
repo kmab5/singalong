@@ -33,7 +33,14 @@ interface PlaybackObserver {
 }
 
 @Serializable
-data class LyricLine(val id: String, val startMs: Long?, val text: String)
+data class LyricLine(
+    val id: String, val startMs: Long?, val text: String,
+    val endMs: Long? = null, val words: List<LyricWord> = emptyList(),
+)
+
+/** Provider segments include their original whitespace; timestamps are absolute track milliseconds. */
+@Serializable
+data class LyricWord(val text: String, val startMs: Long, val endMs: Long? = null)
 
 @Serializable
 enum class LyricOrigin { PROVIDER, IMPORT, PERSONAL }

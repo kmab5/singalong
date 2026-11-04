@@ -50,6 +50,10 @@ object BackupCodec {
                 require(ids.add(v.id) && v.id.isNotBlank() && v.id.length <= 512 && v.recordingId == r.id)
                 require(v.lines.isNotEmpty() && v.lines.size <= 20_000 && v.lines.map { it.id }.distinct().size == v.lines.size)
                 require(v.lines.all { it.id.length <= 200 && it.text.length <= 100_000 && (it.startMs ?: 0) >= 0 })
+                require(v.lines.all { line ->
+                    (line.endMs == null || (line.startMs != null && line.endMs >= line.startMs)) &&
+                        (line.words.isEmpty() || com.kmab.singalong.lyrics.WordSync.valid(line))
+                }) { "Invalid saved word timing." }
                 require(v.lines.sumOf { it.text.toByteArray().size.toLong() } <= 2 * 1024 * 1024)
                 require(v.lines.mapNotNull { it.startMs }.zipWithNext().all { (a, b) -> a <= b })
             }

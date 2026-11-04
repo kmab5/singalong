@@ -21,6 +21,34 @@ import org.junit.Test
 class AnimatedLyricTextTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun suppliedWordTimesOverrideEstimatedProgressAndFollowPausedSeeks() {
+        val progress = mutableFloatStateOf(0f)
+        val playback = mutableStateOf(com.kmab.singalong.model.PlaybackSnapshot("s", "p", "p", null,
+            com.kmab.singalong.model.PlaybackStatus.PAUSED, 1000, 0, 1f))
+        val words = listOf(com.kmab.singalong.model.LyricWord("Alpha ", 1000, 1500),
+            com.kmab.singalong.model.LyricWord("beta", 4000, 6000))
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            Box(Modifier.width(260.dp)) {
+                AnimatedLyricText("Alpha beta", 20f, 28f, current = true, glow = true,
+                    gentle = false, animate = true, progress = progress.floatValue, playing = false,
+                    style = TextStyle(color = Color.White), lineSpacing = 1.45f, alignment = TextAlign.Center,
+                    modifier = Modifier.background(Color(0xFF404040)), wordTimings = words,
+                    playback = playback.value, wordLineEndMs = 6000, elapsedMs = { 0 })
+            }
+        }
+        val before = compose.onNodeWithText("Alpha beta").captureToImage().toPixelMap()
+        compose.runOnIdle { progress.floatValue = 1f }
+        compose.mainClock.advanceTimeBy(500)
+        val after = compose.onNodeWithText("Alpha beta").captureToImage().toPixelMap()
+        for (y in 0 until before.height) for (x in 0 until before.width) {
+            org.junit.Assert.assertEquals("Estimated progress must not move word-synced highlights", before[x, y], after[x, y])
+        }
+        compose.runOnIdle { playback.value = playback.value.copy(positionMs = 5000) }
+        compose.mainClock.advanceTimeByFrame()
+        assertVisibleTextWithoutBlackCopies("Alpha beta", expectGlow = true)
+    }
+
     @Test fun glowDoesNotPaintHiddenWordsOrTheirShadows() {
         val sentence = mutableStateOf("Alpha beta gamma delta epsilon\nzeta eta theta")
         val progress = mutableFloatStateOf(.15f)

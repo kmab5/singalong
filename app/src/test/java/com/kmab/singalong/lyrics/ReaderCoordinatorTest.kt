@@ -29,7 +29,7 @@ class ReaderCoordinatorTest {
         val store = Store()
         val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(
             ProviderSong(1, recording.title, "Artist", "Different album", 120.0, syncedLyrics = "[00:01.00]Synthetic first\n[00:02.00]Synthetic second"))) }
-        val reader = ReaderCoordinator(backgroundScope, MutableStateFlow(snapshot("A", 1500)), store, LyricsRepository(store, provider), { true }, { 0 })
+        val reader = ReaderCoordinator(backgroundScope, MutableStateFlow(snapshot("A", 1500)), store, LyricsRepository(store, provider, kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)), { true }, { 0 })
         reader.visible(true); runCurrent()
         assertTrue(reader.state.value.following)
         assertTrue(reader.state.value.canSync)
@@ -47,7 +47,7 @@ class ReaderCoordinatorTest {
         val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(
             ProviderSong(1, recording.title, "Artist", "Album", 120.0, plainLyrics = "First\nOther"))) }
         val current = MutableStateFlow<PlaybackSnapshot?>(snapshot("A", 20_000).copy(status = PlaybackStatus.PAUSED))
-        val reader = ReaderCoordinator(backgroundScope, current, store, LyricsRepository(store, provider), { true }, { 0 })
+        val reader = ReaderCoordinator(backgroundScope, current, store, LyricsRepository(store, provider, kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)), { true }, { 0 })
         reader.visible(true); runCurrent()
         assertEquals(1, reader.state.value.candidates.size)
         assertTrue(reader.state.value.canTrySync)
@@ -93,7 +93,7 @@ class ReaderCoordinatorTest {
         })
         val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(
             ProviderSong(1, recording.title, "Artist", "Album", 120.0, plainLyrics = "Bir\nİki"))) }
-        val reader = ReaderCoordinator(backgroundScope, MutableStateFlow(snapshot("A")), store, LyricsRepository(store, provider), { true }, { 0 }, translations) { true }
+        val reader = ReaderCoordinator(backgroundScope, MutableStateFlow(snapshot("A")), store, LyricsRepository(store, provider, kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)), { true }, { 0 }, translations) { true }
         reader.visible(true); runCurrent()
         assertEquals(1, reader.state.value.translation!!.lines.size)
         reader.refreshLocal(); runCurrent()
@@ -113,7 +113,7 @@ class ReaderCoordinatorTest {
                 return ProviderResult.Songs(listOf(ProviderSong(1, recording.title, "Artist", "Album", 120.0, plainLyrics = "Synthetic ${recording.id}")))
             }
         }
-        val reader = ReaderCoordinator(backgroundScope, current, store, LyricsRepository(store, provider), { true }, { testScheduler.currentTime })
+        val reader = ReaderCoordinator(backgroundScope, current, store, LyricsRepository(store, provider, kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)), { true }, { testScheduler.currentTime })
         reader.visible(true)
         runCurrent()
         current.value = snapshot("B")
@@ -144,7 +144,7 @@ class ReaderCoordinatorTest {
             calls++; return ProviderResult.Failed("network_error")
         } }
         val reader = ReaderCoordinator(backgroundScope, MutableStateFlow(snapshot("A")), store,
-            LyricsRepository(store, provider), { true }, { testScheduler.currentTime })
+            LyricsRepository(store, provider, kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)), { true }, { testScheduler.currentTime })
         reader.visible(true); runCurrent()
         assertEquals(1, calls)
         assertEquals(2, reader.state.value.retryInSeconds)
@@ -174,7 +174,7 @@ class ReaderCoordinatorTest {
         })
         val provider = object : LyricsProvider { override suspend fun search(recording: Recording) = ProviderResult.Songs(listOf(
             ProviderSong(1, recording.title, "Artist", "Album", 120.0, plainLyrics = "Original ${recording.id}"))) }
-        val reader = ReaderCoordinator(backgroundScope, current, store, LyricsRepository(store, provider), { true }, { 0 }, translations) { true }
+        val reader = ReaderCoordinator(backgroundScope, current, store, LyricsRepository(store, provider, kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)), { true }, { 0 }, translations) { true }
         reader.visible(true); runCurrent()
         assertEquals("A", reader.state.value.version?.recordingId)
         assertNull(reader.state.value.translation)
@@ -190,7 +190,7 @@ class ReaderCoordinatorTest {
             calls++; return ProviderResult.Failed("unavailable")
         } }
         val reader = ReaderCoordinator(backgroundScope, MutableStateFlow(snapshot("A")), store,
-            LyricsRepository(store, provider), { true }, { testScheduler.currentTime })
+            LyricsRepository(store, provider, kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)), { true }, { testScheduler.currentTime })
         reader.visible(true); runCurrent()
         advanceTimeBy(60_000); runCurrent()
         assertEquals(4, calls)
@@ -205,7 +205,7 @@ class ReaderCoordinatorTest {
             return ProviderResult.Songs(if (recording.album == null) emptyList() else listOf(
                 ProviderSong(1, recording.title, "Artist", "Album", 120.0, plainLyrics = "Original words")))
         } }
-        val reader = ReaderCoordinator(backgroundScope, current, store, LyricsRepository(store, provider), { true }, { 0 })
+        val reader = ReaderCoordinator(backgroundScope, current, store, LyricsRepository(store, provider, kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)), { true }, { 0 })
         reader.visible(true); runCurrent()
         assertEquals("not_found", reader.state.value.status)
         current.value = snapshot("A"); runCurrent()

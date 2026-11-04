@@ -51,7 +51,9 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
     var timing by draft.timing
     var timingEnabled by rememberSaveable { mutableStateOf(false) }
     val timed = timing?.times?.any { it != null } == true || !timing?.timeInput.isNullOrBlank()
-    val timingProblem = timing?.problem(text.lines().size)
+    val needsUntimedCopy = timed && source?.lines?.any { '\n' in it.text || '\r' in it.text } == true
+    val timingProblem = if (needsUntimedCopy) "This version groups multiple rows into one timed segment. Create an untimed version to edit it; the original word timing stays saved."
+        else timing?.problem(text.lines().size)
     var dirty by draft.dirty
     var discard by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -117,14 +119,14 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
         } }
         AnimatedVisibility(message != null) { GlassPanel { Text(message.orEmpty(), Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium) } }
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ActionButton(enabled = !busy && !dirty, onClick = { action { val r = recording(); val result = container.manualLookup(r.id, title, artist, album); versions = container.library.versions(r.id); message = if (result == "available") "Choose a matching version below. Timing is manual until you try sync." else lookupMessage(result) } }) { Text("find lyrics") }
+            ActionButton(enabled = !busy && !dirty, onClick = { action { val r = recording(); val result = container.manualLookup(r.id, title, artist, album); versions = container.library.versions(r.id); message = if (result == "available") "Choose a matching version below. Word-synced versions use supplied word timestamps." else lookupMessage(result) } }) { Text("find lyrics") }
             ActionButton(enabled = !busy && !dirty, onClick = { importFile.launch(arrayOf("text/*", "application/octet-stream")) }) { Text("import TXT / LRC") }
         }
         if (versions.isNotEmpty()) Box {
             OutlinedButton(enabled = !dirty && !busy, onClick = { chooseVersion = true }, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f)) {
                     Text(source?.sourceName ?: "Choose a saved version")
-                    source?.let { Text(if (it.lines.any { line -> line.startMs != null }) "Timed" else "Untimed", style = MaterialTheme.typography.labelMedium) }
+                    source?.let { Text(com.kmab.singalong.lyrics.WordSync.label(it), style = MaterialTheme.typography.labelMedium) }
                 }
                 Icon(Icons.Outlined.ExpandMore, null)
             }
@@ -134,13 +136,15 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
             if (container.reader.state.value.snapshot?.recording?.id == version.recordingId) container.reader.select(version)
         } }, text = { Column {
             Text("${if (source?.id == version.id) "✓ " else ""}${version.sourceName ?: "Saved version"} · ${version.attribution ?: version.id.take(8)}")
-            Text(if (version.lines.any { it.startMs != null }) "Timed" else "Untimed", style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted)
+            Text(com.kmab.singalong.lyrics.WordSync.label(version), style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted)
         } }) }
             }
         }
         source?.sourceUrl?.let { Text("Source: $it", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted) }
         if (timed) {
             Text("Timed copy · edit words without adding or removing lines.")
+            if (source?.lines?.any { it.words.isNotEmpty() } == true)
+                Text("Changing a line's text or start time removes word timing from that line in your copy. The original version stays saved.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
             ActionButton(enabled = !busy, onClick = { draft.clearTiming() }) { Text("create an untimed version") }
         }
         GlassPanel { Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -148,17 +152,17 @@ fun LibraryTools(container: AppContainer, recordingId: String?, onClose: () -> U
                 Text("Edit timing", style = MaterialTheme.typography.titleMedium)
                 Text("Add or adjust when each line starts. Hiding controls keeps your edits.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
             }
-            Switch(checked = timingEnabled, enabled = !busy, onCheckedChange = {
+            Switch(checked = timingEnabled && !needsUntimedCopy, enabled = !busy && !needsUntimedCopy, onCheckedChange = {
                 if (it && timing == null) timing = TimingDraft(List(text.lines().size) { null })
                 timingEnabled = it
             }, modifier = Modifier.semantics { contentDescription = "Edit timing" })
         } }
-        AnimatedVisibility(timingEnabled) {
+        AnimatedVisibility(timingEnabled && !needsUntimedCopy) {
             timing?.let { current -> TimingEditor(text, current, id, container.tracking.current, !busy) { timing = it; dirty = true } }
         }
-        AnimatedVisibility(!timingEnabled) {
+        AnimatedVisibility(!timingEnabled || needsUntimedCopy) {
         OutlinedTextField(text, draft::changeText, label = { Text(if (timed) "Lyrics · keep line count" else "Lyrics") }, modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp, max = 600.dp),
-            shape = RoundedCornerShape(24.dp), textStyle = MaterialTheme.typography.bodyLarge, enabled = !busy,
+            shape = RoundedCornerShape(24.dp), textStyle = MaterialTheme.typography.bodyLarge, enabled = !busy && !needsUntimedCopy,
             colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = SingalongColors.Surface.copy(alpha = .8f), focusedContainerColor = SingalongColors.Surface.copy(alpha = .9f)))
         }
         timingProblem?.let { Text(it, color = SingalongColors.Critical, style = MaterialTheme.typography.bodyMedium) }

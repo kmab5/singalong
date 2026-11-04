@@ -28,7 +28,8 @@ import kotlinx.coroutines.launch
 
 data class PermissionStatus(val music: Boolean = false, val overlay: Boolean = false, val notifications: Boolean = false)
 data class FoundationActions(val musicAccess: () -> Unit, val overlayAccess: () -> Unit, val notificationAccess: () -> Unit,
-    val trackingNotificationSettings: () -> Unit, val openLink: (String) -> Unit)
+    val trackingNotificationSettings: () -> Unit, val openLink: (String) -> Unit,
+    val translateLyrics: (List<LyricLine>) -> Unit)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -209,15 +210,14 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                 val originalLines = reader.version?.lines.orEmpty()
                 val translateLink = remember(originalLines) { com.kmab.singalong.translation.GoogleTranslateLink.from(originalLines) }
                 if (originalLines.any { it.text.isNotBlank() }) {
-                    OutlinedButton(onClick = { translateLink?.let { actions.openLink(it.url) } },
-                        enabled = translateLink != null, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = { actions.translateLyrics(originalLines) }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Outlined.Translate, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp)); Text("Open in Google Translate")
                     }
                     Text(when {
-                        translateLink == null -> "These lyrics are too long to open safely in a browser link. Export the text to translate it in sections."
-                        translateLink.exceedsInputLimit -> "Sends the full original lyrics to Google with English selected. Google limits text input to 5,000 characters; longer lyrics may need translating in sections."
-                        else -> "Sends the full original lyrics to Google with English selected. Results stay in Google Translate."
+                        translateLink == null -> "Copies the full original lyrics and opens Google Translate with English selected. These lyrics are too long for a link; paste them in sections of up to 5,000 characters."
+                        translateLink.exceedsInputLimit -> "Copies the full original lyrics and tries to fill Google Translate with English selected. Paste if needed; Google limits input to 5,000 characters at a time."
+                        else -> "Copies the full original lyrics, then opens Google Translate with English selected. Paste if the input is empty. Results stay in Google Translate."
                     }, style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
                 }
                 ActionButton(onClick = { destination = "settings"; options = false }) { Text("Appearance & translation settings") }

@@ -54,6 +54,11 @@ class MainActivity : ComponentActivity() {
                             try { startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
                             catch (_: ActivityNotFoundException) { container.message("No browser is available to open this link.") }
                         },
+                        translateLyrics = { lines ->
+                            val result = com.kmab.singalong.translation.AndroidTranslateLauncher(this).open(lines)
+                            container.message(result.message)
+                            android.widget.Toast.makeText(this, result.message, android.widget.Toast.LENGTH_LONG).show()
+                        },
                     ),
                 )
             }

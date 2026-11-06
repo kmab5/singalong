@@ -1,141 +1,158 @@
 package com.kmab.singalong.cards
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.RadialGradient
-import android.graphics.Rect
-import android.graphics.RectF
-import android.graphics.Shader
-import android.graphics.Typeface
+import android.graphics.*
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
 import com.kmab.singalong.R
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 data class CardRenderResult(val bitmap: Bitmap? = null, val error: String? = null)
 
-/** One measured layout, in export coordinates, shared by previews and saved cards. */
+/** Preview and export use the same measured composition and bundled typefaces. */
 class LyricCardRenderer(private val context: Context) {
-    fun render(
-        content: CardContent,
-        selected: Set<Int>,
-        style: CardStyle,
-        cover: Bitmap? = null,
-        background: Bitmap? = null,
-        width: Int = style.aspect.width,
-    ): CardRenderResult {
+    private val faces = CardFont.entries.associateWith { ResourcesCompat.getFont(context, it.resource) ?: Typeface.DEFAULT }
+
+    fun render(content: CardContent, selected: Set<Int>, style: CardStyle, cover: Bitmap? = null,
+        background: Bitmap? = null, width: Int = style.aspect.width): CardRenderResult {
         content.selectionError(selected)?.let { return CardRenderResult(error = it) }
         if (width <= 0) return CardRenderResult(error = "Choose a valid card size.")
-        val appearance = style.sanitized()
-        val cardWidth = appearance.aspect.width.toFloat()
-        val cardHeight = appearance.aspect.height.toFloat()
-        // Never allocate beyond a native export, even if a caller supplies an excessive width.
-        val outputWidth = width.coerceAtMost(appearance.aspect.width)
-        val outputHeight = (outputWidth * cardHeight / cardWidth).roundToInt().coerceAtLeast(1)
-        val safeCover = cover?.takeUnless { it.isRecycled }
-        val safeBackground = background?.takeUnless { it.isRecycled } ?: safeCover
-        val imageUsed = appearance.background == CardBackground.IMAGE && safeBackground != null
-        val margin = 72f
-        val innerWidth = (cardWidth - margin * 2).toInt()
-        val metadata = listOf(
-            content.recording.title,
-            content.recording.artists.joinToString(" · "),
-            content.recording.album.orEmpty(),
-        )
-        if (metadata.sumOf { it.length } + (content.source?.length ?: 0) > 12_000) {
-            return CardRenderResult(error = "The song credits are too long to fit on a card.")
+        val w = style.aspect.width.toFloat()
+        val h = style.aspect.height.toFloat()
+        val outputWidth = width.coerceAtMost(style.aspect.width)
+        val outputHeight = (outputWidth * h / w).roundToInt().coerceAtLeast(1)
+        val safeCover = cover?.takeUnless { it.isRecycled }?.takeIf { style.showCover }
+        val photo = background?.takeUnless { it.isRecycled } ?: safeCover
+        val layout = CardComposition.create(style.template, style.aspect, safeCover != null)
+        fun CardRegion.bounds() = RectF(x * w, y * h, right * w, bottom * h)
+        val ink = style.palette.ink
+        val alignment = when (style.alignment) {
+            CardAlignment.START -> Layout.Alignment.ALIGN_NORMAL
+            CardAlignment.CENTER -> Layout.Alignment.ALIGN_CENTER
+            CardAlignment.END -> Layout.Alignment.ALIGN_OPPOSITE
         }
-        val header = metadata.mapIndexedNotNull { index, text ->
-            text.takeIf { it.isNotBlank() }?.let {
-                textLayout(it, innerWidth, textPaint(
-                    when (index) { 0 -> 38f; 1 -> 25f; else -> 21f },
-                    appearance.textColor,
-                    Typeface.create("sans-serif", if (index == 0) Typeface.BOLD else Typeface.NORMAL),
-                ))
-            }
-        }
-        val headerHeight = header.sumOf { it.height } + (header.size - 1).coerceAtLeast(0) * 10f
-        val credit = content.source?.takeIf { it.isNotBlank() }?.let {
-            textLayout(it, innerWidth, textPaint(20f, appearance.textColor, Typeface.SANS_SERIF))
-        }
-        val footerHeight = 42f + if (credit != null) credit.height + 18f else 0f
-        if (headerHeight > cardHeight * .30f || footerHeight > cardHeight * .22f) {
-            return CardRenderResult(error = "The song credits need more room. Try a taller card.")
-        }
-        val footerTop = cardHeight - margin - footerHeight
-        val contentArea = RectF(margin, margin + headerHeight + 60f, cardWidth - margin, footerTop - 48f)
-        // Padding is also reserved for italic overhang, diacritics and the lyric surface.
-        val inset = 30f
-        val lyricArea = RectF(contentArea).apply { inset(inset, inset) }
-        val lyricWidth = min(cardWidth * appearance.textWidth, lyricArea.width()).toInt()
-        if (lyricWidth <= 0 || lyricArea.height() <= 0) return doesNotFit()
-        val excerpt = content.excerpt(selected)
-        val lyrics = textLayout(excerpt, lyricWidth, textPaint(appearance.fontSize, appearance.textColor,
-            when (appearance.font) {
-                CardFont.SANS -> Typeface.create("sans-serif-medium", Typeface.NORMAL)
-                CardFont.SERIF -> Typeface.SERIF
-                CardFont.MONO -> Typeface.MONOSPACE
-            }), when (appearance.alignment) {
-                CardAlignment.START -> Layout.Alignment.ALIGN_NORMAL
-                CardAlignment.CENTER -> Layout.Alignment.ALIGN_CENTER
-                CardAlignment.END -> Layout.Alignment.ALIGN_OPPOSITE
-            })
-        if (lyrics.height > lyricArea.height() || lyrics.getLineEnd(lyrics.lineCount - 1) != excerpt.length) {
-            return doesNotFit()
-        }
-        val lyricX = lyricArea.left + (lyricArea.width() - lyrics.width) * appearance.textX
-        val lyricY = lyricArea.top + (lyricArea.height() - lyrics.height) * appearance.textY
+        val metadata = content.metadata(style.details)
+        if (metadata.sumOf { it.second.length } > 12_000) return CardRenderResult(error = "The selected song details are too long for a card. Hide a detail to continue.")
+        val title = metadata.firstOrNull { it.first == CardMetadata.TITLE }?.second.orEmpty()
+        val details = metadata.filter { it.first != CardMetadata.TITLE }.joinToString("\n") { it.second }
+        val titleBox = layout.title.bounds()
+        val detailBox = layout.details.bounds()
+        val lyricBox = layout.lyrics.bounds()
+        val centered = style.template == CardTemplate.GALLERY
+        val titleLayout = fit(title, titleBox, 38f, 24f, ink, faces.getValue(CardFont.INTER), if (centered) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL)
+        val detailLayout = fit(details, detailBox, 25f, 18f, ink, faces.getValue(CardFont.INTER))
+        if ((title.isNotBlank() && titleLayout == null) || (details.isNotBlank() && detailLayout == null))
+            return CardRenderResult(error = "The selected details need more room. Hide a detail or choose a taller format.")
+        val size = style.textSize.pixels * if (style.font == CardFont.CAVEAT) 1.2f else 1f
+        val lyrics = fit(content.excerpt(selected), lyricBox, size, size * .72f, ink, faces.getValue(style.font), alignment)
+            ?: return CardRenderResult(error = "These lyrics do not fit. Choose Small text, fewer lines, or a taller format.")
         val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        canvas.scale(outputWidth / cardWidth, outputHeight / cardHeight)
-        drawBackground(canvas, cardWidth, cardHeight, appearance, safeBackground)
-        val surface = readableSurface(appearance)
-        // Quiet credit bands keep real metadata readable over even a busy photograph.
-        drawCreditBand(canvas, RectF(40f, 40f, cardWidth - 40f, margin + headerHeight + 22f), surface, imageUsed)
-        drawCreditBand(canvas, RectF(40f, footerTop - 22f, cardWidth - 40f, cardHeight - 40f), surface, imageUsed)
-        if (appearance.showCover && safeCover != null && contentArea.height() > 0) {
-            val side = min(cardWidth * appearance.coverSize, contentArea.height())
-            val x = contentArea.left + (contentArea.width() - side) * appearance.coverX
-            val y = contentArea.top + (contentArea.height() - side) * appearance.coverY
-            val bounds = RectF(x, y, x + side, y + side)
-            drawImage(canvas, safeCover, bounds, 22f)
-            outline(canvas, bounds, 22f, withAlpha(appearance.textColor, 65), 2f)
-        }
-        val lyricBounds = RectF(lyricX - inset, lyricY - inset, lyricX + lyrics.width + inset, lyricY + lyrics.height + inset)
-        drawLyricSurface(canvas, lyricBounds, appearance, surface)
-        drawLayout(canvas, lyrics, lyricX, lyricY)
-        var headerY = margin
-        header.forEach { layout ->
-            drawLayout(canvas, layout, margin, headerY)
-            headerY += layout.height + 10f
-        }
-        val markSize = 40
-        androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_singalong)?.mutate()?.let { mark ->
-            canvas.save()
-            canvas.translate(margin, footerTop)
-            mark.setBounds(0, 0, markSize, markSize)
-            mark.draw(canvas)
-            canvas.restore()
-        }
-        val brand = textLayout("singalong · by kmab", innerWidth - 58,
-            textPaint(24f, appearance.textColor, Typeface.create("sans-serif-medium", Typeface.NORMAL)))
-        drawLayout(canvas, brand, margin + 58f, footerTop + (40f - brand.height) / 2f)
-        credit?.let { drawLayout(canvas, it, margin, footerTop + 60f) }
+        canvas.scale(outputWidth / w, outputHeight / h)
+        drawBackground(canvas, w, h, style, photo)
+        drawCompositionDetails(canvas, w, h, style, layout)
+        layout.cover?.let { region -> safeCover?.let { art ->
+            val bounds = region.bounds()
+            if (style.template in setOf(CardTemplate.POSTCARD, CardTemplate.GALLERY)) {
+                val matte = RectF(bounds).apply { inset(-12f, -12f) }
+                canvas.drawRoundRect(matte, 5f, 5f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = style.palette.ink; alpha = 24 })
+            }
+            drawImage(canvas, art, bounds, if (style.template == CardTemplate.GLASS) 26f else 8f)
+        } }
+        titleLayout?.let { drawLayout(canvas, it, titleBox.left, titleBox.top) }
+        detailLayout?.let { drawLayout(canvas, it, detailBox.left, detailBox.top) }
+        val lyricY = lyricBox.top + (lyricBox.height() - lyrics.height) * if (style.template == CardTemplate.MIDNIGHT) 0f else .5f
+        drawLayout(canvas, lyrics, lyricBox.left, lyricY)
+        drawBrand(canvas, layout.brand.bounds(), style, ink)
         return CardRenderResult(bitmap = bitmap)
     }
 
-    private fun doesNotFit() = CardRenderResult(error =
-        "These lyrics do not fit at this size. Reduce text size, select fewer lines, or try a taller card.")
+    /** No ellipsis, slicing or hidden lines: the whole excerpt fits or an explicit error is returned. */
+    private fun fit(text: String, box: RectF, initialSize: Float, minimumSize: Float, color: Int, face: Typeface,
+        alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL): StaticLayout? {
+        if (text.isBlank() || box.width() < 1) return null
+        var size = initialSize
+        while (true) {
+            val layout = textLayout(text, box.width().toInt(), textPaint(size, color, face), alignment)
+            if (layout.height <= box.height() && layout.getLineEnd(layout.lineCount - 1) == text.length) return layout
+            if (size <= minimumSize) return null
+            size = (size - 2f).coerceAtLeast(minimumSize)
+        }
+    }
 
+    private fun drawBrand(canvas: Canvas, bounds: RectF, style: CardStyle, color: Int) {
+        val side = minOf(38f, bounds.height())
+        ContextCompat.getDrawable(context, R.drawable.ic_singalong)?.mutate()?.let { icon ->
+            canvas.save()
+            canvas.translate(bounds.left, bounds.top)
+            icon.setBounds(0, 0, side.toInt(), side.toInt())
+            icon.draw(canvas)
+            canvas.restore()
+        }
+        if (style.showAppName) {
+            val box = RectF(bounds.left + side + 10f, bounds.top, bounds.right, bounds.bottom)
+            fit("singalong", box, 22f, 14f, color, faces.getValue(CardFont.INTER))?.let {
+                drawLayout(canvas, it, box.left, box.top + (side - it.height) / 2f)
+            }
+        }
+    }
+
+    private fun drawBackground(canvas: Canvas, w: Float, h: Float, style: CardStyle, photo: Bitmap?) {
+        val base = style.palette.base
+        val accent = style.palette.accent
+        canvas.drawColor(base)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        if (style.background == CardBackground.IMAGE && photo != null) {
+            drawImage(canvas, photo, RectF(0f, 0f, w, h))
+            // One continuous veil keeps all text readable without black text boxes.
+            canvas.drawColor(ColorUtils.setAlphaComponent(base, 220))
+        } else if (style.background == CardBackground.GRADIENT) {
+            paint.shader = RadialGradient(w * .9f, h * .12f, w,
+                ColorUtils.blendARGB(base, accent, .32f), base, Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, w, h, paint)
+        }
+    }
+
+    private fun drawCompositionDetails(canvas: Canvas, w: Float, h: Float, style: CardStyle, layout: CardComposition) {
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = style.palette.accent; strokeWidth = 2f }
+        when (style.template) {
+            CardTemplate.GLASS -> {
+                paint.style = Paint.Style.STROKE; paint.alpha = 45
+                canvas.drawCircle(w * .87f, h * .25f, w * .45f, paint)
+                canvas.drawCircle(w * .87f, h * .25f, w * .52f, paint)
+            }
+            CardTemplate.MIDNIGHT -> {
+                canvas.drawRect(w * .08f, h * .215f, w * .19f, h * .222f, paint)
+                paint.alpha = 65
+                canvas.drawLine(w * .08f, h * .735f, w * .92f, h * .735f, paint)
+            }
+            CardTemplate.PAPER -> {
+                paint.alpha = 100
+                canvas.drawLine(w * .14f, h * .34f, w * .14f, h * .90f, paint)
+            }
+            CardTemplate.ARTWORK -> Unit
+            CardTemplate.SLEEVE -> {
+                paint.alpha = 85
+                canvas.drawLine(w * .08f, h * .455f, w * .92f, h * .455f, paint)
+            }
+            CardTemplate.POSTCARD -> {
+                paint.alpha = 70; paint.pathEffect = DashPathEffect(floatArrayOf(6f, 10f), 0f)
+                canvas.drawLine(w * .08f, h * .445f, w * .92f, h * .445f, paint)
+            }
+            CardTemplate.DUET -> {
+                if (layout.cover != null) { paint.alpha = 80; canvas.drawLine(w * .47f, h * .10f, w * .47f, h * .91f, paint) }
+            }
+            CardTemplate.GALLERY -> {
+                paint.alpha = 90
+                canvas.drawLine(w * .46f, h * .81f, w * .54f, h * .81f, paint)
+            }
+        }
+    }
     private fun textPaint(size: Float, color: Int, face: Typeface) = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = size
         this.color = color or (0xff shl 24)
@@ -159,75 +176,6 @@ class LyricCardRenderer(private val context: Context) {
         canvas.translate(x, y)
         layout.draw(canvas)
         canvas.restore()
-    }
-
-    private fun drawBackground(canvas: Canvas, width: Float, height: Float, style: CardStyle, image: Bitmap?) {
-        val base = style.backgroundColor or (0xff shl 24)
-        val accent = style.accentColor or (0xff shl 24)
-        canvas.drawColor(base)
-        val bounds = RectF(0f, 0f, width, height)
-        if (style.background == CardBackground.IMAGE && image != null) {
-            drawImage(canvas, image, bounds)
-            canvas.drawColor(withAlpha(Color.BLACK, (255 * style.imageShade).roundToInt()))
-        } else if (style.background != CardBackground.SOLID) {
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = LinearGradient(0f, 0f, width, height,
-                    intArrayOf(ColorUtils.blendARGB(base, accent, .28f), base,
-                        ColorUtils.blendARGB(base, accent, .12f)), floatArrayOf(0f, .58f, 1f), Shader.TileMode.CLAMP)
-            }
-            canvas.drawRect(bounds, paint)
-            if (style.template == CardTemplate.GLASS || style.template == CardTemplate.ARTWORK) {
-                paint.shader = RadialGradient(width * .9f, height * .18f, width * .75f,
-                    withAlpha(accent, 64), withAlpha(accent, 0), Shader.TileMode.CLAMP)
-                canvas.drawRect(bounds, paint)
-            }
-        }
-        when (style.template) {
-            CardTemplate.GLASS -> outline(canvas, RectF(24f, 24f, width - 24f, height - 24f), 44f, withAlpha(style.textColor, 38), 1.5f)
-            CardTemplate.MIDNIGHT -> canvas.drawRect(0f, 0f, 10f, height, Paint().apply { color = accent })
-            CardTemplate.PAPER -> {
-                val ink = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = withAlpha(accent, 95); strokeWidth = 2f }
-                canvas.drawLine(72f, 40f, width - 72f, 40f, ink)
-                canvas.drawLine(72f, height - 40f, width - 72f, height - 40f, ink)
-            }
-            CardTemplate.ARTWORK -> Unit
-        }
-    }
-
-    private fun readableSurface(style: CardStyle): Int {
-        val text = style.textColor or (0xff shl 24)
-        val base = style.backgroundColor or (0xff shl 24)
-        val opposite = if (ColorUtils.calculateLuminance(text) > .35) Color.BLACK else Color.WHITE
-        var surface = base
-        for (step in 1..10) {
-            if (ColorUtils.calculateContrast(text, surface) >= 7.0) break
-            surface = ColorUtils.blendARGB(base, opposite, step / 10f)
-        }
-        return surface
-    }
-
-    private fun drawCreditBand(canvas: Canvas, bounds: RectF, surface: Int, imageUsed: Boolean) {
-        canvas.drawRoundRect(bounds, 24f, 24f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = withAlpha(surface, if (imageUsed) 240 else 225)
-        })
-    }
-
-    private fun drawLyricSurface(canvas: Canvas, bounds: RectF, style: CardStyle, surface: Int) {
-        val radius = when (style.template) { CardTemplate.GLASS -> 30f; CardTemplate.ARTWORK -> 20f; else -> 4f }
-        canvas.drawRoundRect(bounds, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = withAlpha(surface, 242) })
-        if (style.template == CardTemplate.GLASS) {
-            outline(canvas, bounds, radius, withAlpha(style.textColor, 45), 1.5f)
-            canvas.drawLine(bounds.left + 28f, bounds.top, bounds.right - 28f, bounds.top,
-                Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    strokeWidth = 2f
-                    shader = LinearGradient(bounds.left, 0f, bounds.right, 0f,
-                        intArrayOf(withAlpha(style.accentColor, 0), withAlpha(style.accentColor, 210), withAlpha(style.accentColor, 0)),
-                        null, Shader.TileMode.CLAMP)
-                })
-        } else if (style.template == CardTemplate.MIDNIGHT || style.template == CardTemplate.PAPER) {
-            canvas.drawRect(bounds.left, bounds.top, bounds.left + 4f, bounds.bottom,
-                Paint().apply { color = style.accentColor or (0xff shl 24) })
-        }
     }
 
     /** Center crop directly from the source: no intermediate full-size bitmaps. */

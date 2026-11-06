@@ -30,18 +30,10 @@ class CardModelsTest {
         assertNull(content.selectionError(setOf(0, 2)))
         assertNotNull(content.copy(lines = listOf(LyricLine("long", null, "x".repeat(6001)))).selectionError(setOf(0)))
     }
-    @Test fun styleBoundsPreventInvalidGeometryAndColorsRemainUserChoices() {
-        val style = CardStyle(fontSize = Float.NaN, textX = -2f, textY = 9f, coverSize = Float.POSITIVE_INFINITY).sanitized()
-        assertTrue(style.fontSize.isFinite())
-        assertEquals(0f, style.textX)
-        assertEquals(1f, style.textY)
-        assertTrue(style.coverSize.isFinite())
-        assertEquals(0xff123456.toInt(), style.copy(backgroundColor = 0xff123456.toInt()).sanitized().backgroundColor)
-    }
     @Test fun selectingATemplateRestoresItsDesignWithoutChangingTheExcerpt() {
         val original = content.excerpt(setOf(0))
         val paper = CardTemplate.PAPER.style()
-        assertNotEquals(CardTemplate.GLASS.style().backgroundColor, paper.backgroundColor)
+        assertNotEquals(CardTemplate.GLASS.style().palette, paper.palette)
         assertEquals(original, content.excerpt(setOf(0)))
         assertTrue(CardAspect.entries.all { it.width > 0 && it.height > 0 && it.width.toLong() * it.height <= 2_100_000 })
     }

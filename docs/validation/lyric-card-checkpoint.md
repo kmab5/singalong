@@ -1,5 +1,7 @@
 # Lyric card checkpoint
 
+Historical rc.1 results; the [rc.2 checkpoint](card-refresh-checkpoint.md) supersedes the editor design and current installable artifact below.
+
 Candidate: **1.2.0-rc.1 (16)** on `feat/lyric-share-cards`. No merge, tag or publication is authorized for this new feature. The main branch retains the prepared 1.1 source and the published release remains v1.0.0.
 
 ## Implemented source

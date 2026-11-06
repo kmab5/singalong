@@ -14,6 +14,11 @@ Copyright © 2026 Samuel (kmab). Original Singalong source code, documentation, 
 | Transitive utility libraries, including Android annotations and transport/support code | Their original package notices and licenses remain applicable |
 | Inter | SIL Open Font License 1.1; [bundled notice](docs/assets/fonts/Inter-OFL.txt) |
 | PT Mono | SIL Open Font License 1.1; [bundled notice](docs/assets/fonts/PTMono-OFL.txt) |
+| Lora | SIL Open Font License 1.1; [bundled notice](app/src/main/assets/licenses/lora-OFL.txt) |
+| Oswald | SIL Open Font License 1.1; [bundled notice](app/src/main/assets/licenses/oswald-OFL.txt) |
+| Caveat | SIL Open Font License 1.1; [bundled notice](app/src/main/assets/licenses/caveat-OFL.txt) |
+| Space Grotesk | SIL Open Font License 1.1; [bundled notice](app/src/main/assets/licenses/spacegrotesk-OFL.txt) |
+| Playfair Display | SIL Open Font License 1.1; [bundled notice](app/src/main/assets/licenses/playfairdisplay-OFL.txt) |
 
 Dependency versions are pinned in `gradle/libs.versions.toml`; Gradle resolves their POM/license metadata. Library names and marks belong to their respective owners. The application is independent of music players, lyric providers and Google.
 

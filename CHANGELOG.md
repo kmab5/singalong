@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0-rc.2 — unreleased
+
+- Redesigned card editor with a pinned rounded-square preview, four compact control sections and eight distinct preset compositions. Coordinated palettes, three text sizes and named font choices replace position/width/shade sliders and hex inputs.
+- Bundled Inter, PT Mono, Lora, Oswald, Caveat, Space Grotesk and Playfair Display for offline preview/export. Optional title, artist, album, filename, file location, cover and app name; only the icon stays by default. Source attribution is preserved in saved lyrics.
+- Empty timed provider responses fall back to plain lyrics or count as not found. Folder scanning filters empty versions before saving, avoiding the reproduced save assertion crash while retaining instrumental gaps in real lyrics.
+
 ## 1.2.0-rc.1 — unreleased
 
 - Long-press an original lyric in Now, saved lyrics or the standard floating reader to open a draggable context sheet and create a lyric card. Minimal-mode long-press dragging is preserved.

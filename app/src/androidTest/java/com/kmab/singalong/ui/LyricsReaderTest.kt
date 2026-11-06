@@ -17,6 +17,34 @@ import org.junit.Test
 
 class LyricsReaderTest {
     @get:Rule val compose = createComposeRule()
+    @Test fun compactUpcomingLineSharesItsOwnIndex() {
+        val version = LyricVersion("card", "r", "hash", LyricOrigin.PERSONAL,
+            listOf(LyricLine("1", 0, "Current original"), LyricLine("2", 2000, "Upcoming original")), null, null, MatchConfidence.CONFIDENT)
+        val snapshot = PlaybackSnapshot("s", "p", "Player", Recording("r", "Song", listOf("Artist"), null, 10000),
+            PlaybackStatus.PLAYING, 1000, 0, 1f)
+        var selected: Int? = null
+        compose.setContent { SingalongTheme {
+            LyricsReader(ReaderState(version = version, snapshot = snapshot, moment = com.kmab.singalong.lyrics.LyricMoment(index = 0)),
+                Modifier.width(340.dp).height(500.dp), compact = true, onLineLongPress = { _, index -> selected = index })
+        } }
+        compose.onNodeWithText("Upcoming original").performTouchInput { longClick() }
+        compose.runOnIdle { org.junit.Assert.assertEquals(1, selected) }
+    }
+    @Test fun longPressSharesThePressedVersionAndLineWithoutRequiringTapToFocus() {
+        val version = LyricVersion("card", "r", "hash", LyricOrigin.PERSONAL,
+            listOf(LyricLine("1", null, "First original"), LyricLine("2", null, "Second original")), null, null, MatchConfidence.CONFIDENT)
+        var selected: Pair<LyricVersion, Int>? = null
+        compose.setContent { SingalongTheme {
+            LyricsReader(ReaderState(version = version), Modifier.fillMaxSize(),
+                appearance = com.kmab.singalong.settings.NowAppearance(tapToFocus = false),
+                onLineLongPress = { source, index -> selected = source to index })
+        } }
+        compose.onNodeWithText("Second original").performTouchInput { longClick() }
+        compose.runOnIdle {
+            org.junit.Assert.assertEquals(version, selected?.first)
+            org.junit.Assert.assertEquals(1, selected?.second)
+        }
+    }
     @Test fun timedSizeSettingDoesNotChangeAnUntimedReadersWrapping() {
         var timedSize by mutableFloatStateOf(20f)
         val words = "Synthetic untimed words that should keep their normal wrapping"

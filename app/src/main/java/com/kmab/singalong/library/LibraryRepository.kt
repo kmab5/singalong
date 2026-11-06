@@ -68,8 +68,10 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
         true
     }
     override suspend fun translation(versionId: String): TranslationRecord? = dao.translation(versionId)?.let { json.decodeFromString(it.contentJson) }
-    override suspend fun saveTranslation(record: TranslationRecord) {
-        val version = requireNotNull(dao.version(record.versionId)).let { json.decodeFromString<LyricVersion>(it.contentJson) }
+    override suspend fun saveTranslation(record: TranslationRecord) = database.withTransaction {
+        // Clearing downloads can win a race with a provider response. Do not resurrect it.
+        val stored = dao.version(record.versionId) ?: return@withTransaction
+        val version = json.decodeFromString<LyricVersion>(stored.contentJson)
         require(TranslationRepository.valid(version, record))
         dao.translation(TranslationEntity(record.versionId, json.encodeToString(record)))
     }
@@ -162,8 +164,9 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
     override suspend fun setLookupStatus(recordingId: String, status: String) = dao.lookupStatus(recordingId, status)
     override suspend fun storedStatus(recordingId: String): String? = dao.recording(recordingId)?.lookupStatus
     override suspend fun adjustment(versionId: String): AdjustmentEntity = dao.adjustment(versionId) ?: AdjustmentEntity(versionId)
-    override suspend fun adjust(value: AdjustmentEntity) {
+    override suspend fun adjust(value: AdjustmentEntity) = database.withTransaction {
         require(value.delayMs in -600_000..600_000)
+        if (dao.version(value.versionId) == null) return@withTransaction
         dao.adjust(value)
     }
 

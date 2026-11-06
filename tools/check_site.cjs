@@ -64,7 +64,12 @@ const docs = path.join(root, "docs");
     await page.goto(base, { waitUntil: "networkidle" });
     assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk");
     assert.equal(await page.locator("[data-release-version]").textContent(), "v1.0.0");
-    assert.match(await page.locator("#coming-next").innerText(), /Preparing 1\.1 · not yet released/i);
+    assert.match(await page.locator("#coming-next").innerText(), /Preparing 1\.2 · not yet released/i);
+    await page.getByRole("button", { name: "Tide cover", exact: true }).click();
+    assert.equal(await page.locator("#sample-card").getAttribute("data-cover"), "tide");
+    assert.equal(await page.getByRole("button", { name: "Tide cover", exact: true }).getAttribute("aria-pressed"), "true");
+    await page.getByRole("button", { name: "Plum cover", exact: true }).click();
+    await page.evaluate(() => window.scrollTo(0, 0));
     assert.equal(await page.locator("#coming-next article").count(), 4);
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({

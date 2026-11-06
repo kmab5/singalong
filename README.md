@@ -4,13 +4,15 @@ An Android companion that keeps lyrics over your music player. Made by kmab. Req
 
 ## Status and downloads
 
-The source is prepared as **1.1.0 (15)**, with its version in `version.properties`. The latest published APK remains **1.0.0 (9)** until the 1.1.0 release is tagged and published. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). See the [latest checkpoint](docs/validation/1.1-main-checkpoint.md) for verification and remaining phone checks.
+Main prepares **1.2.0 (20)** with lyric share cards and album-art palettes; its version is in `version.properties`. The latest published APK remains **1.0.0 (9)**. Merged source and signed test builds are not public releases. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). See the [latest checkpoint](docs/validation/1.2-main-checkpoint.md) for verification and remaining phone checks.
 
 [Website](https://kmab5.github.io/singalong/) · [GitHub Releases](https://github.com/kmab5/singalong/releases) · [Feedback](https://kmab5.github.io/kmab-feedback/?product=singalong)
 
 Each GitHub Release includes `singalong.apk`, checksums, build metadata and the matching R8 crash mapping. Signed test builds are also available in successful CI runs. Install release-signed updates over the existing app to preserve data; debug APKs have a different signing key.
 
 ## What it does
+
+- Creates customizable lyric cards: long-press a line in Now, saved lyrics or standard floating lyrics, then choose Share lyric card. Select original lines, choose among eight roomy artwork layouts, ten curated palettes, an automatic album-art palette and seven fonts, and preview edits in a pinned rounded-square viewport. Adjust text size/weight/spacing/placement, continuous artwork scale/corners, seven background treatments and corner logo size/placement/style in a stable full-screen editor. Toggle song details, cover and app name; export a PNG through Share or Save. The corner icon stays, while the app name is optional. Selected lines can use bold/glow emphasis; file metadata is excluded. PNG filenames use the song title and one-based selected line numbers. Minimal floating mode keeps its existing long-press drag gesture; expand it to use lyric actions.
 
 - Reads song metadata and playback position from selected music apps. No microphone or playback-audio capture; audio recognition is deferred.
 - Shows glass floating lyrics in compact, expanded or minimal mode, with bottom icon controls and a draggable edge handle. Tap expanded lyrics to open Now. Missing lyrics dock after a grace period; successful lyrics restore automatically unless you manually docked or closed the panel.

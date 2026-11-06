@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.2.0 — prepared, not yet published
+
+- Added a locally generated Album art palette using predominant cover colors and contrasting text. It updates with the cover, stays when the foreground cover is hidden, and is unavailable when artwork has no usable pixels.
+- Integrates lyric cards: eight layouts, seven fonts, curated and automatic palettes, seven backgrounds, line emphasis, fine artwork/text sizing, corner branding with local wrapping, and named PNG share/save.
+- Clearing downloaded lyrics now safely discards late translation and timing-adjustment writes instead of failing on a deleted version. HTTP adapters identify the current app version consistently.
+- Updated current docs and the website with a labelled card illustration and prepared-versus-published status. Retains rc.2's empty-provider-lyrics folder-scan fix.
+
+## 1.2.0-rc.4 — unreleased
+
+- Added a fixed gap below card editor tabs. Hiding the foreground cover now preserves album artwork used as a Photo background.
+- Continuous artwork sizing, a wider 20–180 text-size range, four additional palettes (Plum, Clay, Fog, Amber), and Halo, Wash, Dusk and Paper backgrounds.
+- Logo overlays support all four corners, size, colored/monochrome styling and an optional app name. Text flows around the corner footprint without reserving an entire footer.
+- Removed audio filename/location from card details and exports. Selected lyric lines can independently use bold/glow emphasis, retained through preview, export and draft restoration.
+- Save PNG suggests `[song-title]-[line-numbers]-singalong.png`, using one-based source line numbers and ranges for selections. Filenames are sanitized and bounded.
+- The latest supplied crash report was confirmed to be rc.1. The rc.2 empty-lyrics folder-import fix remains; this update does not claim a new crash diagnosis from that older trace.
+
+## 1.2.0-rc.3 — unreleased
+
+- Card editing now uses a stable full-screen dialog after the draggable lyric menu. Pinned preview/export actions, clipped scrolling, no stretch overscroll, equal-width pill tabs and consistent section/choice spacing address the recorded scroll-boundary movement and cut-off controls.
+- Rebuilt the eight layouts around larger artwork, grouped song credits and spacious verses. Removed decorative rings/rules; the standalone Singalong mark aligns to the footer edge, with optional app name and left/right placement.
+- Restored bounded text sizing, font weight, line spacing, verse position, artwork scale/corners, background treatment/photo shade and footer alignment. All seven fonts, palettes, formats and metadata switches remain.
+- Retains the rc.2 empty-lyric folder-scan fix. The newer uploaded crash file identifies rc.1, before that fix.
+
+## 1.2.0-rc.2 — unreleased
+
+- Redesigned card editor with a pinned rounded-square preview, four compact control sections and eight distinct preset compositions. Coordinated palettes, three text sizes and named font choices replace position/width/shade sliders and hex inputs.
+- Bundled Inter, PT Mono, Lora, Oswald, Caveat, Space Grotesk and Playfair Display for offline preview/export. Optional title, artist, album, filename, file location, cover and app name; only the icon stays by default. Source attribution is preserved in saved lyrics.
+- Empty timed provider responses fall back to plain lyrics or count as not found. Folder scanning filters empty versions before saving, avoiding the reproduced save assertion crash while retaining instrumental gaps in real lyrics.
+
+## 1.2.0-rc.1 — unreleased
+
+- Long-press an original lyric in Now, saved lyrics or the standard floating reader to open a draggable context sheet and create a lyric card. Minimal-mode long-press dragging is preserved.
+- Four card templates and square/portrait/story/landscape formats, with editable font, size, alignment, colors, backgrounds and lyric/cover positions. Select original lines without modifying saved lyrics.
+- Cards retain song credits, original provider attribution and Singalong/kmab branding. Available local player artwork is snapshotted once; custom cover/background images use the system picker.
+- Share PNGs through Android's Sharesheet or save through the document picker. Rendering is bounded and reports overflow rather than silently dropping lyric text. No new storage permissions.
+
 ## 1.1.0 — prepared, not yet published
 
 - Added library sorting and selected-folder/subfolder lyric lookup using audio metadata and filename hints, with cancellation and duplicate prevention.

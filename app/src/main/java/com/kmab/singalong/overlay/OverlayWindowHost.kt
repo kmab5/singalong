@@ -94,6 +94,18 @@ class OverlayWindowHost(private val context: Context, private val container: App
                     onExpand = container::expandPanel, onFollow = container.reader::follow, onRetry = container.reader::request,
                     onMinimal = { container.minimalPanel(true) }, onReveal = container::revealPanelControls,
                     onSync = container.reader::toggleSync,
+                    onLineLongPress = { version, index ->
+                        container.openCard(reader.snapshot?.recording, version, index, reader.snapshot?.sessionId)
+                        try {
+                            context.startActivity(android.content.Intent(context, com.kmab.singalong.app.MainActivity::class.java)
+                                .setAction(com.kmab.singalong.app.MainActivity.ACTION_OPEN_NOW)
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP))
+                        } catch (_: android.content.ActivityNotFoundException) {
+                            container.closeCard(); container.message("Open Singalong to create a lyric card.")
+                        } catch (_: SecurityException) {
+                            container.closeCard(); container.message("Open Singalong to create a lyric card.")
+                        }
+                    },
                     onOpenApp = { context.startActivity(android.content.Intent(context, com.kmab.singalong.app.MainActivity::class.java)
                         .setAction(com.kmab.singalong.app.MainActivity.ACTION_OPEN_NOW)
                         .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)) },

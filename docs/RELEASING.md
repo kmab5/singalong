@@ -1,6 +1,6 @@
 # Releasing Singalong
 
-Merge and publish releases only when the maintainer explicitly approves them. The maintainer authorized v1.0.0 (9) publication on 2026-11-02 and the 1.1 feature merge on 2026-11-04. The prepared source version is **1.1.0 (15)**; no v1.1.0 tag is created by the merge task. Workflow preparation and signed CI artifacts alone are not a public release.
+Merge and publish releases only when the maintainer explicitly approves them. The maintainer authorized v1.0.0 (9) publication on 2026-11-02, the 1.1 feature merge on 2026-11-04, and the lyric-card/1.2 merge on 2026-11-06. Main prepares **1.2.0 (20)**. No v1.2.0 tag/publication is authorized by the merge instruction; v1.0.0 remains the published release. Workflow preparation and signed CI artifacts alone are not a public release.
 
 ## One version source
 
@@ -12,7 +12,7 @@ The promotion from rc.5 (14) to the prepared 1.1.0 source used:
 python3 tools/release_version.py set 1.1.0 --code 15
 ```
 
-Do not rerun that promotion on the already-updated source. Future distributed builds need the next unused code above 15 and an appropriate later version. Update `RELEASE_NOTES.md`, run checks, and commit. After the authorized merge to main, create an annotated tag matching the version exactly (`v1.1.0` for this prepared version) and push that tag only when publication is authorized. Never reuse/move a published version tag. Ordinary branch checks allow the current published name/code unchanged; creating a new version still requires both to increase.
+Do not rerun that promotion on the already-updated source. The lyric-card candidate has since consumed code 20; future distributed builds need the next unused code above 20 and an appropriate later version. Update `RELEASE_NOTES.md`, run checks, and commit. Create an annotated tag matching the version exactly and push that tag only when publication is authorized. Never reuse/move a published version tag. Ordinary branch checks allow the current published name/code unchanged; creating a new version still requires both to increase.
 
 ## CI checks and signing
 

@@ -5,6 +5,7 @@ This index describes the current source. Earlier phase plans and validation repo
 ## Current guides
 
 - [Build, features and project status](../README.md)
+- [1.2 integration and album-art palette checkpoint](validation/1.2-main-checkpoint.md)
 - [Release/version/signing workflow](RELEASING.md)
 - [Signing continuity and local builds](validation/release-signing.md)
 - [Privacy and external services](../PRIVACY.md)
@@ -19,9 +20,12 @@ This index describes the current source. Earlier phase plans and validation repo
 - [Word tracking switch and Google Translate checkpoint](validation/word-tracking-controls-checkpoint.md)
 - [1.1 main integration and Translate fallback checkpoint](validation/1.1-main-checkpoint.md)
 - [1.1 website preparation checkpoint](validation/1.1-site-checkpoint.md)
+- [Lyric card feature checkpoint](validation/lyric-card-checkpoint.md)
 - [Translation alternatives, research only](translation-options.md)
 
 ## Accepted changes since the initial design
+
+The 1.2.0 source adds draggable lyric actions and a branded card editor with eight layouts, a pinned preview, seven bundled fonts, ten curated palettes plus a locally generated album-art palette, optional metadata, selected-line emphasis, local artwork and PNG share/save. Corner logo overlays wrap nearby text; photo backgrounds remain independent of cover visibility. The draft snapshots the selected song independently of playback. Minimal floating lyrics retain their long-press movement gesture; standard floating lyrics route card actions into the activity. See the [card plan](superpowers/plans/2026-11-06-lyric-share-cards.md) and [integration plan](superpowers/plans/2026-11-06-album-palette-integration.md).
 
 The current app includes simple text editing plus an opt-in per-line timing editor, filename-aware search, optional estimated sync for untimed lyrics, minimal floating lyrics, bottom icon controls, automatic failure docking/recovery, independent Now-tab typography/motion, and a next-launch crash-report prompt. Original metadata/content is preserved; inferred matches and estimated timing remain distinguishable from verified timed lyrics.
 
@@ -29,7 +33,7 @@ The 1.1.0 source adds responsive floating actions, tap-only edge expansion, libr
 
 Audio recognition and microphone/playback capture remain out of scope. Supplied word timestamps are supported; generating word timestamps from audio is not. Some Android screens may suppress overlays by policy; Singalong must respect that policy. Player compatibility and device acceptance must be based on testing, not inferred from a successful build.
 
-The maintainer authorized merging these changes to main on 2026-11-04. Source version **1.1.0 (15)** is prepared; the latest published APK is still **1.0.0 (9)** until a separate release tag is pushed. Publication follows the [release guide](RELEASING.md) and retains the existing signing certificate.
+The maintainer authorized the 1.1 merge on 2026-11-04 and the lyric-card/1.2 merge on 2026-11-06. Main prepares **1.2.0 (20)**; the latest published APK remains **1.0.0 (9)** until a separate release tag is authorized and pushed. Publication follows the [release guide](RELEASING.md) and retains the existing signing certificate.
 
 ## Historical evidence
 
@@ -40,3 +44,5 @@ The maintainer authorized merging these changes to main on 2026-11-04. Source ve
 - [Provider investigation](validation/providers.md), [player/device coverage](validation/compatibility.md), [site verification](validation/site-checkpoint.md)
 
 Keep historical evidence intact. Add later corrections/verification explicitly rather than rewriting an earlier untested milestone as if it had passed at the time.
+
+The [1.2 checkpoint](validation/1.2-main-checkpoint.md) records current integration; the [roomy card checkpoint](validation/roomy-card-checkpoint.md) retains earlier editor evidence; the [rc.2 checkpoint](validation/card-refresh-checkpoint.md) retains folder-scan regression evidence.

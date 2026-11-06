@@ -18,7 +18,7 @@ object LrcParser {
                 }
             }.asSequence()
         }.sortedBy { it.first }.toList()
-        if (timed.isNotEmpty()) return timed.mapIndexed { index, (ms, text) -> LyricLine("$index", ms, text) }
+        if (timed.any { it.second.isNotBlank() }) return timed.mapIndexed { index, (ms, text) -> LyricLine("$index", ms, text) }
         return plain.orEmpty().lines().takeIf { rows -> rows.any { it.isNotBlank() } }.orEmpty()
             .mapIndexed { index, text -> LyricLine("$index", null, text) }
     }

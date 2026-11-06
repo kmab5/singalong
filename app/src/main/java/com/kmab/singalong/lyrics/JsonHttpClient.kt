@@ -5,12 +5,13 @@ import okhttp3.*
 import java.io.IOException
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
+import com.kmab.singalong.BuildConfig
 
 /** Bounded response bodies and socket cancellation, shared by the small public API adapters. */
 class JsonHttpClient(private val client: OkHttpClient = OkHttpClient.Builder().callTimeout(10, TimeUnit.SECONDS).build()) {
     data class Result(val code: Int, val body: JsonObject?, val retryAfterMs: Long?)
     suspend fun get(url: HttpUrl): Result {
-        val call = client.newCall(Request.Builder().url(url).header("User-Agent", "Singalong/0.3 (https://github.com/kmab5/singalong)").build())
+        val call = client.newCall(Request.Builder().url(url).header("User-Agent", "Singalong/${BuildConfig.VERSION_NAME} (https://github.com/kmab5/singalong)").build())
         return call.readResponse {
             val bytes = it.body?.byteStream()?.let { input ->
                 val output = ByteArrayOutputStream()

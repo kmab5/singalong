@@ -13,6 +13,24 @@ class LibraryRepositoryTest {
     private val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, LibraryDatabase::class.java).build()
     private val repository = LibraryRepository(db)
     @After fun closeDatabase() { db.close() }
+    @Test fun lateTranslationAndAdjustmentAfterClearingDownloadsAreDiscarded() = runTest {
+        val song = repository.resolveRecording(Recording("raw", "Song", listOf("Artist"), null, null))
+        val version = LyricVersion("provider", song.id, "hash", LyricOrigin.PROVIDER,
+            listOf(LyricLine("line", null, "Original words")), "Test source", null, MatchConfidence.CONFIDENT)
+        repository.saveCandidates(song, listOf(version))
+        val translation = com.kmab.singalong.translation.TranslationRecord(version.id, version.contentHash,
+            "test", "fr", mapOf("line" to "Translated words"), "Test attribution")
+        repository.saveTranslation(translation)
+        repository.adjust(AdjustmentEntity(version.id, 50))
+        assertNotNull(repository.translation(version.id))
+        repository.clearDownloads()
+        repository.saveTranslation(translation)
+        repository.adjust(AdjustmentEntity(version.id, 100))
+        assertNull(db.libraryDao().version(version.id))
+        assertNull(repository.translation(version.id))
+        assertNull(db.libraryDao().adjustment(version.id))
+        assertTrue(repository.versions(song.id).isEmpty())
+    }
     @Test fun filenameSearchHintsSurvivePersistenceAndDeduplicateTaggedCopies() = runTest {
         val song = Recording("file", "Song", emptyList(), "Album", 120_000, fileName = "Artist - Song.mp3")
         val version = LyricVersion("provider", song.id, "hash", LyricOrigin.PROVIDER,

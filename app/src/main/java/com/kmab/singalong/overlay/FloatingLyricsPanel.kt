@@ -32,7 +32,8 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
     onFollow: (Boolean) -> Unit, onRetry: () -> Unit,
     onMinimal: () -> Unit, onReveal: () -> Unit, onSync: () -> Unit,
     onDragStart: () -> Unit, onMove: (Float, Float) -> Unit, onDragEnd: () -> Unit,
-    onOpenApp: () -> Unit = {}) {
+    onOpenApp: () -> Unit = {},
+    onLineLongPress: ((com.kmab.singalong.model.LyricVersion, Int) -> Unit)? = null) {
     val density = LocalDensity.current.density
     val left = settings.xFraction < .5f
     val docked = panel.mode == PanelMode.MANUAL_MINIMIZED || panel.mode == PanelMode.AUTO_MINIMIZED
@@ -94,7 +95,8 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
                     if (reader.version == null) FloatingEmptyState(reader, onRetry, onOpenApp)
                     else LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null),
                         Modifier.fillMaxSize(), compact = !panel.expanded, textSize = settings.textSizeSp,
-                        translationSize = settings.translationSizeSp, onFollow = onFollow, onRetry = onRetry, shadowText = settings.opacity < .85f)
+                        translationSize = settings.translationSizeSp, onFollow = onFollow, onRetry = onRetry, shadowText = settings.opacity < .85f,
+                        onLineLongPress = onLineLongPress, onLineClick = onOpenApp)
                 }
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     FlowRow(Modifier.fillMaxWidth().padding(horizontal = 4.dp), maxItemsInEachRow = OverlayControlsLayout.columns(maxWidth.value)) {

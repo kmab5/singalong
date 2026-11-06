@@ -34,6 +34,27 @@ class AndroidPlaybackObserver(
     private val observedRecordings = mutableMapOf<MediaSession.Token, Recording>()
     private val sessionListener = MediaSessionManager.OnActiveSessionsChangedListener { attach(it.orEmpty()) }
 
+    /** Snapshot only artwork whose current metadata still matches the selected recording. */
+    fun cardArtwork(sessionId: String, recording: Recording): Pair<android.graphics.Bitmap?, android.net.Uri?> {
+        val metadata = cardMetadata(sessionId, recording) ?: return null to null
+        val bitmap = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+        val uri = (metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI) ?: metadata.getString(MediaMetadata.METADATA_KEY_ART_URI))
+            ?.let(android.net.Uri::parse)?.takeIf { it.scheme in setOf("content", "file", "android.resource") }
+        return bitmap to uri
+    }
+
+    private fun cardMetadata(sessionId: String, recording: Recording): MediaMetadata? {
+        val controller = controllers.values.firstOrNull { it.first.sessionToken.hashCode().toString() == sessionId }?.first
+            ?: return null
+        val metadata = try { controller.metadata } catch (_: SecurityException) { null } ?: return null
+        val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE) ?: metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE) ?: return null
+        val current = Recording("artwork", title, listOfNotNull(metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)?.takeIf { it.isNotBlank() }),
+            metadata.getString(MediaMetadata.METADATA_KEY_ALBUM), metadata.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 })
+        if (!RecordingIdentity.compatible(recording, current)) return null
+        return metadata
+    }
+
     // Enabled notification listeners may read sessions without privileged
     // MEDIA_CONTENT_CONTROL. The caller checks access; SecurityException handles revocation.
     @SuppressLint("MissingPermission")

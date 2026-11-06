@@ -1,0 +1,229 @@
+package com.kmab.singalong.ui
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import com.kmab.singalong.cards.*
+import com.kmab.singalong.ui.theme.SingalongColors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+@Composable
+internal fun CardEditorControls(section: CardEditorSection, request: CardRequest, style: CardStyle, selected: List<Int>,
+    coverError: String?, backgroundError: String?, hasCover: Boolean, onStyle: (CardStyle) -> Unit,
+    onSelection: (List<Int>) -> Unit, onCover: () -> Unit, onBackground: () -> Unit,
+    onResetCover: () -> Unit, onResetBackground: () -> Unit, customCover: Boolean, customBackground: Boolean,
+    emphasized: Set<Int>, onEmphasis: (Int) -> Unit, artworkColors: CardPaletteColors?) {
+    when (section) {
+        CardEditorSection.LOOKS -> {
+            CardControlGroup("Presets") { TemplateChoices(request, selected.toSet(), style.template) { onStyle(style.withTemplate(it)) } }
+            CardControlGroup("Palette") {
+                PaletteChoices(style.palette, artworkColors) { onStyle(style.copy(palette = it)) }
+                if (artworkColors == null) Text("Add album artwork to generate the Album art palette.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                else if (style.palette == CardPalette.ARTWORK) Text("Generated from this cover’s predominant colors.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+            }
+            CardControlGroup("Format") { CardChoices(CardAspect.entries, style.aspect, { it.label }) { onStyle(style.copy(aspect = it)) } }
+            CardControlGroup("Artwork") {
+                if (hasCover) {
+                    CardSlider("Artwork size", style.artScale, .20f.. .46f, "${(style.artScale * 100).toInt()}%") { onStyle(style.copy(artScale = it)) }
+                    CardChoices(CardCorners.entries, style.corners, { it.label }) { onStyle(style.copy(corners = it)) }
+                } else Text("Add artwork to make it part of the layout.", color = SingalongColors.Muted, style = MaterialTheme.typography.bodySmall)
+                ActionButton(onClick = onCover, modifier = Modifier.fillMaxWidth()) { Text("Choose album cover") }
+                if (customCover) ActionButton(onClick = onResetCover, modifier = Modifier.fillMaxWidth()) { Text("Use original cover") }
+                coverError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+            CardControlGroup("Background") {
+                CardChoices(CardBackground.entries, style.background, { it.label }) { onStyle(style.copy(background = it)) }
+                if (style.background == CardBackground.IMAGE) {
+                    ActionButton(onClick = onBackground, modifier = Modifier.fillMaxWidth()) { Text("Choose background photo") }
+                    CardSlider("Photo shade", style.photoShade, .65f.. .95f, "${(style.photoShade * 100).toInt()}%") { onStyle(style.copy(photoShade = it)) }
+                    if (!customBackground) Text(if (hasCover) "Using album artwork as the background." else "Choose a photo to add a background.",
+                        style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                }
+                if (customBackground) ActionButton(onClick = onResetBackground, modifier = Modifier.fillMaxWidth()) { Text("Use preset background") }
+                backgroundError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        }
+        CardEditorSection.TEXT -> {
+            CardControlGroup("Font") { FontChoices(style.font) { onStyle(style.copy(font = it)) } }
+            CardControlGroup("Size & weight") {
+                CardSlider("Text size", style.fontSize, 20f..180f, "${style.fontSize.toInt()}") { onStyle(style.copy(fontSize = it)) }
+                CardChoices(CardWeight.entries, style.weight, { it.label }) { onStyle(style.copy(weight = it)) }
+            }
+            CardControlGroup("Alignment") {
+                CardChoices(CardAlignment.entries, style.alignment, { when (it) {
+                    CardAlignment.START -> "Start"; CardAlignment.CENTER -> "Center"; CardAlignment.END -> "End"
+                } }) { onStyle(style.copy(alignment = it)) }
+            }
+            CardControlGroup("Line spacing") { CardChoices(CardSpacing.entries, style.spacing, { it.label }) { onStyle(style.copy(spacing = it)) } }
+            CardControlGroup("Verse position") { CardChoices(CardPlacement.entries, style.placement, { it.label }) { onStyle(style.copy(placement = it)) } }
+        }
+        CardEditorSection.DETAILS -> {
+            CardControlGroup("Song details") {
+                val recording = request.content.recording
+                DetailToggle("Song title", style.details.title, recording.title.isNotBlank()) { onStyle(style.copy(details = style.details.copy(title = it))) }
+                DetailToggle("Artist", style.details.artist, recording.artists.any { it.isNotBlank() }) { onStyle(style.copy(details = style.details.copy(artist = it))) }
+                DetailToggle("Album", style.details.album, !recording.album.isNullOrBlank()) { onStyle(style.copy(details = style.details.copy(album = it))) }
+                DetailToggle("Album cover", style.showCover, hasCover) { onStyle(style.copy(showCover = it)) }
+            }
+            CardControlGroup("Signature") {
+                DetailToggle("App name", style.showAppName) { onStyle(style.copy(showAppName = it)) }
+                CardChoices(CardLogoPosition.entries, style.logoPosition, { it.label }) { onStyle(style.copy(logoPosition = it)) }
+                CardSlider("Logo size", style.logoScale, .028f.. .10f, "${(style.logoScale * 1000).toInt() / 10f}%") { onStyle(style.copy(logoScale = it)) }
+                CardChoices(CardLogoStyle.entries, style.logoStyle, { it.label }) { onStyle(style.copy(logoStyle = it)) }
+                Text("The mark floats in the corner. Nearby words wrap around it.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+            }
+        }
+        CardEditorSection.LINES -> {
+            val listState = rememberLazyListState(initialFirstVisibleItemIndex = (request.content.initialLine - 2).coerceAtLeast(0))
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${selected.size} selected · original wording and order", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                Text("Use the star beside a selected line for bold, softly glowing emphasis.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                LazyColumn(Modifier.fillMaxWidth().weight(1f).testTag("card-lines"), state = listState) {
+                    itemsIndexed(request.content.lines, key = { index, _ -> index }) { index, line ->
+                        val checked = index in selected
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.weight(1f).heightIn(min = 48.dp).toggleable(checked, role = Role.Checkbox,
+                                onValueChange = { onSelection(if (checked) selected - index else selected + index) }),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked, onCheckedChange = null)
+                                Text(line.text.ifEmpty { "(Empty line)" }, Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
+                            }
+                            if (checked && line.text.isNotBlank()) IconToggleButton(index in emphasized,
+                                onCheckedChange = { onEmphasis(index) }, modifier = Modifier.size(48.dp)
+                                    .semantics { contentDescription = "Emphasize line ${index + 1}" }) {
+                                Text(if (index in emphasized) "★" else "☆", color = if (index in emphasized) SingalongColors.PurpleText else SingalongColors.Muted,
+                                    style = MaterialTheme.typography.titleLarge)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardControlGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleSmall)
+        content()
+    }
+}
+
+@Composable
+private fun CardSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, valueLabel: String,
+    onValue: (Float) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(valueLabel, color = SingalongColors.PurpleText, style = MaterialTheme.typography.labelLarge)
+        }
+        Slider(value = value.coerceIn(range), onValueChange = onValue, valueRange = range,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { contentDescription = label })
+    }
+}
+
+@Composable
+private fun DetailToggle(label: String, checked: Boolean, available: Boolean = true, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(checked && available, enabled = available,
+        role = Role.Switch, onValueChange = onChange), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(label, color = if (available) SingalongColors.Text else SingalongColors.Muted)
+            if (!available) Text("Not available for this song", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+        }
+        Switch(checked && available, onCheckedChange = null, enabled = available)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun <T> CardChoices(options: List<T>, value: T, label: (T) -> String, onSelect: (T) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { option -> FilterChip(value == option, onClick = { onSelect(option) },
+            label = { Text(label(option)) }, modifier = Modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(14.dp)) }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FontChoices(value: CardFont, onSelect: (CardFont) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        CardFont.entries.forEach { font ->
+            FilterChip(value == font, onClick = { onSelect(font) }, modifier = Modifier.heightIn(min = 48.dp),
+                label = { Text(font.label, fontFamily = remember(font) { FontFamily(Font(font.resource)) }) }, shape = RoundedCornerShape(14.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PaletteChoices(value: CardPalette, artworkColors: CardPaletteColors?, onSelect: (CardPalette) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        CardPalette.entries.forEach { palette ->
+            val colors = palette.colors(artworkColors)
+            FilterChip(value == palette, onClick = { onSelect(palette) }, enabled = colors != null, modifier = Modifier.heightIn(min = 48.dp),
+                label = { Text(palette.label) }, shape = RoundedCornerShape(14.dp), leadingIcon = {
+                    Row { listOfNotNull(colors?.base, colors?.ink, colors?.accent).forEach { color ->
+                        Box(Modifier.size(12.dp).background(Color(color), CircleShape))
+                    } }
+                })
+        }
+    }
+}
+
+@Composable
+private fun TemplateChoices(request: CardRequest, selected: Set<Int>, current: CardTemplate, onSelect: (CardTemplate) -> Unit) {
+    val context = LocalContext.current
+    val renderer = remember(context) { LyricCardRenderer(context) }
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(CardTemplate.entries, key = { it.name }) { template ->
+            val preview by produceState<CardRenderResult?>(null, request.id, selected, template) {
+                value = withContext(Dispatchers.Default) {
+                    renderer.render(request.content, selected, template.style(), request.cover, width = 180)
+                }
+            }
+            Surface(onClick = { onSelect(template) }, shape = RoundedCornerShape(16.dp),
+                color = Color(template.style().palette.base),
+                border = BorderStroke(if (current == template) 2.dp else 1.dp,
+                    if (current == template) SingalongColors.PurpleText else SingalongColors.Line),
+                modifier = Modifier.width(136.dp).semantics { this.selected = current == template }) {
+                Column(Modifier.padding(10.dp)) {
+                    val bitmap = preview?.bitmap
+                    if (bitmap != null) Image(bitmap.asImageBitmap(), null, Modifier.fillMaxWidth().aspectRatio(1f))
+                    else Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
+                        Text("Aa", fontFamily = FontFamily(Font(template.style().font.resource)), color = Color(template.style().palette.ink), style = MaterialTheme.typography.headlineLarge)
+                    }
+                    Text(template.label, color = Color(template.style().palette.ink), style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+        }
+    }
+    Text(current.description, style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+}

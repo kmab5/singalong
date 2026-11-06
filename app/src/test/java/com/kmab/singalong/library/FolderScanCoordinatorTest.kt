@@ -21,6 +21,28 @@ class FolderScanCoordinatorTest {
             saved.add(recording); return true
         }
     }
+    @Test fun emptyProviderCandidatesCannotReachTheStoreAndScanContinues() = runTest {
+        val store = object : FolderImportStore {
+            val saved = mutableListOf<String>()
+            override suspend fun hasLyrics(recording: Recording) = false
+            override suspend fun save(recording: Recording, versions: List<LyricVersion>): Boolean {
+                require(versions.isNotEmpty() && versions.all { it.lines.any { line -> line.text.isNotBlank() } })
+                saved.add(recording.id)
+                return true
+            }
+        }
+        val worker = FolderScanCoordinator(this, store, { recording ->
+            if (recording.id == song.id) found(recording).let { result ->
+                result.copy(versions = result.versions.map { it.copy(lines = listOf(LyricLine("empty", 0, ""))) })
+            } else found(recording)
+        }, { true }, {})
+        worker.start(flowOf(AudioCandidate("blank", song), AudioCandidate("valid", song.copy(id = "next"))))
+        advanceUntilIdle()
+        assertEquals(listOf("next"), store.saved)
+        assertEquals(1, worker.state.value.notFound)
+        assertEquals(1, worker.state.value.saved)
+        assertEquals(ScanPhase.COMPLETE, worker.state.value.phase)
+    }
     @Test fun duplicateFilesAndRepeatedScansSaveOnlyOneSongAndDoNotLookupAgain() = runTest {
         val store = Store(); var requests = 0
         val worker = FolderScanCoordinator(this, store, { requests++; found(it) }, { true }, {})

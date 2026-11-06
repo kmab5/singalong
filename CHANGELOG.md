@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0-rc.3 — unreleased
+
+- Card editing now uses a stable full-screen dialog after the draggable lyric menu. Pinned preview/export actions, clipped scrolling, no stretch overscroll, equal-width pill tabs and consistent section/choice spacing address the recorded scroll-boundary movement and cut-off controls.
+- Rebuilt the eight layouts around larger artwork, grouped song credits and spacious verses. Removed decorative rings/rules; the standalone Singalong mark aligns to the footer edge, with optional app name and left/right placement.
+- Restored bounded text sizing, font weight, line spacing, verse position, artwork scale/corners, background treatment/photo shade and footer alignment. All seven fonts, palettes, formats and metadata switches remain.
+- Retains the rc.2 empty-lyric folder-scan fix. The newer uploaded crash file identifies rc.1, before that fix.
+
 ## 1.2.0-rc.2 — unreleased
 
 - Redesigned card editor with a pinned rounded-square preview, four compact control sections and eight distinct preset compositions. Coordinated palettes, three text sizes and named font choices replace position/width/shade sliders and hex inputs.

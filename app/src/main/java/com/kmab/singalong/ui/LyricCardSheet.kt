@@ -12,6 +12,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.kmab.singalong.cards.*
 import com.kmab.singalong.ui.theme.SingalongColors
 import java.io.IOException
@@ -25,7 +27,7 @@ import kotlinx.serialization.json.Json
 
 private val CardStyleSaver = Saver<CardStyle, String>(
     save = { Json.encodeToString(it) },
-    restore = { Json.decodeFromString<CardStyle>(it) },
+    restore = { Json.decodeFromString<CardStyle>(it).sanitized() },
 )
 
 private data class CardImageState(val source: String, val bitmap: Bitmap?, val error: String? = null)
@@ -86,13 +88,12 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
             if (backgroundUri != null && bitmap == null) "Couldn't open the background image. Choose another image or a color background." else null)
     }
     val imagesReady = loadedCover?.source == coverSource && loadedBackground?.source == backgroundSource
-    val frame = CardDraftFrame(style, selection.toSet(), loadedCover?.takeIf { it.source == coverSource }?.bitmap,
+    val frame = CardDraftFrame(style.sanitized(), selection.toSet(), loadedCover?.takeIf { it.source == coverSource }?.bitmap,
         loadedBackground?.takeIf { it.source == backgroundSource }?.bitmap, coverSource, backgroundSource, imagesReady)
     val latestFrame by rememberUpdatedState(frame)
     LaunchedEffect(frozen.id, frame, editing) {
         exportJob?.cancel()
         exporting = false
-        previewError = null
         actionMessage = null
         if (!editing || !frame.imagesReady) return@LaunchedEffect
         delay(100)
@@ -104,7 +105,6 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
         previewError = result.error
         previewFrame = frame
     }
-    LaunchedEffect(editing) { if (editing) sheetState.expand() }
 
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) coverUri = uri.toString()
@@ -169,36 +169,41 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = SingalongColors.Surface, contentColor = SingalongColors.Text) {
-        if (!editing) {
+    if (!editing) {
+        ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
+            containerColor = SingalongColors.Surface, contentColor = SingalongColors.Text) {
             Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("Lyric line", style = MaterialTheme.typography.headlineSmall)
                 Text(frozen.content.lines.getOrNull(frozen.content.initialLine)?.text.orEmpty(), style = MaterialTheme.typography.titleLarge)
                 Button(onClick = { editing = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Share lyric card") }
             }
-        } else {
-            CardEditorWorkspace(preview, previewError, loading = !imagesReady || previewFrame != frame,
-                title = frozen.content.recording.title, onDismiss = onDismiss,
-                actions = {
-                    actionMessage?.let { Text(it, color = SingalongColors.PurpleText, style = MaterialTheme.typography.bodySmall) }
-                    if (exporting || saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Button(onClick = { export(false) }, enabled = ready && !exporting && !saving,
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text("Share PNG") }
-                        ActionButton(onClick = { export(true) }, enabled = ready && !exporting && !saving,
-                            modifier = Modifier.weight(1f)) { Text("Save PNG") }
-                    }
-                }, controls = { section ->
-                    CardEditorControls(section, frozen, style, selection, loadedCover?.error, loadedBackground?.error,
-                        hasCover = frame.cover != null, onStyle = {
-                            if (it.template != style.template) backgroundUri = null
-                            style = it
-                        }, onSelection = { selection = it },
-                        onCover = { coverPicker.launch("image/*") }, onBackground = { backgroundPicker.launch("image/*") },
-                        onResetCover = { coverUri = null }, onResetBackground = { backgroundUri = null; style = style.copy(background = style.template.style().background) },
-                        customCover = coverUri != null, customBackground = backgroundUri != null)
-                })
+        }
+    } else {
+        Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false, dismissOnClickOutside = false)) {
+            Surface(Modifier.fillMaxSize(), color = SingalongColors.Surface, contentColor = SingalongColors.Text) {
+                CardEditorWorkspace(preview, previewError, loading = !imagesReady || previewFrame != frame,
+                    title = frozen.content.recording.title, onDismiss = onDismiss,
+                    actions = {
+                        actionMessage?.let { Text(it, color = SingalongColors.PurpleText, style = MaterialTheme.typography.bodySmall) }
+                        if (exporting || saving) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Button(onClick = { export(false) }, enabled = ready && !exporting && !saving,
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp)) { Text("Share PNG") }
+                            ActionButton(onClick = { export(true) }, enabled = ready && !exporting && !saving,
+                                modifier = Modifier.weight(1f)) { Text("Save PNG") }
+                        }
+                    }, controls = { section ->
+                        CardEditorControls(section, frozen, style, selection, loadedCover?.error, loadedBackground?.error,
+                            hasCover = frame.cover != null, onStyle = {
+                                if (it.template != style.template) backgroundUri = null
+                                style = it
+                            }, onSelection = { selection = it },
+                            onCover = { coverPicker.launch("image/*") }, onBackground = { backgroundPicker.launch("image/*") },
+                            onResetCover = { coverUri = null }, onResetBackground = { backgroundUri = null; style = style.copy(background = style.template.style().background) },
+                            customCover = coverUri != null, customBackground = backgroundUri != null)
+                    })
+            }
         }
     }
 }

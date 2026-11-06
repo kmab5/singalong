@@ -31,7 +31,7 @@ class CardCurationTest {
 
     @Test fun galleryCoverRemainsCenteredWhenFittedToDifferentFormats() {
         for (aspect in CardAspect.entries) {
-            val cover = requireNotNull(CardComposition.create(CardTemplate.GALLERY, aspect, true).cover)
+            val cover = requireNotNull(CardComposition.create(CardTemplate.GALLERY.style().copy(aspect = aspect), true).cover)
             assertEquals(.5f, cover.x + cover.width / 2f, .0001f)
             assertEquals(cover.width * aspect.width, cover.height * aspect.height, .001f)
         }
@@ -52,11 +52,11 @@ class CardCurationTest {
 
     @Test fun compositionsReserveSeparateAreasForWordsAndArtworkInEveryFormat() {
         for (template in CardTemplate.entries) for (aspect in CardAspect.entries) {
-            val layout = CardComposition.create(template, aspect, true)
-            val reserved = listOfNotNull(layout.lyrics, layout.title, layout.details, layout.cover, layout.brand)
+            val layout = CardComposition.create(template.style().copy(aspect = aspect), true)
+            val reserved = listOfNotNull(layout.lyrics, layout.credits, layout.cover, layout.brand)
             assertTrue(reserved.all { it.x >= 0 && it.y >= 0 && it.right <= 1 && it.bottom <= 1 && it.width > 0 && it.height > 0 })
             reserved.forEachIndexed { i, a -> reserved.drop(i + 1).forEach { b -> assertFalse("$template / $aspect: $a overlaps $b", a.overlaps(b)) } }
-            val withoutCover = CardComposition.create(template, aspect, false)
+            val withoutCover = CardComposition.create(template.style().copy(aspect = aspect), false)
             assertNull(withoutCover.cover)
             assertTrue(withoutCover.lyrics.width * withoutCover.lyrics.height >= layout.lyrics.width * layout.lyrics.height)
         }

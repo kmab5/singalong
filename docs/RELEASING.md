@@ -1,6 +1,6 @@
 # Releasing Singalong
 
-Merge and publish releases only when the maintainer explicitly approves them. The maintainer authorized v1.0.0 (9) publication on 2026-11-02 and the 1.1 feature merge on 2026-11-04. Main contains **1.1.0 (15)**; the lyric-card feature branch prepares **1.2.0-rc.2 (17)** and has no merge/publication approval. Workflow preparation and signed CI artifacts alone are not a public release.
+Merge and publish releases only when the maintainer explicitly approves them. The maintainer authorized v1.0.0 (9) publication on 2026-11-02 and the 1.1 feature merge on 2026-11-04. Main contains **1.1.0 (15)**; the lyric-card feature branch prepares **1.2.0-rc.3 (18)** and has no merge/publication approval. Workflow preparation and signed CI artifacts alone are not a public release.
 
 ## One version source
 
@@ -12,7 +12,7 @@ The promotion from rc.5 (14) to the prepared 1.1.0 source used:
 python3 tools/release_version.py set 1.1.0 --code 15
 ```
 
-Do not rerun that promotion on the already-updated source. The lyric-card candidate has since consumed code 17; future distributed builds need the next unused code above 17 and an appropriate later version. Update `RELEASE_NOTES.md`, run checks, and commit. Create an annotated tag matching the version exactly and push that tag only when publication is authorized. Never reuse/move a published version tag. Ordinary branch checks allow the current published name/code unchanged; creating a new version still requires both to increase.
+Do not rerun that promotion on the already-updated source. The lyric-card candidate has since consumed code 18; future distributed builds need the next unused code above 18 and an appropriate later version. Update `RELEASE_NOTES.md`, run checks, and commit. Create an annotated tag matching the version exactly and push that tag only when publication is authorized. Never reuse/move a published version tag. Ordinary branch checks allow the current published name/code unchanged; creating a new version still requires both to increase.
 
 ## CI checks and signing
 

@@ -13,6 +13,10 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.swipeDown
+import org.junit.Assert.assertEquals
 import com.kmab.singalong.cards.CardContent
 import com.kmab.singalong.cards.CardRequest
 import com.kmab.singalong.model.LyricLine
@@ -71,6 +75,21 @@ class LyricCardSheetTest {
         compose.onNodeWithText("App name").performScrollTo().performClick()
         compose.onNodeWithTag("card-preview").assertIsDisplayed()
         compose.onNodeWithText("Share PNG").assertIsDisplayed()
+    }
+
+    @Test fun scrollingPastBothEndsDoesNotMoveThePreviewOrExportActions() {
+        compose.setContent { SingalongTheme { LyricCardSheet(request(), onDismiss = {}) } }
+        compose.onNodeWithText("Share lyric card").performClick()
+        val preview = compose.onNodeWithTag("card-preview").fetchSemanticsNode().boundsInRoot
+        val export = compose.onNodeWithText("Share PNG").fetchSemanticsNode().boundsInRoot
+        repeat(5) { compose.onNodeWithTag("card-controls").performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        assertEquals(preview, compose.onNodeWithTag("card-preview").fetchSemanticsNode().boundsInRoot)
+        assertEquals(export, compose.onNodeWithText("Share PNG").fetchSemanticsNode().boundsInRoot)
+        repeat(5) { compose.onNodeWithTag("card-controls").performTouchInput { swipeDown() } }
+        compose.waitForIdle()
+        assertEquals(preview, compose.onNodeWithTag("card-preview").fetchSemanticsNode().boundsInRoot)
+        compose.onNodeWithText("Close").assertIsDisplayed()
     }
 
     @Test fun longLinePickerStartsNearThePressedLineAndKeepsPreviewVisible() {

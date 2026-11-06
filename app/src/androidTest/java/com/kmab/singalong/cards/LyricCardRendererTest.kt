@@ -64,7 +64,7 @@ class LyricCardRendererTest {
     @Test fun selectedTextThatCannotFitReturnsAnErrorAtBothResolutions() {
         val longContent = content.copy(lines = listOf(LyricLine("long", null, "Unchanged original text. ".repeat(150))))
         for (width in listOf(480, 1080)) {
-            val result = renderer.render(longContent, setOf(0), CardStyle(textSize = CardTextSize.LARGE), width = width)
+            val result = renderer.render(longContent, setOf(0), CardStyle(fontSize = 112f), width = width)
             assertNull(result.bitmap)
             assertTrue(requireNotNull(result.error).contains("do not fit"))
         }
@@ -89,7 +89,7 @@ class LyricCardRendererTest {
     @Test fun customBackgroundTakesPriorityAndMissingBackgroundFallsBackToCover() {
         val cover = Bitmap.createBitmap(20, 40, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }
         val background = Bitmap.createBitmap(40, 20, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
-        val style = CardTemplate.ARTWORK.style()
+        val style = CardTemplate.ARTWORK.style().copy(background = CardBackground.IMAGE)
         try {
             val custom = renderer.render(content, setOf(0), style, cover, background, width = 480)
             assertNull(custom.error)
@@ -111,7 +111,7 @@ class LyricCardRendererTest {
 
     @Test fun photoVeilChangesOnlyRenderedOutputAndRecycledImagesAreIgnored() {
         val background = Bitmap.createBitmap(20, 20, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
-        val result = renderer.render(content, setOf(0), CardTemplate.ARTWORK.style(),
+        val result = renderer.render(content, setOf(0), CardTemplate.ARTWORK.style().copy(background = CardBackground.IMAGE),
             background = background, width = 480)
         assertNull(result.error)
         val bitmap = requireNotNull(result.bitmap)
@@ -122,7 +122,7 @@ class LyricCardRendererTest {
             bitmap.recycle()
             background.recycle()
         }
-        val recycled = renderer.render(content, setOf(0), CardTemplate.ARTWORK.style(), background = background, width = 480)
+        val recycled = renderer.render(content, setOf(0), CardTemplate.ARTWORK.style().copy(background = CardBackground.IMAGE), background = background, width = 480)
         assertNull(recycled.error)
         assertNotNull(recycled.bitmap)
         recycled.bitmap?.recycle()
@@ -134,6 +134,21 @@ class LyricCardRendererTest {
         assertNull(result.error)
         assertNotNull(result.bitmap)
         result.bitmap?.recycle()
+    }
+
+    @Test fun largerArtworkAndNewTypeControlsRenderWithoutMutatingSourceImages() {
+        val cover = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLUE) }
+        try {
+            for (template in CardTemplate.entries) for (aspect in CardAspect.entries) {
+                val result = renderer.render(content, setOf(0), template.style().copy(aspect = aspect,
+                    artSize = CardArtSize.LARGE, corners = CardCorners.ROUND, weight = CardWeight.BOLD,
+                    spacing = CardSpacing.AIRY, placement = CardPlacement.BOTTOM, showAppName = true), cover, width = 480)
+                assertNull("$template / $aspect: ${result.error}", result.error)
+                assertNotNull(result.bitmap)
+                result.bitmap?.recycle()
+            }
+            assertEquals(Color.BLUE, cover.getPixel(0, 0))
+        } finally { cover.recycle() }
     }
 
     @Test fun invalidSelectionsAndWidthsDoNotAllocateAndExcessiveWidthsAreBounded() {

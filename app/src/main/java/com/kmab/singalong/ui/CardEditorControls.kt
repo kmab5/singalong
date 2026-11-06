@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.Font
@@ -39,40 +40,61 @@ internal fun CardEditorControls(section: CardEditorSection, request: CardRequest
     onResetCover: () -> Unit, onResetBackground: () -> Unit, customCover: Boolean, customBackground: Boolean) {
     when (section) {
         CardEditorSection.LOOKS -> {
-            TemplateChoices(request, selected.toSet(), style.template) { onStyle(style.withTemplate(it)) }
-            ControlTitle("Palette")
-            PaletteChoices(style.palette) { onStyle(style.copy(palette = it)) }
-            ControlTitle("Format")
-            CardChoices(CardAspect.entries, style.aspect, { it.label }) { onStyle(style.copy(aspect = it)) }
-            ActionButton(onClick = onBackground, modifier = Modifier.fillMaxWidth()) { Text("Choose background photo") }
-            if (customBackground) ActionButton(onClick = onResetBackground, modifier = Modifier.fillMaxWidth()) { Text("Use preset background") }
-            backgroundError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            CardControlGroup("Presets") { TemplateChoices(request, selected.toSet(), style.template) { onStyle(style.withTemplate(it)) } }
+            CardControlGroup("Palette") { PaletteChoices(style.palette) { onStyle(style.copy(palette = it)) } }
+            CardControlGroup("Format") { CardChoices(CardAspect.entries, style.aspect, { it.label }) { onStyle(style.copy(aspect = it)) } }
+            CardControlGroup("Artwork") {
+                if (hasCover) {
+                    CardChoices(CardArtSize.entries, style.artSize, { it.label }) { onStyle(style.copy(artSize = it)) }
+                    CardChoices(CardCorners.entries, style.corners, { it.label }) { onStyle(style.copy(corners = it)) }
+                } else Text("Add artwork to make it part of the layout.", color = SingalongColors.Muted, style = MaterialTheme.typography.bodySmall)
+                ActionButton(onClick = onCover, modifier = Modifier.fillMaxWidth()) { Text("Choose album cover") }
+                if (customCover) ActionButton(onClick = onResetCover, modifier = Modifier.fillMaxWidth()) { Text("Use original cover") }
+                coverError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+            CardControlGroup("Background") {
+                CardChoices(CardBackground.entries, style.background, { when (it) {
+                    CardBackground.SOLID -> "Plain"; CardBackground.GRADIENT -> "Soft"; CardBackground.IMAGE -> "Photo"
+                } }) { onStyle(style.copy(background = it)) }
+                if (style.background == CardBackground.IMAGE) {
+                    ActionButton(onClick = onBackground, modifier = Modifier.fillMaxWidth()) { Text("Choose background photo") }
+                    CardSlider("Photo shade", style.photoShade, .65f.. .95f, "${(style.photoShade * 100).toInt()}%") { onStyle(style.copy(photoShade = it)) }
+                    if (!customBackground) Text(if (hasCover && style.showCover) "Using album artwork as the background." else "Choose a photo to add a background.",
+                        style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                }
+                if (customBackground) ActionButton(onClick = onResetBackground, modifier = Modifier.fillMaxWidth()) { Text("Use preset background") }
+                backgroundError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
         }
         CardEditorSection.TEXT -> {
-            ControlTitle("Font")
-            FontChoices(style.font) { onStyle(style.copy(font = it)) }
-            ControlTitle("Size")
-            CardChoices(CardTextSize.entries, style.textSize, { it.label }) { onStyle(style.copy(textSize = it)) }
-            ControlTitle("Alignment")
-            CardChoices(CardAlignment.entries, style.alignment, { when (it) {
-                CardAlignment.START -> "Start"; CardAlignment.CENTER -> "Center"; CardAlignment.END -> "End"
-            } }) { onStyle(style.copy(alignment = it)) }
+            CardControlGroup("Font") { FontChoices(style.font) { onStyle(style.copy(font = it)) } }
+            CardControlGroup("Size & weight") {
+                CardSlider("Text size", style.fontSize, 32f..112f, "${style.fontSize.toInt()}") { onStyle(style.copy(fontSize = it)) }
+                CardChoices(CardWeight.entries, style.weight, { it.label }) { onStyle(style.copy(weight = it)) }
+            }
+            CardControlGroup("Alignment") {
+                CardChoices(CardAlignment.entries, style.alignment, { when (it) {
+                    CardAlignment.START -> "Start"; CardAlignment.CENTER -> "Center"; CardAlignment.END -> "End"
+                } }) { onStyle(style.copy(alignment = it)) }
+            }
+            CardControlGroup("Line spacing") { CardChoices(CardSpacing.entries, style.spacing, { it.label }) { onStyle(style.copy(spacing = it)) } }
+            CardControlGroup("Verse position") { CardChoices(CardPlacement.entries, style.placement, { it.label }) { onStyle(style.copy(placement = it)) } }
         }
         CardEditorSection.DETAILS -> {
-            Text("Keep only the details you want on your card.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
-            val recording = request.content.recording
-            DetailToggle("Song title", style.details.title, recording.title.isNotBlank()) { onStyle(style.copy(details = style.details.copy(title = it))) }
-            DetailToggle("Artist", style.details.artist, recording.artists.any { it.isNotBlank() }) { onStyle(style.copy(details = style.details.copy(artist = it))) }
-            DetailToggle("Album", style.details.album, !recording.album.isNullOrBlank()) { onStyle(style.copy(details = style.details.copy(album = it))) }
-            DetailToggle("Filename", style.details.fileName, request.content.file.name != null) { onStyle(style.copy(details = style.details.copy(fileName = it))) }
-            DetailToggle("File location", style.details.location, request.content.file.location != null) { onStyle(style.copy(details = style.details.copy(location = it))) }
-            DetailToggle("Album cover", style.showCover, hasCover) { onStyle(style.copy(showCover = it)) }
-            DetailToggle("App name", style.showAppName) { onStyle(style.copy(showAppName = it)) }
-            Text("The Singalong icon stays on the card. File location is the audio folder, not your GPS location.",
-                style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
-            coverError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            ActionButton(onClick = onCover, modifier = Modifier.fillMaxWidth()) { Text("Choose album cover") }
-            if (customCover) ActionButton(onClick = onResetCover, modifier = Modifier.fillMaxWidth()) { Text("Use original cover") }
+            CardControlGroup("Song details") {
+                val recording = request.content.recording
+                DetailToggle("Song title", style.details.title, recording.title.isNotBlank()) { onStyle(style.copy(details = style.details.copy(title = it))) }
+                DetailToggle("Artist", style.details.artist, recording.artists.any { it.isNotBlank() }) { onStyle(style.copy(details = style.details.copy(artist = it))) }
+                DetailToggle("Album", style.details.album, !recording.album.isNullOrBlank()) { onStyle(style.copy(details = style.details.copy(album = it))) }
+                DetailToggle("Filename", style.details.fileName, request.content.file.name != null) { onStyle(style.copy(details = style.details.copy(fileName = it))) }
+                DetailToggle("File location", style.details.location, request.content.file.location != null) { onStyle(style.copy(details = style.details.copy(location = it))) }
+                DetailToggle("Album cover", style.showCover, hasCover) { onStyle(style.copy(showCover = it)) }
+            }
+            CardControlGroup("Signature") {
+                DetailToggle("App name", style.showAppName) { onStyle(style.copy(showAppName = it)) }
+                CardChoices(CardFooter.entries, style.footer, { it.label }) { onStyle(style.copy(footer = it)) }
+                Text("The Singalong mark sits in the footer. File location is the audio folder, not GPS.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+            }
         }
         CardEditorSection.LINES -> {
             val listState = rememberLazyListState(initialFirstVisibleItemIndex = (request.content.initialLine - 2).coerceAtLeast(0))
@@ -95,7 +117,25 @@ internal fun CardEditorControls(section: CardEditorSection, request: CardRequest
 }
 
 @Composable
-private fun ControlTitle(text: String) = Text(text, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleSmall)
+private fun CardControlGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleSmall)
+        content()
+    }
+}
+
+@Composable
+private fun CardSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, valueLabel: String,
+    onValue: (Float) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(valueLabel, color = SingalongColors.PurpleText, style = MaterialTheme.typography.labelLarge)
+        }
+        Slider(value = value.coerceIn(range), onValueChange = onValue, valueRange = range,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { contentDescription = label })
+    }
+}
 
 @Composable
 private fun DetailToggle(label: String, checked: Boolean, available: Boolean = true, onChange: (Boolean) -> Unit) {
@@ -112,19 +152,19 @@ private fun DetailToggle(label: String, checked: Boolean, available: Boolean = t
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun <T> CardChoices(options: List<T>, value: T, label: (T) -> String, onSelect: (T) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEach { option -> FilterChip(value == option, onClick = { onSelect(option) },
-            label = { Text(label(option)) }, modifier = Modifier.heightIn(min = 48.dp)) }
+            label = { Text(label(option)) }, modifier = Modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(14.dp)) }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FontChoices(value: CardFont, onSelect: (CardFont) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         CardFont.entries.forEach { font ->
             FilterChip(value == font, onClick = { onSelect(font) }, modifier = Modifier.heightIn(min = 48.dp),
-                label = { Text(font.label, fontFamily = remember(font) { FontFamily(Font(font.resource)) }) })
+                label = { Text(font.label, fontFamily = remember(font) { FontFamily(Font(font.resource)) }) }, shape = RoundedCornerShape(14.dp))
         }
     }
 }
@@ -132,10 +172,10 @@ private fun FontChoices(value: CardFont, onSelect: (CardFont) -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PaletteChoices(value: CardPalette, onSelect: (CardPalette) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         CardPalette.entries.forEach { palette ->
             FilterChip(value == palette, onClick = { onSelect(palette) }, modifier = Modifier.heightIn(min = 48.dp),
-                label = { Text(palette.label) }, leadingIcon = {
+                label = { Text(palette.label) }, shape = RoundedCornerShape(14.dp), leadingIcon = {
                     Row { listOf(palette.base, palette.ink, palette.accent).forEach { color ->
                         Box(Modifier.size(12.dp).background(Color(color), CircleShape))
                     } }

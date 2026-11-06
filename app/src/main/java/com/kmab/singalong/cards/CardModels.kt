@@ -32,7 +32,12 @@ data class CardContent(val recording: Recording, val lines: List<LyricLine>, val
 }
 @Serializable enum class CardAlignment { START, CENTER, END }
 @Serializable enum class CardBackground { SOLID, GRADIENT, IMAGE }
-@Serializable enum class CardTextSize(val label: String, val pixels: Float) { SMALL("Small", 48f), MEDIUM("Medium", 64f), LARGE("Large", 84f) }
+@Serializable enum class CardArtSize(val label: String, val fraction: Float) { STANDARD("Standard", .34f), LARGE("Large", .42f) }
+@Serializable enum class CardCorners(val label: String) { SQUARE("Square"), SOFT("Soft"), ROUND("Round") }
+@Serializable enum class CardWeight(val label: String, val value: Int) { REGULAR("Regular", 400), BOLD("Bold", 700) }
+@Serializable enum class CardSpacing(val label: String, val multiplier: Float) { CLOSE("Close", 1.06f), NATURAL("Natural", 1.18f), AIRY("Airy", 1.32f) }
+@Serializable enum class CardPlacement(val label: String, val bias: Float) { TOP("Top", 0f), MIDDLE("Middle", .5f), BOTTOM("Bottom", 1f) }
+@Serializable enum class CardFooter(val label: String) { START("Left"), END("Right") }
 @Serializable enum class CardPalette(val label: String, val base: Int, val ink: Int, val accent: Int) {
     VIOLET("Iris", 0xff20172f.toInt(), 0xfff6efff.toInt(), 0xffb49be5.toInt()),
     BLUE("Tide", 0xff102c39.toInt(), 0xffeaf5f5.toInt(), 0xff83c9cf.toInt()),
@@ -73,16 +78,16 @@ data class CardFileDetails(val name: String? = null, val location: String? = nul
 }
 
 @Serializable enum class CardTemplate(val label: String, val description: String) {
-    GLASS("Afterglow", "Soft light · open space"), MIDNIGHT("Signal", "Bold type · clean rhythm"),
-    PAPER("Margin", "Editorial · offset lyrics"), ARTWORK("Spotlight", "Full-bleed photo · quiet credits"),
-    SLEEVE("Sleeve", "Album art · liner notes"), POSTCARD("Postcard", "Handwritten · a personal note"),
-    DUET("Duet", "Split cover · side-by-side"), GALLERY("Gallery", "Centered art · a small verse");
+    GLASS("Afterglow", "Artwork and credits above an open verse"), MIDNIGHT("Signal", "Bold words above the album"),
+    PAPER("Margin", "A quiet verse with an album signature"), ARTWORK("Spotlight", "A wide artwork header"),
+    SLEEVE("Sleeve", "Centered words with artwork below"), POSTCARD("Postcard", "Handwritten words beneath a music header"),
+    DUET("Duet", "Large artwork beside the verse"), GALLERY("Gallery", "Centered artwork, words and credits");
     fun style(): CardStyle = when (this) {
         GLASS -> CardStyle(template = this)
         MIDNIGHT -> CardStyle(template = this, palette = CardPalette.INK, font = CardFont.OSWALD, background = CardBackground.SOLID)
         PAPER -> CardStyle(template = this, palette = CardPalette.PAPER, font = CardFont.LORA, background = CardBackground.SOLID)
-        ARTWORK -> CardStyle(template = this, palette = CardPalette.INK, font = CardFont.SPACE, background = CardBackground.IMAGE)
-        SLEEVE -> CardStyle(template = this, palette = CardPalette.BLUE, font = CardFont.SPACE, background = CardBackground.SOLID)
+        ARTWORK -> CardStyle(template = this, palette = CardPalette.INK, font = CardFont.SPACE, background = CardBackground.SOLID)
+        SLEEVE -> CardStyle(template = this, palette = CardPalette.BLUE, font = CardFont.LORA, alignment = CardAlignment.CENTER, background = CardBackground.SOLID)
         POSTCARD -> CardStyle(template = this, palette = CardPalette.ROSE, font = CardFont.CAVEAT, background = CardBackground.SOLID)
         DUET -> CardStyle(template = this, palette = CardPalette.MOSS, font = CardFont.PLAYFAIR, background = CardBackground.SOLID)
         GALLERY -> CardStyle(template = this, palette = CardPalette.PAPER, font = CardFont.PLAYFAIR, alignment = CardAlignment.CENTER, background = CardBackground.SOLID)
@@ -96,11 +101,20 @@ data class CardFileDetails(val name: String? = null, val location: String? = nul
     val alignment: CardAlignment = CardAlignment.START,
     val background: CardBackground = CardBackground.GRADIENT,
     val palette: CardPalette = CardPalette.VIOLET,
-    val textSize: CardTextSize = CardTextSize.MEDIUM,
+    val fontSize: Float = 76f,
+    val weight: CardWeight = CardWeight.REGULAR,
+    val spacing: CardSpacing = CardSpacing.NATURAL,
+    val placement: CardPlacement = CardPlacement.MIDDLE,
+    val artSize: CardArtSize = CardArtSize.STANDARD,
+    val corners: CardCorners = CardCorners.SOFT,
+    val footer: CardFooter = CardFooter.END,
+    val photoShade: Float = .78f,
     val details: CardDetails = CardDetails(),
     val showCover: Boolean = true,
     val showAppName: Boolean = false,
 ) {
+    fun sanitized() = copy(fontSize = if (fontSize.isFinite()) fontSize.coerceIn(32f, 112f) else 76f,
+        photoShade = if (photoShade.isFinite()) photoShade.coerceIn(.65f, .95f) else .78f)
     fun withTemplate(next: CardTemplate) = next.style().copy(aspect = aspect, details = details,
-        showCover = showCover, showAppName = showAppName)
+        showCover = showCover, showAppName = showAppName, footer = footer)
 }

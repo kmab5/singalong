@@ -24,7 +24,7 @@ This index describes the current source. Earlier phase plans and validation repo
 
 ## Accepted changes since the initial design
 
-The 1.2.0-rc.2 feature branch adds draggable lyric actions and a branded card editor with eight layouts, a pinned preview, seven bundled fonts, optional metadata, original-line selection, local artwork and PNG share/save. The draft snapshots the selected song independently of playback. Minimal floating lyrics retain their long-press movement gesture; standard floating lyrics route card actions into the activity. See the [card plan](superpowers/plans/2026-11-06-lyric-share-cards.md). This new feature is not merged or published yet.
+The 1.2.0-rc.3 feature branch adds draggable lyric actions and a branded card editor with eight layouts, a pinned preview, seven bundled fonts, optional metadata, original-line selection, local artwork and PNG share/save. The draft snapshots the selected song independently of playback. Minimal floating lyrics retain their long-press movement gesture; standard floating lyrics route card actions into the activity. See the [card plan](superpowers/plans/2026-11-06-lyric-share-cards.md). This new feature is not merged or published yet.
 
 The current app includes simple text editing plus an opt-in per-line timing editor, filename-aware search, optional estimated sync for untimed lyrics, minimal floating lyrics, bottom icon controls, automatic failure docking/recovery, independent Now-tab typography/motion, and a next-launch crash-report prompt. Original metadata/content is preserved; inferred matches and estimated timing remain distinguishable from verified timed lyrics.
 
@@ -44,4 +44,4 @@ The maintainer authorized merging these changes to main on 2026-11-04. Source ve
 
 Keep historical evidence intact. Add later corrections/verification explicitly rather than rewriting an earlier untested milestone as if it had passed at the time.
 
-The [card refresh checkpoint](validation/card-refresh-checkpoint.md) records the latest redesign and folder-scan regression evidence.
+The [roomy card checkpoint](validation/roomy-card-checkpoint.md) records the latest card/editor changes; the [rc.2 checkpoint](validation/card-refresh-checkpoint.md) retains folder-scan regression evidence.

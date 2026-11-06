@@ -8,32 +8,72 @@ data class CardRegion(val x: Float, val y: Float, val width: Float, val height: 
         y < other.bottom - .0001f && bottom > other.y + .0001f
 }
 
-data class CardComposition(val lyrics: CardRegion, val title: CardRegion, val details: CardRegion,
-    val cover: CardRegion?, val brand: CardRegion) {
+data class CardComposition(val lyrics: CardRegion, val credits: CardRegion,
+    val cover: CardRegion?, val brand: CardRegion, val centeredCredits: Boolean = false) {
     companion object {
-        fun create(template: CardTemplate, aspect: CardAspect, hasCover: Boolean): CardComposition {
-            fun r(x: Float, y: Float, w: Float, h: Float) = CardRegion(x, y, w, h)
-            val layout = when (template) {
-                CardTemplate.GLASS -> CardComposition(r(.08f,.30f,.84f,.43f),r(.08f,.08f,.64f,.16f),r(.08f,.78f,.64f,.13f),r(.78f,.08f,.14f,.14f),r(.77f,.84f,.15f,.07f))
-                CardTemplate.MIDNIGHT -> CardComposition(r(.08f,.25f,.84f,.46f),r(.08f,.08f,.84f,.12f),r(.08f,.77f,.62f,.13f),r(.77f,.75f,.15f,.15f),r(.08f,.93f,.40f,.04f))
-                CardTemplate.PAPER -> CardComposition(r(.20f,.35f,.72f,.39f),r(.34f,.08f,.58f,.18f),r(.20f,.80f,.70f,.10f),r(.08f,.08f,.20f,.20f),r(.08f,.93f,.40f,.04f))
-                CardTemplate.ARTWORK -> CardComposition(r(.08f,.38f,.84f,.34f),r(.30f,.08f,.62f,.17f),r(.08f,.78f,.62f,.13f),r(.08f,.08f,.16f,.16f),r(.77f,.84f,.15f,.07f))
-                CardTemplate.SLEEVE -> CardComposition(r(.08f,.49f,.84f,.35f),r(.48f,.08f,.44f,.17f),r(.48f,.28f,.44f,.15f),r(.08f,.08f,.33f,.33f),r(.08f,.91f,.40f,.05f))
-                CardTemplate.POSTCARD -> CardComposition(r(.08f,.49f,.84f,.32f),r(.08f,.10f,.53f,.14f),r(.08f,.27f,.53f,.15f),r(.68f,.10f,.23f,.23f),r(.64f,.90f,.28f,.05f))
-                CardTemplate.DUET -> CardComposition(r(.51f,.13f,.43f,.68f),r(.06f,.55f,.37f,.15f),r(.06f,.74f,.37f,.16f),r(.06f,.13f,.37f,.37f),r(.51f,.90f,.43f,.05f))
-                CardTemplate.GALLERY -> CardComposition(r(.12f,.57f,.76f,.23f),r(.12f,.43f,.76f,.10f),r(.12f,.84f,.62f,.10f),r(.34f,.07f,.32f,.32f),r(.79f,.87f,.15f,.07f))
-            }
-            // Fit a square cover inside its reserved region for every output orientation.
-            val cover = layout.cover?.takeIf { hasCover }?.let {
-                val side = minOf(it.width * aspect.width, it.height * aspect.height)
-                val width = side / aspect.width
-                it.copy(x = if (template == CardTemplate.GALLERY) it.x + (it.width - width) / 2f else it.x,
-                    width = width, height = side / aspect.height)
-            }
-            return if (hasCover) layout.copy(cover = cover) else when (template) {
-                CardTemplate.GALLERY -> layout.copy(cover = null, title = r(.12f,.12f,.76f,.12f), lyrics = r(.12f,.30f,.76f,.49f))
-                CardTemplate.DUET -> layout.copy(cover = null, title = r(.08f,.08f,.84f,.15f), lyrics = r(.08f,.30f,.84f,.40f), details = r(.08f,.77f,.84f,.12f))
-                else -> layout.copy(cover = null)
+        /** Physical insets are based on the short edge, so landscape never shrinks the album into a badge. */
+        fun create(style: CardStyle, hasCover: Boolean): CardComposition {
+            val w = style.aspect.width.toFloat()
+            val h = style.aspect.height.toFloat()
+            val unit = minOf(w, h)
+            val margin = unit * .08f
+            val gap = unit * .045f
+            val footerHeight = unit * .055f
+            val footerY = h - margin - footerHeight
+            val bottom = footerY - unit * .06f
+            val inner = w - 2 * margin
+            val creditHeight = unit * .10f
+            val side = unit * style.artSize.fraction
+            fun r(x: Float, y: Float, width: Float, height: Float) = CardRegion(x / w, y / h, width / w, height / h)
+            val brandWidth = unit * .26f
+            val brand = r(if (style.footer == CardFooter.START) margin else w - margin - brandWidth,
+                footerY, brandWidth, footerHeight)
+            if (!hasCover) return CardComposition(
+                r(margin, margin, inner, bottom - creditHeight - gap - margin),
+                r(margin, bottom - creditHeight, inner, creditHeight), null, brand,
+                centeredCredits = style.template in setOf(CardTemplate.SLEEVE, CardTemplate.GALLERY))
+            val template = style.template
+            return when (template) {
+                CardTemplate.GLASS, CardTemplate.POSTCARD -> {
+                    val left = template == CardTemplate.GLASS
+                    val coverX = if (left) margin else w - margin - side
+                    val creditsX = if (left) margin + side + gap else margin
+                    val lyricY = margin + side + gap
+                    CardComposition(r(margin, lyricY, inner, bottom - lyricY),
+                        r(creditsX, margin, inner - side - gap, side), r(coverX, margin, side, side), brand)
+                }
+                CardTemplate.MIDNIGHT, CardTemplate.PAPER -> {
+                    val left = template == CardTemplate.MIDNIGHT
+                    val coverX = if (left) margin else w - margin - side
+                    val creditsX = if (left) margin + side + gap else margin
+                    val mediaY = bottom - side
+                    CardComposition(r(margin, margin, inner, mediaY - gap - margin),
+                        r(creditsX, mediaY, inner - side - gap, side), r(coverX, mediaY, side, side), brand)
+                }
+                CardTemplate.DUET -> {
+                    val lyricX = margin + side + gap
+                    val creditY = margin + side + gap
+                    CardComposition(r(lyricX, margin, w - margin - lyricX, bottom - margin),
+                        r(margin, creditY, side, bottom - creditY), r(margin, margin, side, side), brand)
+                }
+                CardTemplate.GALLERY -> {
+                    val lyricY = margin + side + gap
+                    CardComposition(r(margin, lyricY, inner, bottom - creditHeight - gap - lyricY),
+                        r(margin, bottom - creditHeight, inner, creditHeight), r((w - side) / 2f, margin, side, side), brand, true)
+                }
+                CardTemplate.SLEEVE -> {
+                    val coverY = bottom - side
+                    val creditsY = coverY - gap - creditHeight
+                    CardComposition(r(margin, margin, inner, creditsY - gap - margin),
+                        r(margin, creditsY, inner, creditHeight), r((w - side) / 2f, coverY, side, side), brand, true)
+                }
+                CardTemplate.ARTWORK -> {
+                    val bannerHeight = unit * if (style.artSize == CardArtSize.STANDARD) .30f else .36f
+                    val creditsY = margin + bannerHeight + gap
+                    val lyricY = creditsY + creditHeight + gap
+                    CardComposition(r(margin, lyricY, inner, bottom - lyricY),
+                        r(margin, creditsY, inner, creditHeight), r(margin, margin, inner, bannerHeight), brand)
+                }
             }
         }
     }

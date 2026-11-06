@@ -1,5 +1,7 @@
 # Card refresh and folder-scan checkpoint
 
+Historical rc.2 results; the [rc.3 checkpoint](roomy-card-checkpoint.md) supersedes the card/editor design and current APK.
+
 Candidate **1.2.0-rc.2 (17)** on `feat/lyric-share-cards`. No merge, tag or release publication. This supersedes the [first card checkpoint](lyric-card-checkpoint.md).
 
 ## Implemented source

@@ -1,5 +1,10 @@
 (() => {
   "use strict";
+  const cardCoverButtons = [...document.querySelectorAll("[data-card-cover]")];
+  cardCoverButtons.forEach(button => button.addEventListener("click", () => {
+    document.querySelector("#sample-card").dataset.cover = button.dataset.cardCover;
+    cardCoverButtons.forEach(option => option.setAttribute("aria-pressed", String(option === button)));
+  }));
   const stage = document.querySelector(".demo-stage");
   const windowPanel = document.querySelector(".lyric-window");
   const edge = document.querySelector("#edge-handle");

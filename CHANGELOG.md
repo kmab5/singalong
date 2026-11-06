@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 — prepared, not yet published
+
+- Added a locally generated Album art palette using predominant cover colors and contrasting text. It updates with the cover, stays when the foreground cover is hidden, and is unavailable when artwork has no usable pixels.
+- Integrates lyric cards: eight layouts, seven fonts, curated and automatic palettes, seven backgrounds, line emphasis, fine artwork/text sizing, corner branding with local wrapping, and named PNG share/save.
+- Clearing downloaded lyrics now safely discards late translation and timing-adjustment writes instead of failing on a deleted version. HTTP adapters identify the current app version consistently.
+- Updated current docs and the website with a labelled card illustration and prepared-versus-published status. Retains rc.2's empty-provider-lyrics folder-scan fix.
+
 ## 1.2.0-rc.4 — unreleased
 
 - Added a fixed gap below card editor tabs. Hiding the foreground cover now preserves album artwork used as a Photo background.

@@ -51,12 +51,15 @@ class FolderScanCoordinator(
                             lookedUp = true
                             val result = lookup(recording)
                             currentCoroutineContext().ensureActive()
+                            // Empty timed markers are not lyrics. Validate before the transactional save;
+                            // preserve blank instrumental intervals when the version also contains words.
+                            val usable = result.versions.filter { version -> version.lines.any { it.text.isNotBlank() } }
                             when {
-                                result.versions.isNotEmpty() -> {
-                                    val added = store.save(recording, result.versions)
+                                usable.isNotEmpty() -> {
+                                    val added = store.save(recording, usable)
                                     mutableState.update { if (added) it.copy(saved = it.saved + 1) else it.copy(skipped = it.skipped + 1) }
                                 }
-                                result.status in setOf("not_found", "instrumental") -> mutableState.update { it.copy(notFound = it.notFound + 1) }
+                                result.versions.isNotEmpty() || result.status in setOf("not_found", "instrumental") -> mutableState.update { it.copy(notFound = it.notFound + 1) }
                                 else -> mutableState.update { it.copy(failed = it.failed + 1) }
                             }
                         }

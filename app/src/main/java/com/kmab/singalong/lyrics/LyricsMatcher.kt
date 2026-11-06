@@ -34,8 +34,9 @@ object LyricsMatcher {
     }
     fun versions(recording: Recording, songs: List<ProviderSong>): List<LyricVersion> = LyricPreference.sorted(songs.mapNotNull { song ->
         val confidence = confidence(recording, song) ?: return@mapNotNull null
-        val lines = LyricsfileParser.parse(song.lyricsfile) ?: LrcParser.parse(song.syncedLyrics, song.plainLyrics)
-        if (lines.isEmpty() || song.instrumental) return@mapNotNull null
+        val lines = LyricsfileParser.parse(song.lyricsfile)?.takeIf { rows -> rows.any { it.text.isNotBlank() } }
+            ?: LrcParser.parse(song.syncedLyrics, song.plainLyrics)
+        if (lines.none { it.text.isNotBlank() } || song.instrumental) return@mapNotNull null
         // Keep legacy identities stable; new timing changes must not deduplicate as line-only lyrics.
         val content = if (lines.any { it.words.isNotEmpty() || it.endMs != null }) Json.encodeToString(lines)
             else lines.joinToString("\n") { "${it.startMs}:${it.text}" }

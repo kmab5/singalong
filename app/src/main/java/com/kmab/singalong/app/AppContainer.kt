@@ -34,8 +34,7 @@ class AppContainer(private val context: Context) {
     private var cardGeneration = 0L
     fun closeCard() { cardGeneration++; cardJob?.cancel(); mutableCard.value = null; mutableCardLoading.value = false }
     fun openCard(recording: Recording?, version: LyricVersion, index: Int, sessionId: String? = null) {
-        val captured = com.kmab.singalong.cards.CardContent.capture(recording, version, index) ?: return
-        val content = captured.copy(file = sessionId?.let { observer.cardFileDetails(it, captured.recording) } ?: captured.file)
+        val content = com.kmab.singalong.cards.CardContent.capture(recording, version, index) ?: return
         val artwork = sessionId?.let { observer.cardArtwork(it, content.recording) }
         closeCard()
         val generation = cardGeneration

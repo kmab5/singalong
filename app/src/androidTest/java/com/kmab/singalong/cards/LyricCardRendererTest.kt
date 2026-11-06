@@ -141,7 +141,7 @@ class LyricCardRendererTest {
         try {
             for (template in CardTemplate.entries) for (aspect in CardAspect.entries) {
                 val result = renderer.render(content, setOf(0), template.style().copy(aspect = aspect,
-                    artSize = CardArtSize.LARGE, corners = CardCorners.ROUND, weight = CardWeight.BOLD,
+                    artScale = .42f, corners = CardCorners.ROUND, weight = CardWeight.BOLD,
                     spacing = CardSpacing.AIRY, placement = CardPlacement.BOTTOM, showAppName = true), cover, width = 480)
                 assertNull("$template / $aspect: ${result.error}", result.error)
                 assertNotNull(result.bitmap)
@@ -158,5 +158,37 @@ class LyricCardRendererTest {
         assertNull(result.error)
         val bitmap = requireNotNull(result.bitmap)
         try { assertEquals(1080, bitmap.width) } finally { bitmap.recycle() }
+    }
+
+    @Test fun hidingTheForegroundCoverKeepsTheAlbumPhotoUntilACustomBackgroundIsChosen() {
+        val cover = Bitmap.createBitmap(20, 20, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }
+        val photo = Bitmap.createBitmap(20, 20, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+        try {
+            val style = CardStyle(background = CardBackground.IMAGE)
+            val visible = requireNotNull(renderer.render(content, setOf(0), style, cover, width = 240).bitmap)
+            val hidden = requireNotNull(renderer.render(content, setOf(0), style.copy(showCover = false), cover, width = 240).bitmap)
+            val custom = requireNotNull(renderer.render(content, setOf(0), style.copy(showCover = false), cover, photo, width = 240).bitmap)
+            try {
+                assertEquals(visible.getPixel(0, 0), hidden.getPixel(0, 0))
+                assertFalse(hidden.getPixel(0, 0) == custom.getPixel(0, 0))
+            } finally { visible.recycle(); hidden.recycle(); custom.recycle() }
+        } finally { cover.recycle(); photo.recycle() }
+    }
+
+    @Test fun emphasisChangesOnlyTheSelectedExcerptAndSurvivesAllBackgroundChoices() {
+        val style = CardStyle(details = CardDetails(false, false, false))
+        val plain = requireNotNull(renderer.render(content, setOf(0), style, width = 240).bitmap)
+        val emphasized = requireNotNull(renderer.render(content, setOf(0), style, width = 240, emphasized = setOf(0)).bitmap)
+        val unselected = requireNotNull(renderer.render(content, setOf(0), style, width = 240, emphasized = setOf(1)).bitmap)
+        try {
+            assertFalse(plain.sameAs(emphasized))
+            assertTrue(plain.sameAs(unselected))
+            assertEquals("The first original line", content.excerpt(setOf(0)))
+        } finally { plain.recycle(); emphasized.recycle(); unselected.recycle() }
+        for (background in CardBackground.entries) {
+            val result = renderer.render(content, setOf(0), style.copy(background = background), width = 240, emphasized = setOf(0))
+            assertNull(result.error)
+            result.bitmap?.recycle()
+        }
     }
 }

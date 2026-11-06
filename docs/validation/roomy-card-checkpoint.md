@@ -1,5 +1,7 @@
 # Roomy cards and stable editor checkpoint
 
+Historical rc.3 results; the [rc.4 checkpoint](card-controls-checkpoint.md) supersedes current controls and APK.
+
 Candidate **1.2.0-rc.3 (18)**, on `feat/lyric-share-cards`; no merge, tag or release publication. Supersedes the [rc.2 editor design](card-refresh-checkpoint.md).
 
 ## Source changes and visual evidence

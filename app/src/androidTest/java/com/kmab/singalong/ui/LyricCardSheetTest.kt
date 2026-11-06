@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
@@ -45,12 +46,14 @@ class LyricCardSheetTest {
         compose.onNodeWithText("Margin").performScrollTo().performClick()
         compose.onNodeWithText("Lines").performClick()
         compose.onNodeWithText("Second original line").performClick()
+        compose.onNodeWithContentDescription("Emphasize line 2").performClick()
         restoration.emulateSavedInstanceStateRestore()
 
         compose.onNodeWithText("Your lyric card").assertExists()
         compose.onNodeWithText("Lines").assertIsSelected()
         compose.onNodeWithText("First original line").assertIsOn()
         compose.onNodeWithText("Second original line").assertIsOn()
+        compose.onNodeWithContentDescription("Emphasize line 2").assertIsOn()
         compose.onNodeWithText("2 selected · original wording and order").assertExists()
     }
 

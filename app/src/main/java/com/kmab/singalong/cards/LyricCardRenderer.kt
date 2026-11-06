@@ -3,8 +3,11 @@ package com.kmab.singalong.cards
 import android.content.Context
 import android.graphics.*
 import android.text.Layout
-import android.text.StaticLayout
-import android.text.TextDirectionHeuristics
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.CharacterStyle
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import android.text.TextPaint
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
@@ -19,7 +22,7 @@ class LyricCardRenderer(private val context: Context) {
     private val faces = CardFont.entries.associateWith { ResourcesCompat.getFont(context, it.resource) ?: Typeface.DEFAULT }
 
     fun render(content: CardContent, selected: Set<Int>, requestedStyle: CardStyle, cover: Bitmap? = null,
-        background: Bitmap? = null, width: Int = requestedStyle.aspect.width): CardRenderResult {
+        background: Bitmap? = null, width: Int = requestedStyle.aspect.width, emphasized: Set<Int> = emptySet()): CardRenderResult {
         content.selectionError(selected)?.let { return CardRenderResult(error = it) }
         if (width <= 0) return CardRenderResult(error = "Choose a valid card size.")
         val style = requestedStyle.sanitized()
@@ -27,8 +30,9 @@ class LyricCardRenderer(private val context: Context) {
         val h = style.aspect.height.toFloat()
         val outputWidth = width.coerceAtMost(style.aspect.width)
         val outputHeight = (outputWidth * h / w).roundToInt().coerceAtLeast(1)
-        val safeCover = cover?.takeUnless { it.isRecycled }?.takeIf { style.showCover }
-        val photo = background?.takeUnless { it.isRecycled } ?: safeCover
+        val albumArt = cover?.takeUnless { it.isRecycled }
+        val safeCover = albumArt?.takeIf { style.showCover }
+        val photo = background?.takeUnless { it.isRecycled } ?: albumArt
         val layout = CardComposition.create(style, safeCover != null)
         fun CardRegion.bounds() = RectF(x * w, y * h, right * w, bottom * h)
         val ink = style.palette.ink
@@ -41,11 +45,19 @@ class LyricCardRenderer(private val context: Context) {
         if (metadata.sumOf { it.second.length } > 12_000) return CardRenderResult(error = "The selected song details are too long for a card. Hide a detail to continue.")
         val creditBox = layout.credits.bounds()
         val lyricBox = layout.lyrics.bounds()
-        val credits = measureCredits(metadata, creditBox, ink, layout.centeredCredits)
-            ?: return CardRenderResult(error = "The selected details need more room. Hide a detail or choose a taller format.")
+        val mark = layout.brand.bounds()
+        val exclusion = RectF(mark).apply { inset(-16f, -12f) }
+        val creditText = creditText(metadata)
+        val credits = if (creditText.isEmpty()) null else CardTextFlow.fit(creditText, creditBox,
+            textPaint(44f, ink, faces.getValue(CardFont.INTER)), 26.4f,
+            if (layout.centeredCredits) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL,
+            1.18f, .5f, exclusion)
+        if (creditText.isNotEmpty() && credits == null) return CardRenderResult(error = "The selected details need more room. Hide a detail or choose a taller format.")
         val size = style.fontSize * if (style.font == CardFont.CAVEAT) 1.14f else 1f
         val face = Typeface.create(faces.getValue(style.font), style.weight.value, false)
-        val lyrics = fit(content.excerpt(selected), lyricBox, size, size * .64f, ink, face, alignment, style.spacing.multiplier)
+        val text = emphasizedText(content, selected, emphasized, style.palette.accent)
+        val lyrics = CardTextFlow.fit(text, lyricBox, textPaint(size, ink, face), size * .64f,
+            alignment, style.spacing.multiplier, style.placement.bias, exclusion)
             ?: return CardRenderResult(error = "These lyrics do not fit. Reduce text size, select fewer lines, or choose a taller format.")
         val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -60,58 +72,61 @@ class LyricCardRenderer(private val context: Context) {
             }
             drawImage(canvas, art, bounds, radius)
         } }
-        var creditY = creditBox.top + (creditBox.height() - credits.sumOf { it.height } - (credits.size - 1).coerceAtLeast(0) * 10f) / 2f
-        credits.forEach { credit ->
-            drawLayout(canvas, credit, creditBox.left, creditY)
-            creditY += credit.height + 10f
-        }
-        val lyricY = lyricBox.top + (lyricBox.height() - lyrics.height) * style.placement.bias
-        drawLayout(canvas, lyrics, lyricBox.left, lyricY)
-        drawBrand(canvas, layout.brand.bounds(), style, ink)
+        credits?.draw(canvas)
+        lyrics.draw(canvas)
+        drawBrand(canvas, mark, style, ink)
         return CardRenderResult(bitmap = bitmap)
     }
 
-    private fun measureCredits(metadata: List<Pair<CardMetadata, String>>, box: RectF, color: Int, centered: Boolean): List<StaticLayout>? {
-        val title = metadata.firstOrNull { it.first == CardMetadata.TITLE }?.second
-        val music = metadata.filter { it.first in setOf(CardMetadata.ARTIST, CardMetadata.ALBUM) }.joinToString(" · ") { it.second }
-        val details = (listOf(music) + metadata.filter { it.first in setOf(CardMetadata.FILE_NAME, CardMetadata.LOCATION) }.map { it.second })
-            .filter { it.isNotBlank() }.joinToString("\n")
-        val alignment = if (centered) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL
-        for (step in 0..8) {
-            val scale = 1f - step * .05f
-            val rows = listOfNotNull(
-                title?.let { textLayout(it, box.width().toInt(), textPaint(44f * scale, color,
-                    Typeface.create(faces.getValue(CardFont.INTER), 600, false)), alignment) },
-                details.takeIf { it.isNotBlank() }?.let { textLayout(it, box.width().toInt(), textPaint(32f * scale, color,
-                    faces.getValue(CardFont.INTER)), alignment) },
-            )
-            if (rows.sumOf { it.height } + (rows.size - 1).coerceAtLeast(0) * 10 <= box.height()) return rows
+    private fun creditText(metadata: List<Pair<CardMetadata, String>>): CharSequence {
+        val text = SpannableStringBuilder()
+        metadata.firstOrNull { it.first == CardMetadata.TITLE }?.second?.let {
+            text.append(it)
+            text.setSpan(StyleSpan(Typeface.BOLD), 0, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
-        return null
+        val music = metadata.filter { it.first != CardMetadata.TITLE }.joinToString(" · ") { it.second }
+        if (music.isNotBlank()) {
+            if (text.isNotEmpty()) text.append("\n")
+            val start = text.length
+            text.append(music)
+            text.setSpan(RelativeSizeSpan(32f / 44f), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        return text
     }
 
-    /** No ellipsis, slicing or hidden lines: the whole excerpt fits or an explicit error is returned. */
-    private fun fit(text: String, box: RectF, initialSize: Float, minimumSize: Float, color: Int, face: Typeface,
-        alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL, spacing: Float = 1.18f): StaticLayout? {
-        if (text.isBlank() || box.width() < 1) return null
-        var size = initialSize
-        while (true) {
-            val layout = textLayout(text, box.width().toInt(), textPaint(size, color, face), alignment, spacing)
-            if (layout.height <= box.height() && layout.getLineEnd(layout.lineCount - 1) == text.length) return layout
-            if (size <= minimumSize) return null
-            size = (size - 2f).coerceAtLeast(minimumSize)
-        }
+    private fun emphasizedText(content: CardContent, selected: Set<Int>, emphasized: Set<Int>, accent: Int): CharSequence {
+        val text = SpannableStringBuilder()
+        var hasLine = false
+        content.lines.forEachIndexed { index, line -> if (index in selected) {
+            if (hasLine) text.append("\n")
+            hasLine = true
+            val start = text.length
+            text.append(line.text)
+            if (index in emphasized && line.text.isNotBlank()) {
+                text.setSpan(StyleSpan(Typeface.BOLD), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                text.setSpan(object : CharacterStyle() {
+                    override fun updateDrawState(paint: TextPaint) {
+                        paint.setShadowLayer(8f, 0f, 0f, ColorUtils.setAlphaComponent(accent, 150))
+                    }
+                }, start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        } }
+        return text
     }
 
     private fun drawBrand(canvas: Canvas, bounds: RectF, style: CardStyle, color: Int) {
-        val markWidth = minOf(56f, bounds.height() * 26f / 24f)
+        val markWidth = bounds.height() * 26f / 24f
         val markHeight = markWidth * 24f / 26f
-        val namePaint = textPaint(28f, color, faces.getValue(CardFont.INTER))
+        val namePaint = textPaint(bounds.height() * .50f, color, faces.getValue(CardFont.INTER))
+        val gap = if (style.showAppName) bounds.height() * .22f else 0f
+        if (style.showAppName) {
+            val available = bounds.width() - markWidth - gap
+            namePaint.textSize *= minOf(1f, available / namePaint.measureText("singalong"))
+        }
         val nameWidth = if (style.showAppName) namePaint.measureText("singalong") else 0f
-        val gap = if (style.showAppName) 16f else 0f
-        val x = if (style.footer == CardFooter.END) bounds.right - markWidth - gap - nameWidth else bounds.left
+        val x = if (style.logoPosition.left) bounds.left else bounds.right - markWidth - gap - nameWidth
         ContextCompat.getDrawable(context, R.drawable.ic_singalong_mark)?.mutate()?.let { icon ->
-            icon.setTint(color)
+            icon.setTint(if (style.logoStyle == CardLogoStyle.COLORED) 0xffb49be5.toInt() else color)
             canvas.save()
             canvas.translate(x, bounds.top + (bounds.height() - markHeight) / 2f)
             icon.setBounds(0, 0, markWidth.toInt(), markHeight.toInt())
@@ -133,10 +148,36 @@ class LyricCardRenderer(private val context: Context) {
             drawImage(canvas, photo, RectF(0f, 0f, w, h))
             // One continuous veil keeps all text readable without black text boxes.
             canvas.drawColor(ColorUtils.setAlphaComponent(base, (style.photoShade * 255).roundToInt()))
-        } else if (style.background == CardBackground.GRADIENT) {
-            paint.shader = RadialGradient(w * .9f, h * .12f, w,
-                ColorUtils.blendARGB(base, accent, .14f), base, Shader.TileMode.CLAMP)
-            canvas.drawRect(0f, 0f, w, h, paint)
+        } else when (style.background) {
+            CardBackground.GRADIENT -> {
+                paint.shader = RadialGradient(w * .9f, h * .12f, w,
+                    ColorUtils.blendARGB(base, accent, .18f), base, Shader.TileMode.CLAMP)
+                canvas.drawRect(0f, 0f, w, h, paint)
+            }
+            CardBackground.HALO -> {
+                paint.shader = RadialGradient(w * .5f, h * .45f, maxOf(w, h) * .7f,
+                    ColorUtils.blendARGB(base, accent, .30f), base, Shader.TileMode.CLAMP)
+                canvas.drawRect(0f, 0f, w, h, paint)
+            }
+            CardBackground.WASH -> {
+                listOf(.05f to .15f, .95f to .85f).forEach { (x, y) ->
+                    paint.shader = RadialGradient(w * x, h * y, maxOf(w, h) * .8f,
+                        ColorUtils.setAlphaComponent(accent, 55), ColorUtils.setAlphaComponent(accent, 0), Shader.TileMode.CLAMP)
+                    canvas.drawRect(0f, 0f, w, h, paint)
+                }
+            }
+            CardBackground.DUSK -> {
+                paint.shader = LinearGradient(0f, 0f, w, h,
+                    intArrayOf(base, ColorUtils.blendARGB(base, accent, .24f), base), floatArrayOf(0f, .65f, 1f), Shader.TileMode.CLAMP)
+                canvas.drawRect(0f, 0f, w, h, paint)
+            }
+            CardBackground.PAPER -> {
+                // Stable fine grain, shared by preview and export; no animated noise or image allocation.
+                paint.color = ColorUtils.setAlphaComponent(style.palette.ink, 12)
+                val random = kotlin.random.Random(47)
+                repeat(8000) { canvas.drawCircle(random.nextFloat() * w, random.nextFloat() * h, .65f, paint) }
+            }
+            else -> Unit
         }
     }
 
@@ -144,25 +185,6 @@ class LyricCardRenderer(private val context: Context) {
         textSize = size
         this.color = color or (0xff shl 24)
         typeface = face
-    }
-
-    private fun textLayout(text: String, width: Int, paint: TextPaint,
-        alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL, spacing: Float = 1.18f): StaticLayout =
-        StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
-            .setAlignment(alignment)
-            .setTextDirection(TextDirectionHeuristics.FIRSTSTRONG_LTR)
-            .setIncludePad(true)
-            .setUseLineSpacingFromFallbacks(true)
-            .setLineSpacing(0f, spacing)
-            .setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY)
-            .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NONE)
-            .build()
-
-    private fun drawLayout(canvas: Canvas, layout: StaticLayout, x: Float, y: Float) {
-        canvas.save()
-        canvas.translate(x, y)
-        layout.draw(canvas)
-        canvas.restore()
     }
 
     /** Center crop directly from the source: no intermediate full-size bitmaps. */

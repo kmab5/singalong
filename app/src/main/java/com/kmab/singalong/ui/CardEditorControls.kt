@@ -37,7 +37,8 @@ import kotlinx.coroutines.withContext
 internal fun CardEditorControls(section: CardEditorSection, request: CardRequest, style: CardStyle, selected: List<Int>,
     coverError: String?, backgroundError: String?, hasCover: Boolean, onStyle: (CardStyle) -> Unit,
     onSelection: (List<Int>) -> Unit, onCover: () -> Unit, onBackground: () -> Unit,
-    onResetCover: () -> Unit, onResetBackground: () -> Unit, customCover: Boolean, customBackground: Boolean) {
+    onResetCover: () -> Unit, onResetBackground: () -> Unit, customCover: Boolean, customBackground: Boolean,
+    emphasized: Set<Int>, onEmphasis: (Int) -> Unit) {
     when (section) {
         CardEditorSection.LOOKS -> {
             CardControlGroup("Presets") { TemplateChoices(request, selected.toSet(), style.template) { onStyle(style.withTemplate(it)) } }
@@ -45,7 +46,7 @@ internal fun CardEditorControls(section: CardEditorSection, request: CardRequest
             CardControlGroup("Format") { CardChoices(CardAspect.entries, style.aspect, { it.label }) { onStyle(style.copy(aspect = it)) } }
             CardControlGroup("Artwork") {
                 if (hasCover) {
-                    CardChoices(CardArtSize.entries, style.artSize, { it.label }) { onStyle(style.copy(artSize = it)) }
+                    CardSlider("Artwork size", style.artScale, .20f.. .46f, "${(style.artScale * 100).toInt()}%") { onStyle(style.copy(artScale = it)) }
                     CardChoices(CardCorners.entries, style.corners, { it.label }) { onStyle(style.copy(corners = it)) }
                 } else Text("Add artwork to make it part of the layout.", color = SingalongColors.Muted, style = MaterialTheme.typography.bodySmall)
                 ActionButton(onClick = onCover, modifier = Modifier.fillMaxWidth()) { Text("Choose album cover") }
@@ -53,13 +54,11 @@ internal fun CardEditorControls(section: CardEditorSection, request: CardRequest
                 coverError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
             CardControlGroup("Background") {
-                CardChoices(CardBackground.entries, style.background, { when (it) {
-                    CardBackground.SOLID -> "Plain"; CardBackground.GRADIENT -> "Soft"; CardBackground.IMAGE -> "Photo"
-                } }) { onStyle(style.copy(background = it)) }
+                CardChoices(CardBackground.entries, style.background, { it.label }) { onStyle(style.copy(background = it)) }
                 if (style.background == CardBackground.IMAGE) {
                     ActionButton(onClick = onBackground, modifier = Modifier.fillMaxWidth()) { Text("Choose background photo") }
                     CardSlider("Photo shade", style.photoShade, .65f.. .95f, "${(style.photoShade * 100).toInt()}%") { onStyle(style.copy(photoShade = it)) }
-                    if (!customBackground) Text(if (hasCover && style.showCover) "Using album artwork as the background." else "Choose a photo to add a background.",
+                    if (!customBackground) Text(if (hasCover) "Using album artwork as the background." else "Choose a photo to add a background.",
                         style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
                 }
                 if (customBackground) ActionButton(onClick = onResetBackground, modifier = Modifier.fillMaxWidth()) { Text("Use preset background") }
@@ -69,7 +68,7 @@ internal fun CardEditorControls(section: CardEditorSection, request: CardRequest
         CardEditorSection.TEXT -> {
             CardControlGroup("Font") { FontChoices(style.font) { onStyle(style.copy(font = it)) } }
             CardControlGroup("Size & weight") {
-                CardSlider("Text size", style.fontSize, 32f..112f, "${style.fontSize.toInt()}") { onStyle(style.copy(fontSize = it)) }
+                CardSlider("Text size", style.fontSize, 20f..180f, "${style.fontSize.toInt()}") { onStyle(style.copy(fontSize = it)) }
                 CardChoices(CardWeight.entries, style.weight, { it.label }) { onStyle(style.copy(weight = it)) }
             }
             CardControlGroup("Alignment") {
@@ -86,28 +85,37 @@ internal fun CardEditorControls(section: CardEditorSection, request: CardRequest
                 DetailToggle("Song title", style.details.title, recording.title.isNotBlank()) { onStyle(style.copy(details = style.details.copy(title = it))) }
                 DetailToggle("Artist", style.details.artist, recording.artists.any { it.isNotBlank() }) { onStyle(style.copy(details = style.details.copy(artist = it))) }
                 DetailToggle("Album", style.details.album, !recording.album.isNullOrBlank()) { onStyle(style.copy(details = style.details.copy(album = it))) }
-                DetailToggle("Filename", style.details.fileName, request.content.file.name != null) { onStyle(style.copy(details = style.details.copy(fileName = it))) }
-                DetailToggle("File location", style.details.location, request.content.file.location != null) { onStyle(style.copy(details = style.details.copy(location = it))) }
                 DetailToggle("Album cover", style.showCover, hasCover) { onStyle(style.copy(showCover = it)) }
             }
             CardControlGroup("Signature") {
                 DetailToggle("App name", style.showAppName) { onStyle(style.copy(showAppName = it)) }
-                CardChoices(CardFooter.entries, style.footer, { it.label }) { onStyle(style.copy(footer = it)) }
-                Text("The Singalong mark sits in the footer. File location is the audio folder, not GPS.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                CardChoices(CardLogoPosition.entries, style.logoPosition, { it.label }) { onStyle(style.copy(logoPosition = it)) }
+                CardSlider("Logo size", style.logoScale, .028f.. .10f, "${(style.logoScale * 1000).toInt() / 10f}%") { onStyle(style.copy(logoScale = it)) }
+                CardChoices(CardLogoStyle.entries, style.logoStyle, { it.label }) { onStyle(style.copy(logoStyle = it)) }
+                Text("The mark floats in the corner. Nearby words wrap around it.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
             }
         }
         CardEditorSection.LINES -> {
             val listState = rememberLazyListState(initialFirstVisibleItemIndex = (request.content.initialLine - 2).coerceAtLeast(0))
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("${selected.size} selected · original wording and order", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                Text("Use the star beside a selected line for bold, softly glowing emphasis.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
                 LazyColumn(Modifier.fillMaxWidth().weight(1f).testTag("card-lines"), state = listState) {
                     itemsIndexed(request.content.lines, key = { index, _ -> index }) { index, line ->
                         val checked = index in selected
-                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(checked, role = Role.Checkbox,
-                            onValueChange = { onSelection(if (checked) selected - index else selected + index) })
-                            .padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked, onCheckedChange = null)
-                            Text(line.text.ifEmpty { "(Empty line)" }, Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.weight(1f).heightIn(min = 48.dp).toggleable(checked, role = Role.Checkbox,
+                                onValueChange = { onSelection(if (checked) selected - index else selected + index) }),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked, onCheckedChange = null)
+                                Text(line.text.ifEmpty { "(Empty line)" }, Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
+                            }
+                            if (checked && line.text.isNotBlank()) IconToggleButton(index in emphasized,
+                                onCheckedChange = { onEmphasis(index) }, modifier = Modifier.size(48.dp)
+                                    .semantics { contentDescription = "Emphasize line ${index + 1}" }) {
+                                Text(if (index in emphasized) "★" else "☆", color = if (index in emphasized) SingalongColors.PurpleText else SingalongColors.Muted,
+                                    style = MaterialTheme.typography.titleLarge)
+                            }
                         }
                     }
                 }

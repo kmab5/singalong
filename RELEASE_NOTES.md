@@ -1,11 +1,12 @@
-# Singalong 1.2.0-rc.3 — roomy cards and stable editing
+# 1.2.0-rc.4 — lyric card controls
 
-Version **1.2.0-rc.3 (18)** is a phone-test candidate on the lyric-card branch. It has not been merged, tagged or published. Main remains prepared 1.1.0 source; the latest public APK remains v1.0.0.
+Test candidate on the feature branch; no merge or public release.
 
-- Stable full-screen editor after the draggable context menu. The square preview and export actions stay pinned; scrolling is clipped to its pane with no stretch at the edges. Four pill tabs and consistent spacing replace the old tab strip and touching chip rows.
-- Eight simple layouts with substantially larger integrated artwork, grouped credits, spacious lyrics and a visible footer-aligned Singalong mark.
-- Seven fonts, palettes and formats remain. Adjust text size, weight, line spacing and placement; artwork scale/corners; background treatment/photo shade; and footer alignment.
-- Keep or hide title, artist, album, available filename/folder location, cover and app name. No extra source/byline appears on exported cards; original lyric attribution remains stored.
-- Retains the empty-lyric folder-scan fix and its tests from rc.2.
+- More space below the editor tabs and independent photo background/foreground cover visibility.
+- Fine artwork sizing, smaller/larger text, ten palettes and seven background treatments.
+- A sized corner logo, colored or monochrome, with optional app name. Only nearby text wraps around its footprint.
+- Selected-line bold/glow emphasis. Audio filename and folder location are removed from card details.
+- PNG save names include the song title and one-based selected line numbers.
+- Retains the empty-lyrics folder-scan fix from rc.2. The latest supplied report identifies rc.1, as confirmed by the user.
 
-See the [checkpoint](docs/validation/roomy-card-checkpoint.md) for local automated evidence and phone checks. The browser layout study is a design aid, not native-device verification.
+See the [checkpoint](docs/validation/card-controls-checkpoint.md) for automated evidence and remaining phone checks.

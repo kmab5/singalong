@@ -44,12 +44,6 @@ class AndroidPlaybackObserver(
         return bitmap to uri
     }
 
-    fun cardFileDetails(sessionId: String, recording: Recording): com.kmab.singalong.cards.CardFileDetails {
-        val metadata = cardMetadata(sessionId, recording)
-        val file = com.kmab.singalong.cards.CardFileDetails.from(metadata?.getString(MediaMetadata.METADATA_KEY_MEDIA_URI))
-        return if (file.name != null) file else com.kmab.singalong.cards.CardFileDetails.from(recording.fileName)
-    }
-
     private fun cardMetadata(sessionId: String, recording: Recording): MediaMetadata? {
         val controller = controllers.values.firstOrNull { it.first.sessionToken.hashCode().toString() == sessionId }?.first
             ?: return null

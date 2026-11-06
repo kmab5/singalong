@@ -92,12 +92,13 @@ private fun CardControlPane(section: CardEditorSection, onSection: (CardEditorSe
                 }
             }
         }
+        Spacer(Modifier.height(12.dp))
         key(section) {
             if (section == CardEditorSection.LINES) {
-                Box(Modifier.fillMaxWidth().weight(1f).clipToBounds().padding(top = 16.dp)) { controls(section) }
+                Box(Modifier.fillMaxWidth().weight(1f).clipToBounds().padding(top = 4.dp)) { controls(section) }
             } else {
                 Column(Modifier.fillMaxWidth().weight(1f).clipToBounds().verticalScroll(rememberScrollState())
-                    .testTag("card-controls").padding(top = 20.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                    .testTag("card-controls").padding(top = 8.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                     controls(section)
                 }
             }

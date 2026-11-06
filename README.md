@@ -4,7 +4,7 @@ An Android companion that keeps lyrics over your music player. Made by kmab. Req
 
 ## Status and downloads
 
-This feature branch prepares **1.2.0-rc.3 (18)** with lyric share cards; its version is in `version.properties`. Main contains the prepared 1.1.0 source. The latest published APK remains **1.0.0 (9)**; candidates are not public releases. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). See the [latest checkpoint](docs/validation/roomy-card-checkpoint.md) for verification and remaining phone checks.
+This feature branch prepares **1.2.0-rc.4 (19)** with lyric share cards; its version is in `version.properties`. Main contains the prepared 1.1.0 source. The latest published APK remains **1.0.0 (9)**; candidates are not public releases. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). See the [latest checkpoint](docs/validation/card-controls-checkpoint.md) for verification and remaining phone checks.
 
 [Website](https://kmab5.github.io/singalong/) · [GitHub Releases](https://github.com/kmab5/singalong/releases) · [Feedback](https://kmab5.github.io/kmab-feedback/?product=singalong)
 
@@ -12,7 +12,7 @@ Each GitHub Release includes `singalong.apk`, checksums, build metadata and the 
 
 ## What it does
 
-- Creates customizable lyric cards: long-press a line in Now, saved lyrics or standard floating lyrics, then choose Share lyric card. Select original lines, choose among eight roomy artwork layouts, coordinated palettes and seven fonts, and preview edits in a pinned rounded-square viewport. Adjust text size/weight/spacing/placement, artwork scale/corners, background treatment and footer alignment in a stable full-screen editor. Toggle song details, cover and app name; export a PNG through Share or Save. The icon stays; filename and file location are optional and off by default. Minimal floating mode keeps its existing long-press drag gesture; expand it to use lyric actions.
+- Creates customizable lyric cards: long-press a line in Now, saved lyrics or standard floating lyrics, then choose Share lyric card. Select original lines, choose among eight roomy artwork layouts, coordinated palettes and seven fonts, and preview edits in a pinned rounded-square viewport. Adjust text size/weight/spacing/placement, continuous artwork scale/corners, seven background treatments and corner logo size/placement/style in a stable full-screen editor. Toggle song details, cover and app name; export a PNG through Share or Save. The corner icon stays, while the app name is optional. Selected lines can use bold/glow emphasis; file metadata is excluded. PNG filenames use the song title and one-based selected line numbers. Minimal floating mode keeps its existing long-press drag gesture; expand it to use lyric actions.
 
 - Reads song metadata and playback position from selected music apps. No microphone or playback-audio capture; audio recognition is deferred.
 - Shows glass floating lyrics in compact, expanded or minimal mode, with bottom icon controls and a draggable edge handle. Tap expanded lyrics to open Now. Missing lyrics dock after a grace period; successful lyrics restore automatically unless you manually docked or closed the panel.

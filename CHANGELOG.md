@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0-rc.4 — unreleased
+
+- Added a fixed gap below card editor tabs. Hiding the foreground cover now preserves album artwork used as a Photo background.
+- Continuous artwork sizing, a wider 20–180 text-size range, four additional palettes (Plum, Clay, Fog, Amber), and Halo, Wash, Dusk and Paper backgrounds.
+- Logo overlays support all four corners, size, colored/monochrome styling and an optional app name. Text flows around the corner footprint without reserving an entire footer.
+- Removed audio filename/location from card details and exports. Selected lyric lines can independently use bold/glow emphasis, retained through preview, export and draft restoration.
+- Save PNG suggests `[song-title]-[line-numbers]-singalong.png`, using one-based source line numbers and ranges for selections. Filenames are sanitized and bounded.
+- The latest supplied crash report was confirmed to be rc.1. The rc.2 empty-lyrics folder-import fix remains; this update does not claim a new crash diagnosis from that older trace.
+
 ## 1.2.0-rc.3 — unreleased
 
 - Card editing now uses a stable full-screen dialog after the draggable lyric menu. Pinned preview/export actions, clipped scrolling, no stretch overscroll, equal-width pill tabs and consistent section/choice spacing address the recorded scroll-boundary movement and cut-off controls.

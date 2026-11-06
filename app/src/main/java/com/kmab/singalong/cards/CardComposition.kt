@@ -1,6 +1,6 @@
 package com.kmab.singalong.cards
 
-/** Normalized reserved regions. Text is measured inside them, never over artwork or other credits. */
+/** Normalized content regions. The brand is an overlay; text wraps around its local footprint. */
 data class CardRegion(val x: Float, val y: Float, val width: Float, val height: Float) {
     val right get() = x + width
     val bottom get() = y + height
@@ -12,24 +12,24 @@ data class CardComposition(val lyrics: CardRegion, val credits: CardRegion,
     val cover: CardRegion?, val brand: CardRegion, val centeredCredits: Boolean = false) {
     companion object {
         /** Physical insets are based on the short edge, so landscape never shrinks the album into a badge. */
-        fun create(style: CardStyle, hasCover: Boolean): CardComposition {
+        fun create(requestedStyle: CardStyle, hasCover: Boolean): CardComposition {
+            val style = requestedStyle.sanitized()
             val w = style.aspect.width.toFloat()
             val h = style.aspect.height.toFloat()
             val unit = minOf(w, h)
             val margin = unit * .08f
             val gap = unit * .045f
-            val footerHeight = unit * .055f
-            val footerY = h - margin - footerHeight
-            val bottom = footerY - unit * .06f
+            val brandHeight = unit * style.logoScale
+            val bottom = h - margin
             val inner = w - 2 * margin
-            val creditHeight = unit * .10f
-            val side = unit * style.artSize.fraction
+            val creditHeight = if (style.details == CardDetails(false, false, false)) 0f else unit * .10f
+            val side = unit * style.artScale
             fun r(x: Float, y: Float, width: Float, height: Float) = CardRegion(x / w, y / h, width / w, height / h)
-            val brandWidth = unit * .26f
-            val brand = r(if (style.footer == CardFooter.START) margin else w - margin - brandWidth,
-                footerY, brandWidth, footerHeight)
+            val brandWidth = brandHeight * if (style.showAppName) 3.8f else 26f / 24f
+            val brand = r(if (style.logoPosition.left) margin else w - margin - brandWidth,
+                if (style.logoPosition.top) margin else bottom - brandHeight, brandWidth, brandHeight)
             if (!hasCover) return CardComposition(
-                r(margin, margin, inner, bottom - creditHeight - gap - margin),
+                r(margin, margin, inner, bottom - creditHeight - (if (creditHeight > 0) gap else 0f) - margin),
                 r(margin, bottom - creditHeight, inner, creditHeight), null, brand,
                 centeredCredits = style.template in setOf(CardTemplate.SLEEVE, CardTemplate.GALLERY))
             val template = style.template
@@ -58,7 +58,7 @@ data class CardComposition(val lyrics: CardRegion, val credits: CardRegion,
                 }
                 CardTemplate.GALLERY -> {
                     val lyricY = margin + side + gap
-                    CardComposition(r(margin, lyricY, inner, bottom - creditHeight - gap - lyricY),
+                    CardComposition(r(margin, lyricY, inner, bottom - creditHeight - (if (creditHeight > 0) gap else 0f) - lyricY),
                         r(margin, bottom - creditHeight, inner, creditHeight), r((w - side) / 2f, margin, side, side), brand, true)
                 }
                 CardTemplate.SLEEVE -> {
@@ -68,7 +68,7 @@ data class CardComposition(val lyrics: CardRegion, val credits: CardRegion,
                         r(margin, creditsY, inner, creditHeight), r((w - side) / 2f, coverY, side, side), brand, true)
                 }
                 CardTemplate.ARTWORK -> {
-                    val bannerHeight = unit * if (style.artSize == CardArtSize.STANDARD) .30f else .36f
+                    val bannerHeight = unit * style.artScale * .85f
                     val creditsY = margin + bannerHeight + gap
                     val lyricY = creditsY + creditHeight + gap
                     CardComposition(r(margin, lyricY, inner, bottom - lyricY),

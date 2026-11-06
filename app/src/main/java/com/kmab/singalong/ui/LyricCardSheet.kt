@@ -22,12 +22,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 private val CardStyleSaver = Saver<CardStyle, String>(
-    save = { Json.encodeToString(it) },
-    restore = { Json.decodeFromString<CardStyle>(it).sanitized() },
+    save = { CardStyleState.encode(it) },
+    restore = { CardStyleState.decode(it) },
 )
 
 private data class CardImageState(val source: String, val bitmap: Bitmap?, val error: String? = null)
@@ -36,6 +34,7 @@ private data class CardImageState(val source: String, val bitmap: Bitmap?, val e
 private data class CardDraftFrame(
     val style: CardStyle,
     val selected: Set<Int>,
+    val emphasized: Set<Int>,
     val cover: Bitmap?,
     val background: Bitmap?,
     val coverSource: String,
@@ -54,6 +53,7 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
     var editing by rememberSaveable(frozen.id) { mutableStateOf(false) }
     var style by rememberSaveable(frozen.id, stateSaver = CardStyleSaver) { mutableStateOf(CardStyle()) }
     var selection by rememberSaveable(frozen.id) { mutableStateOf(listOf(frozen.content.initialLine)) }
+    var emphasis by rememberSaveable(frozen.id) { mutableStateOf(emptyList<Int>()) }
     var coverUri by rememberSaveable(frozen.id) { mutableStateOf<String?>(null) }
     var backgroundUri by rememberSaveable(frozen.id) { mutableStateOf<String?>(null) }
     var pendingSave by rememberSaveable(frozen.id) { mutableStateOf<String?>(null) }
@@ -88,7 +88,7 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
             if (backgroundUri != null && bitmap == null) "Couldn't open the background image. Choose another image or a color background." else null)
     }
     val imagesReady = loadedCover?.source == coverSource && loadedBackground?.source == backgroundSource
-    val frame = CardDraftFrame(style.sanitized(), selection.toSet(), loadedCover?.takeIf { it.source == coverSource }?.bitmap,
+    val frame = CardDraftFrame(style.sanitized(), selection.toSet(), emphasis.toSet().intersect(selection.toSet()), loadedCover?.takeIf { it.source == coverSource }?.bitmap,
         loadedBackground?.takeIf { it.source == backgroundSource }?.bitmap, coverSource, backgroundSource, imagesReady)
     val latestFrame by rememberUpdatedState(frame)
     LaunchedEffect(frozen.id, frame, editing) {
@@ -98,7 +98,7 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
         if (!editing || !frame.imagesReady) return@LaunchedEffect
         delay(100)
         val result = withContext(Dispatchers.Default) {
-            renderer.render(frozen.content, frame.selected, frame.style, frame.cover, frame.background, width = 600)
+            renderer.render(frozen.content, frame.selected, frame.style, frame.cover, frame.background, width = 600, emphasized = frame.emphasized)
         }
         // A cancelled render cannot publish its result. The previous bitmap stays alive while drawn.
         preview = result.bitmap
@@ -143,7 +143,7 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
         exportJob = scope.launch {
             try {
                 val result = withContext(Dispatchers.Default) {
-                    renderer.render(frozen.content, captured.selected, captured.style, captured.cover, captured.background)
+                    renderer.render(frozen.content, captured.selected, captured.style, captured.cover, captured.background, emphasized = captured.emphasized)
                 }
                 if (latestFrame != captured) return@launch
                 val bitmap = result.bitmap
@@ -155,7 +155,7 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
                 if (latestFrame != captured) return@launch
                 if (save) {
                     pendingSave = uri.toString()
-                    savePicker.launch("Singalong-lyric-card.png")
+                    savePicker.launch(frozen.content.pngFileName(captured.selected))
                 } else if (!CardExport.share(context, uri)) {
                     actionMessage = "No app could share this image. You can save the PNG instead."
                 }
@@ -201,7 +201,8 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
                             }, onSelection = { selection = it },
                             onCover = { coverPicker.launch("image/*") }, onBackground = { backgroundPicker.launch("image/*") },
                             onResetCover = { coverUri = null }, onResetBackground = { backgroundUri = null; style = style.copy(background = style.template.style().background) },
-                            customCover = coverUri != null, customBackground = backgroundUri != null)
+                            customCover = coverUri != null, customBackground = backgroundUri != null,
+                            emphasized = emphasis.toSet(), onEmphasis = { emphasis = if (it in emphasis) emphasis - it else emphasis + it })
                     })
             }
         }

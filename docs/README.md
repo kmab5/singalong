@@ -6,6 +6,7 @@ This index describes the current source. Earlier phase plans and validation repo
 
 - [Build, features and project status](../README.md)
 - [1.2 integration and album-art palette checkpoint](validation/1.2-main-checkpoint.md)
+- [Website overhaul and 1.2 publication checkpoint](validation/site-release-checkpoint.md)
 - [Release/version/signing workflow](RELEASING.md)
 - [Signing continuity and local builds](validation/release-signing.md)
 - [Privacy and external services](../PRIVACY.md)
@@ -33,7 +34,7 @@ The 1.1.0 source adds responsive floating actions, tap-only edge expansion, libr
 
 Audio recognition and microphone/playback capture remain out of scope. Supplied word timestamps are supported; generating word timestamps from audio is not. Some Android screens may suppress overlays by policy; Singalong must respect that policy. Player compatibility and device acceptance must be based on testing, not inferred from a successful build.
 
-The maintainer authorized the 1.1 merge on 2026-11-04 and the lyric-card/1.2 merge on 2026-11-06. Main prepares **1.2.0 (20)**; the latest published APK remains **1.0.0 (9)** until a separate release tag is authorized and pushed. Publication follows the [release guide](RELEASING.md) and retains the existing signing certificate.
+The maintainer authorized the 1.1 merge on 2026-11-04, the lyric-card/1.2 merge on 2026-11-06, and v1.2.0 tagging/publication on 2026-11-07. Main contains **1.2.0 (20)**. Publication follows the [release guide](RELEASING.md), automatically publishes new main-branch app versions and retains the existing signing certificate. Website-only changes leave published APKs intact.
 
 ## Historical evidence
 

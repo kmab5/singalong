@@ -14,7 +14,7 @@ Copyright © 2026 Samuel (kmab). Original Singalong source code, documentation, 
 | Transitive utility libraries, including Android annotations and transport/support code | Their original package notices and licenses remain applicable |
 | Inter | SIL Open Font License 1.1; [bundled notice](docs/assets/fonts/Inter-OFL.txt) |
 | PT Mono | SIL Open Font License 1.1; [bundled notice](docs/assets/fonts/PTMono-OFL.txt) |
-| Lora | SIL Open Font License 1.1; [bundled notice](app/src/main/assets/licenses/lora-OFL.txt) |
+| Lora | SIL Open Font License 1.1; [app notice](app/src/main/assets/licenses/lora-OFL.txt), [website notice](docs/assets/fonts/Lora-OFL.txt) |
 | Oswald | SIL Open Font License 1.1; [bundled notice](app/src/main/assets/licenses/oswald-OFL.txt) |
 | Caveat | SIL Open Font License 1.1; [bundled notice](app/src/main/assets/licenses/caveat-OFL.txt) |
 | Space Grotesk | SIL Open Font License 1.1; [bundled notice](app/src/main/assets/licenses/spacegrotesk-OFL.txt) |

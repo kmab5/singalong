@@ -5,6 +5,10 @@ const http = require("node:http");
 const assert = require("node:assert/strict");
 const root = path.resolve(__dirname, "..");
 const docs = path.join(root, "docs");
+const fallback =
+  "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk";
+const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
+
 (async () => {
   await fs.mkdir(path.join(root, "artifacts"), { recursive: true });
   const browser = await chromium.launch({
@@ -18,11 +22,12 @@ const docs = path.join(root, "docs");
     ".svg": "image/svg+xml",
     ".png": "image/png",
     ".woff2": "font/woff2",
+    ".ttf": "font/ttf",
     ".txt": "text/plain",
   };
   const server = http.createServer(async (req, res) => {
     try {
-      let urlPath = decodeURIComponent(
+      const urlPath = decodeURIComponent(
         new URL(req.url, "http://localhost").pathname,
       );
       if (!urlPath.startsWith("/singalong/")) {
@@ -56,63 +61,71 @@ const docs = path.join(root, "docs");
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1100 },
     });
-    await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", (route) => route.fulfill({ contentType: "application/json", body: "[]" }));
-    page.on("pageerror", (e) => errors.push(String(e)));
-    page.on("response", (r) => {
-      if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`);
+    page.on("pageerror", (error) => errors.push(String(error)));
+    page.on("response", (response) => {
+      if (response.url().startsWith(base) && response.status() >= 400)
+        errors.push(`${response.status()} ${response.url()}`);
     });
-    await page.goto(base, { waitUntil: "networkidle" });
-    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk");
-    assert.equal(await page.locator("[data-release-version]").textContent(), "v1.0.0");
-    assert.match(await page.locator("#coming-next").innerText(), /Preparing 1\.2 · not yet released/i);
-    await page.getByRole("button", { name: "Tide cover", exact: true }).click();
-    assert.equal(await page.locator("#sample-card").getAttribute("data-cover"), "tide");
-    assert.equal(await page.getByRole("button", { name: "Tide cover", exact: true }).getAttribute("aria-pressed"), "true");
-    await page.getByRole("button", { name: "Plum cover", exact: true }).click();
-    await page.evaluate(() => window.scrollTo(0, 0));
-    assert.equal(await page.locator("#coming-next article").count(), 4);
-    await page.evaluate(() => document.fonts.ready);
-    await page.screenshot({
-      path: path.join(root, "artifacts/site-desktop.png"),
-      fullPage: true,
-    });
-    assert.equal(await page.locator("h1").innerText(), "Stay with\nthe song.");
-    await page.getByRole("button", { name: "Expand sample lyrics", exact: true }).click();
-    assert.equal(await page.locator(".demo-stage").getAttribute("data-mode"), "expanded");
-    assert.equal(await page.locator("#sample-previous").isVisible(), true);
-    await page.getByRole("button", { name: "Compact sample lyrics", exact: true }).click();
-    assert.equal(await page.locator(".demo-stage").getAttribute("data-mode"), "floating");
-    await page.getByRole("button", { name: "Dock sample lyrics", exact: true }).click();
-    assert.equal(await page.locator("#edge-handle").evaluate(el => el === document.activeElement), true);
-    await page.getByRole("button", { name: "Restore sample floating lyrics" }).click();
-    await page.getByRole("button", { name: "Minimal", exact: true }).click();
-    assert.equal(
-      await page.locator(".demo-stage").getAttribute("data-mode"),
-      "minimal",
+    await page.route(api, (route) =>
+      route.fulfill({ contentType: "application/json", body: "[]" }),
     );
-    assert.equal(await page.locator(".lyric-header").isVisible(), false);
-    await page.getByRole("checkbox", { name: "English subtext" }).check();
-    assert.equal(await page.locator("#sample-translation").isVisible(), true);
-    assert.match(await page.locator("#sample-line").innerText(), /Bir sonraki/);
-    await page.getByRole("button", { name: "Docked", exact: true }).click();
+    await page.goto(base, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
+    assert.equal(
+      await page.locator("#apk-download").getAttribute("href"),
+      fallback,
+    );
+    await page
+      .getByRole("button", { name: "Tide palette", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Portrait", exact: true }).click();
+    assert.equal(
+      await page.locator("#card-gallery").getAttribute("data-palette"),
+      "tide",
+    );
+    assert.equal(
+      await page.locator("#card-gallery").getAttribute("data-format"),
+      "portrait",
+    );
+    assert.equal(
+      await page.locator("#card-description").innerText(),
+      "Tide · Portrait",
+    );
+    await page
+      .getByRole("button", { name: "Plum palette", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Square", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Dock sample lyrics", exact: true })
+      .click();
     assert.equal(
       await page.locator(".lyric-window").evaluate((el) => el.inert),
       true,
     );
-    await page
-      .getByRole("button", { name: "Restore sample floating lyrics" })
-      .click();
     assert.equal(
-      await page.locator(".demo-stage").getAttribute("data-mode"),
-      "floating",
+      await page
+        .locator("#edge-handle")
+        .evaluate((el) => el === document.activeElement),
+      true,
     );
+    await page.getByRole("button", { name: "Restore sample lyrics" }).click();
+    await page.getByRole("button", { name: "Next sample line" }).click();
+    assert.match(
+      await page.locator("#sample-line").innerText(),
+      /For a moment/,
+    );
+    await page.getByRole("checkbox", { name: "English subtext" }).check();
+    assert.match(await page.locator("#sample-line").innerText(), /Bir an/);
+    assert.equal(await page.locator("#sample-line").getAttribute("lang"), "tr");
+    for (const id of ["#sample-previous", "#sample-next"])
+      assert.equal(await page.locator(id).getAttribute("lang"), "tr");
+    assert.equal(
+      await page.locator("#sample-translation").getAttribute("lang"),
+      "en",
+    );
+    assert.equal(await page.locator("#sample-translation").isVisible(), true);
     await page
-      .getByRole("button", { name: "Show next sample lyric line" })
-      .click();
-    assert.match(await page.locator("#sample-line").innerText(), /Daha/);
-    await page.getByRole("checkbox", { name: "English subtext" }).uncheck();
-    await page
-      .getByText("Where do the words come from?", { exact: true })
+      .getByText("Where do the lyrics come from?", { exact: true })
       .click();
     assert.equal(
       await page.locator("details").first().getAttribute("open"),
@@ -120,68 +133,100 @@ const docs = path.join(root, "docs");
     );
     const assets = await page
       .locator("a[download]")
-      .evaluateAll((nodes) => nodes.map((n) => n.href));
+      .evaluateAll((nodes) => nodes.map((node) => node.href));
     for (const url of assets)
       assert.equal((await page.request.get(url)).status(), 200);
-    const localLinks = await page
+    const anchors = await page
       .locator('a[href^="#"]')
-      .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("href")));
-    for (const link of localLinks)
-      assert.equal(await page.locator(link).count(), 1);
+      .evaluateAll((nodes) =>
+        nodes
+          .map((node) => node.getAttribute("href"))
+          .filter((href) => href !== "#"),
+      );
+    for (const anchor of anchors)
+      assert.equal(await page.locator(anchor).count(), 1);
+
     for (const width of [320, 390, 768, 1024, 1440]) {
-      await page.setViewportSize({ width, height: 1000 });
+      await page.setViewportSize({ width, height: 1050 });
       await page.reload({ waitUntil: "networkidle" });
+      await page.evaluate(() => document.fonts.ready);
       assert.ok(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
         `Overflow at ${width}`,
       );
-      assert.ok(await page.locator("#coming-next").evaluate(section =>
-        [...section.querySelectorAll("h2, h3, p")].every(element => {
-          const bounds = element.getBoundingClientRect();
-          return bounds.left >= 0 && bounds.right <= innerWidth && element.scrollWidth <= element.clientWidth + 1;
-        })), `Preparation content clipped at ${width}`);
-      await page.getByRole("checkbox", { name: "English subtext" }).check();
-      const clipping = await page.locator(".lyric-window").evaluate((el) => {
-        const b = el.getBoundingClientRect(),
-          p = el.parentElement.getBoundingClientRect();
-        return b.bottom > p.bottom + 1;
-      });
-      assert.equal(clipping, false, `Translated panel clipped at ${width}`);
-      for (const mode of ["Expanded", "Minimal", "Floating"]) {
-        await page.getByRole("button", { name: mode, exact: true }).click();
-        await page.waitForFunction(() => {
-          const panel = document.querySelector(".lyric-window");
-          panel.getBoundingClientRect();
-          return !panel.getAnimations({subtree:true}).some(animation => animation.playState === "running");
-        });
-        assert.ok(await page.locator(".lyric-window").evaluate(el => {
-          const b = el.getBoundingClientRect(), p = el.parentElement.getBoundingClientRect();
-          return b.bottom <= p.bottom + 1 && b.right <= p.right + 1 && b.left >= p.left;
-        }), `${mode} panel clipped at ${width}`);
+      assert.ok(
+        await page.locator("#apk-download").evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width >= 44 && r.height >= 44 && r.top + scrollY < 750;
+        }),
+        `Download too small or too low at ${width}`,
+      );
+      for (const translated of [false, true]) {
+        await page
+          .getByRole("checkbox", { name: "English subtext" })
+          .setChecked(translated);
+        for (const mode of ["Expanded", "Lyrics only", "Floating"]) {
+          await page.getByRole("button", { name: mode, exact: true }).click();
+          await page.waitForFunction(
+            () =>
+              !document
+                .querySelector(".lyric-window")
+                .getAnimations({ subtree: true })
+                .some((animation) => animation.playState === "running"),
+          );
+          assert.ok(
+            await page.locator(".lyric-window").evaluate((el) => {
+              const r = el.getBoundingClientRect(),
+                p = el.parentElement.getBoundingClientRect();
+              return (
+                r.bottom <= p.bottom + 1 &&
+                r.left >= p.left - 1 &&
+                r.right <= p.right + 1
+              );
+            }),
+            `${mode}, translated=${translated}: panel clipped at ${width}`,
+          );
+        }
       }
-      assert.ok(await page.locator("#apk-download").evaluate(el => {
-        const b = el.getBoundingClientRect();
-        return b.width >= 44 && b.height >= 44 && b.top + window.scrollY < 750;
-      }), `Hero download should be prominent at ${width}`);
-      if (width === 390) {
-        await page.evaluate(() => window.scrollTo(0, 0));
+      for (const format of ["Portrait", "Square"]) {
+        await page.getByRole("button", { name: format, exact: true }).click();
+        assert.ok(
+          await page.locator("#sample-card").evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            return (
+              r.left >= 0 &&
+              r.right <= innerWidth &&
+              el.scrollHeight <= el.clientHeight + 1
+            );
+          }),
+          `Featured card clipped at ${width}/${format}`,
+        );
+      }
+      await page.getByRole("checkbox", { name: "English subtext" }).uncheck();
+      await page.evaluate(() => scrollTo(0, 0));
+      if (width === 390 || width === 1440) {
         await page.screenshot({
-          path: path.join(root, "artifacts/site-mobile.png"),
+          path: path.join(
+            root,
+            `artifacts/site-${width === 390 ? "mobile" : "desktop"}.png`,
+          ),
           fullPage: true,
+        });
+        await page.locator("#cards").screenshot({
+          path: path.join(root, `artifacts/site-cards-${width}.png`),
         });
       }
     }
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.getByRole("button", { name: "Next sample line" }).click();
     assert.equal(
       await page
-        .locator(".lyric-window")
-        .evaluate((el) => getComputedStyle(el).transitionDuration),
-      "0s",
+        .locator(".lyric-content")
+        .evaluate((el) => el.getAnimations().length),
+      0,
     );
-    await page.getByRole("button", { name: "Show next sample lyric line" }).click();
-    assert.equal(await page.locator(".lyric-content").evaluate(el => el.getAnimations().length), 0);
     await page.reload({ waitUntil: "networkidle" });
     await page.keyboard.press("Tab");
     assert.equal(
@@ -190,17 +235,13 @@ const docs = path.join(root, "docs");
         .evaluate((el) => el === document.activeElement),
       true,
     );
-    assert.equal(
-      await page
-        .locator(".skip-link")
-        .evaluate((el) => getComputedStyle(el).opacity),
-      "1",
-    );
-    await page.getByRole("button", { name: "Minimal", exact: true }).focus();
+    await page
+      .getByRole("button", { name: "Moss palette", exact: true })
+      .focus();
     await page.keyboard.press("Space");
     assert.equal(
-      await page.locator(".demo-stage").getAttribute("data-mode"),
-      "minimal",
+      await page.locator("#card-gallery").getAttribute("data-palette"),
+      "moss",
     );
     const noJs = await browser.newPage({
       javaScriptEnabled: false,
@@ -208,32 +249,81 @@ const docs = path.join(root, "docs");
     });
     await noJs.goto(base, { waitUntil: "networkidle" });
     assert.equal(await noJs.locator("h1").isVisible(), true);
-    assert.equal(await noJs.locator("#coming-next").isVisible(), true);
-    assert.ok(await noJs.locator("[data-apk-download]").evaluateAll(nodes =>
-      nodes.length === 3 && nodes.every(node => node.href === "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk")));
-    assert.match(
-      await noJs.locator("noscript").innerText(),
-      /Enable JavaScript/,
+    assert.equal(await noJs.locator("#sample-card").isVisible(), true);
+    assert.equal(
+      await noJs.locator("#apk-download").getAttribute("href"),
+      fallback,
     );
     await noJs.close();
-    await page.unroute("https://api.github.com/repos/kmab5/singalong/releases?*");
-    await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify([
-      { tag_name: "v2.0.0-rc.1", prerelease: true, assets: [{ name: "singalong.apk", browser_download_url: "https://github.com/kmab5/singalong/releases/download/v2.0.0-rc.1/singalong.apk" }] },
-      { tag_name: "v1.1.0", prerelease: false, draft: false, assets: [{ name: "singalong.apk", size: 10100000, browser_download_url: "https://github.com/kmab5/singalong/releases/download/v1.1.0/singalong.apk" }] },
-    ]) }));
+    const release = {
+      tag_name: "v1.2.0",
+      draft: false,
+      prerelease: false,
+      assets: [
+        {
+          name: "singalong.apk",
+          size: 10494834,
+          browser_download_url:
+            "https://github.com/kmab5/singalong/releases/download/v1.2.0/singalong.apk",
+        },
+      ],
+    };
+    await page.unroute(api);
+    await page.route(api, (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify([
+          null,
+          { ...release, tag_name: "v1.3.0-rc.1", prerelease: true },
+          release,
+        ]),
+      }),
+    );
     await page.reload({ waitUntil: "networkidle" });
-    assert.ok(await page.locator("[data-apk-download]").evaluateAll(nodes => nodes.length === 3 && nodes.every(node => node.href === "https://github.com/kmab5/singalong/releases/download/v1.1.0/singalong.apk")));
-    assert.equal(await page.locator("[data-release-version]").textContent(), "v1.1.0");
-    assert.equal(await page.locator("[data-release-size]").textContent(), "10.1 MB");
-    assert.ok(await page.locator("[data-release-link]").evaluateAll(nodes => nodes.every(node => node.href.endsWith("/releases/tag/v1.1.0"))));
-    await page.unroute("https://api.github.com/repos/kmab5/singalong/releases?*");
-    await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", route => route.fulfill({contentType:"application/json",body:'{"message":"API unavailable"}'}));
-    await page.reload({waitUntil:"networkidle"});
-    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk");
-    await page.unroute("https://api.github.com/repos/kmab5/singalong/releases?*");
-    await page.route("https://api.github.com/repos/kmab5/singalong/releases?*", (route) => route.abort());
+    assert.equal(
+      await page.locator("[data-release-version]").innerText(),
+      "v1.2.0",
+    );
+    assert.ok(
+      await page
+        .locator("[data-apk-download]")
+        .evaluateAll(
+          (nodes) =>
+            nodes.length === 3 &&
+            nodes.every((node) => node.href.endsWith("/v1.2.0/singalong.apk")),
+        ),
+    );
+    for (const body of [
+      "{}",
+      JSON.stringify([
+        {
+          ...release,
+          assets: [
+            {
+              name: "singalong.apk",
+              browser_download_url: "https://example.com/evil.apk",
+            },
+          ],
+        },
+      ]),
+    ]) {
+      await page.unroute(api);
+      await page.route(api, (route) =>
+        route.fulfill({ contentType: "application/json", body }),
+      );
+      await page.reload({ waitUntil: "networkidle" });
+      assert.equal(
+        await page.locator("#apk-download").getAttribute("href"),
+        fallback,
+      );
+    }
+    await page.unroute(api);
+    await page.route(api, (route) => route.abort());
     await page.reload({ waitUntil: "networkidle" });
-    assert.equal(await page.locator("#apk-download").getAttribute("href"), "https://github.com/kmab5/singalong/releases/latest/download/singalong.apk");
+    assert.equal(
+      await page.locator("#apk-download").getAttribute("href"),
+      fallback,
+    );
     assert.deepEqual(errors, []);
     console.log(
       JSON.stringify(
@@ -241,23 +331,14 @@ const docs = path.join(root, "docs");
           status: "passed",
           viewports: [320, 390, 768, 1024, 1440],
           checks: [
-            "panel modes",
-            "bottom controls and focus on dock",
-            "consistent release downloads and metadata",
-            "unreleased preparation content at every viewport and without JS",
-            "malformed response and network fallback",
-            "edge restore",
-            "subtext",
-            "next line",
-            "FAQ",
-            "asset downloads",
-            "anchors",
-            "no overflow",
-            "no translated clipping",
-            "reduced motion",
-            "keyboard controls and skip link",
+            "floating modes and focus",
+            "translated layouts",
+            "palette/format gallery",
+            "keyboard and reduced motion",
             "no-JS content",
-            "no browser/resource errors",
+            "release metadata and malformed/network fallback",
+            "downloads/assets/anchors",
+            "no overflow or page errors",
           ],
           assets: assets.length,
         },

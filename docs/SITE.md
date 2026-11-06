@@ -1,33 +1,27 @@
 # Landing page
 
-The public site is `docs/index.html`, with `site.css`, `site.js` and `assets/`. It is a static site; there is no build command, analytics or third-party font request. `.nojekyll` preserves the files as written. Existing project documents remain in this directory.
+The public site is [kmab5.github.io/singalong](https://kmab5.github.io/singalong/). Its source is `index.html`, `site.css`, `site.js` and `assets/` in this directory. It is static: no bundler, analytics or third-party font requests. GitHub Pages deploys main `/docs`; `.nojekyll` preserves the files as written.
 
-## GitHub Pages
+## Design and content
 
-In the repository's **Settings → Pages**, select **Deploy from a branch**, **main**, and **/docs**. Save. The project URL is `https://kmab5.github.io/singalong/`. Configuration/deployment status must be checked in GitHub; creating these files does not establish that the site is live.
+The November 7 overhaul replaces the previous page structure. Oversized Inter headings and Lora accents lead into an illustrated floating reader, a contrasting light lyric-card gallery, a saved-library illustration, installation steps and accessible FAQs. PT Mono labels support the music-poster direction. All fonts are self-hosted and have adjacent license notices.
 
-The existing configuration deployed this page successfully on November 2. Live URL: [kmab5.github.io/singalong](https://kmab5.github.io/singalong/). See the [site checkpoint](validation/site-checkpoint.md) for the deployment and live browser verification.
+The illustrations use original sample words and artwork. They are labelled as interactive illustrations, not Android screenshots. The floating demo supports Floating, Lyrics only and Expanded modes, docking/restoring with keyboard focus transfer, advancing a line and English subtext. Gallery controls switch between three palette directions and square/portrait composition. Album-art color extraction happens in the Android app, not this demo.
 
-See [GitHub's publishing-source instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
+Motion is finite and respects reduced motion. The page, sample cards and downloads remain usable without JavaScript. Turkish sample lines use Turkish language metadata, with English subtext marked separately.
 
-Local preview: `python -m http.server 8765 --directory docs --bind 127.0.0.1`, then open `http://127.0.0.1:8765/`. All local asset paths are relative so project-path hosting works too.
+## Downloads
 
-## Content and assets
+All three download links default to GitHub's latest stable `singalong.apk` URL. A five-second bounded API request optionally adds the exact stable version, asset size and versioned download/release links. Only canonical APK URLs from this repository are accepted. Empty, malformed, rate-limited or unavailable API responses leave the default download usable. The fallback label is “Latest release”, never a hardcoded older version.
 
-The release-focused layout puts a direct Android download in the header, hero and setup section. The hero includes the released version, approximate APK size, release notes/checksums and source. Setup explains APK installation and notification/overlay access; feature copy covers the library, translations, Now customization and opt-in timing editing.
+The release workflow publishes new main-branch app versions; website-only changes keep existing assets. See [release instructions](RELEASING.md). The feedback link opens the existing kmab form with product `singalong` and source `web`; the visitor submits any report.
 
-The separate **Preparing 1.2 · not yet released** section introduces supplied word timing and the word-tracking switch, music-folder scans and library sorting, responsive floating controls, and the whole-text Google Translate handoff with its copy-first fallback. It distinguishes supplied timing from estimated glow, and explains the external services involved. This is a description of the prepared source, not a claim of public release or phone verification. The download defaults and hero metadata remain on the published v1.0.0 release until the API reports a newer stable release. Update the preparation label when 1.2 is actually published.
+## Assets and maintenance
 
-The lyric-card section describes the prepared 1.2 source and shows an explicitly labelled illustration with original sample text/artwork. Three cover-color buttons preview palette directions; they do not run Android palette extraction. This section is usable without JavaScript.
+SVG/PNG icons and outlined wordmarks are available from the footer and `assets/`, with reusable copies in `../public/docs/`. `tools/export_site_assets.py` preserves the Android icon geometry; `tools/render_site_assets.cjs` rasterizes exports. Keep app marks and font notices alongside their assets.
 
-The interactive panel uses clearly labelled original sample text; it does not access music, fetch lyrics or play audio. Floating/expanded/minimal/docked buttons, bottom dock/expand controls, edge restore, next line and English subtext work locally. Docking from the panel moves keyboard focus to the edge handle. Line changes use a short cancellable transition; motion honors `prefers-reduced-motion`. Page content and direct downloads remain usable without JavaScript.
+Preview with `python -m http.server 8765 --directory docs --bind 127.0.0.1`. All asset paths are relative and also work under `/singalong/`.
 
-All three download links default to the latest published `singalong.apk` through GitHub's stable release URL. A bounded public GitHub API request optionally updates every download, release link, version label and size together. Only stable releases with an APK hosted in this repository are accepted. An empty, malformed, rate-limited or failed API response, or disabled JavaScript, leaves the direct download usable. The first stable release must remain published for that fallback URL to resolve. Feedback opens the existing kmab form with product `singalong` and source `web`; reports are submitted by the visitor. See [release instructions](RELEASING.md).
+Run `node tools/check_site.cjs` with an existing Playwright installation (`PLAYWRIGHT_MODULE`) and Chrome executable (`CHROME_PATH`). The check serves the project path, verifies layouts at 320/390/768/1024/1440px, all demo modes with/without subtext, gallery formats, keyboard/reduced-motion/no-JavaScript behavior, downloads and malformed/network API fallbacks. Screenshots go to ignored `artifacts/`. No browser or Android SDK installation is performed.
 
-Hosted SVG/PNG icons and outlined wordmarks are in `assets/`, with reusable copies in `public/docs/` at the repository root. The SVG icon preserves `app/src/main/res/drawable/ic_singalong.xml` geometry. Font license notices accompany the self-hosted WOFF2 files. See `tools/export_site_assets.py` for regeneration.
-
-After exporting the SVGs, `node tools/render_site_assets.cjs` rasterizes transparent PNGs using Playwright. `node tools/check_site.cjs` serves the site under a `/singalong/` project path, checks responsive layouts/interactions, and saves review screenshots in ignored `artifacts/`. These authoring/check tools need Playwright installed in your tool environment; they are not site runtime dependencies. Set `PLAYWRIGHT_MODULE` to its module directory if it is outside this repo and optionally `CHROME_PATH` to an existing Chrome executable. No browser or Android SDK download is performed by the scripts.
-
-The [1.1 site checkpoint](validation/1.1-site-checkpoint.md) records local browser evidence for the preparation section. The November 2 deployment evidence above describes the earlier page; it does not establish deployment of these changes.
-
-The [1.2 integration checkpoint](validation/1.2-main-checkpoint.md) records the newer card illustration and browser checks.
+See the [overhaul/publication checkpoint](validation/site-release-checkpoint.md) for current evidence. Earlier [site](validation/site-checkpoint.md), [1.1](validation/1.1-site-checkpoint.md) and [1.2 integration](validation/1.2-main-checkpoint.md) checkpoints remain historical records.

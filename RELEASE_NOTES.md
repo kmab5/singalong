@@ -1,6 +1,6 @@
-# 1.2.0 — prepared source
+# Singalong 1.2.0
 
-Main integration is authorized; a public release tag is separate. The latest published APK remains v1.0.0.
+Lyric cards, album-art palettes and word syncing, with the same signing identity for updates over earlier release builds. Requires Android 12 or newer.
 
 - Long-press a lyric to create a card from original lines. Choose eight layouts, seven fonts, ten curated palettes or a palette generated from the album cover.
 - Customize artwork size/corners, text size/weight/spacing/placement, background and a sized corner logo with optional name. Nearby text wraps around the logo. Emphasize selected lines with bold/glow styling.
@@ -8,4 +8,6 @@ Main integration is authorized; a public release tag is separate. The latest pub
 - Empty provider lyrics no longer reach folder-save assertions. Late translation/timing writes are discarded when their lyric version has been deleted.
 - Includes the previously prepared 1.1 improvements: word syncing, word-tracking switch, folder scans, library sorting, responsive floating controls and Google Translate’s clipboard fallback.
 
-See the [integration checkpoint](docs/validation/1.2-main-checkpoint.md) for verification and remaining phone checks.
+The website now includes an interactive floating-lyrics demo, card palette/format previews and a direct APK download. The APK, matching crash mapping, build metadata and SHA-256 checksums are attached to this release.
+
+See the [integration checkpoint](https://github.com/kmab5/singalong/blob/v1.2.0/docs/validation/1.2-main-checkpoint.md) for native verification and remaining phone checks. Device compatibility is limited to the recorded testing; compiled instrumentation tests have not been run on an emulator.

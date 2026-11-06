@@ -1,121 +1,158 @@
 (() => {
   "use strict";
-  const cardCoverButtons = [...document.querySelectorAll("[data-card-cover]")];
-  cardCoverButtons.forEach(button => button.addEventListener("click", () => {
-    document.querySelector("#sample-card").dataset.cover = button.dataset.cardCover;
-    cardCoverButtons.forEach(option => option.setAttribute("aria-pressed", String(option === button)));
-  }));
-  const stage = document.querySelector(".demo-stage");
-  const windowPanel = document.querySelector(".lyric-window");
-  const edge = document.querySelector("#edge-handle");
-  const modeButtons = [...document.querySelectorAll(".mode-switch button")];
-  const translation = document.querySelector("#translation");
-  const line = document.querySelector("#sample-line");
-  const subtext = document.querySelector("#sample-translation");
-  const nextLine = document.querySelector("#sample-next");
-  const previousLine = document.querySelector("#sample-previous");
-  const lyricContent = document.querySelector(".lyric-content");
-  const expandButton = document.querySelector("#demo-expand");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-  const modeDescriptions = {
-    floating: "Your player underneath. Your lyrics within reach.",
-    expanded: "More of the song, with the current line in focus.",
-    minimal: "Just the words. A little less window, a little more space.",
-    docked: "Tucked out of the way. Tap the edge handle to bring it back.",
-  };
+  const stage = document.querySelector(".demo-stage");
+  const panel = document.querySelector(".lyric-window");
+  const edge = document.querySelector("#edge-handle");
+  const modes = [...document.querySelectorAll("[data-mode]")].filter(
+    (el) => el.tagName === "BUTTON",
+  );
+  const english = document.querySelector("#translation");
   const samples = [
     {
-      original: "Let the next line\nfind you here.",
-      turkish: "Bir sonraki satır\nseni burada bulsun.",
-      english: "Let the next line find you here.",
+      original: "I keep the\nchorus close.",
+      translated: "Nakaratı\nyakınımda tutarım.",
+      subtext: "I keep the chorus close.",
     },
     {
-      original: "There’s a little room\nfor a louder voice.",
-      turkish: "Daha yüksek bir ses için\nbiraz yer var.",
-      english: "There’s a little room for a louder voice.",
+      original: "For a moment,\nI am home.",
+      translated: "Bir an için,\nevimdeyim.",
+      subtext: "For a moment, I am home.",
     },
     {
-      original: "Keep the window open.\nKeep the words close.",
-      turkish: "Pencereyi açık tut.\nKelimeleri yakın tut.",
-      english: "Keep the window open. Keep the words close.",
+      original: "The city\nslips away.",
+      translated: "Şehir\nuzaklaşır.",
+      subtext: "The city slips away.",
     },
   ];
   let index = 0;
+  const content = document.querySelector(".lyric-content");
   function showLine() {
     const sample = samples[index];
-    line.textContent = translation.checked ? sample.turkish : sample.original;
-    subtext.textContent = sample.english;
-    subtext.hidden = !translation.checked;
-    const language = translation.checked ? "turkish" : "original";
-    nextLine.textContent = samples[(index + 1) % samples.length][language].replace("\n", " ");
-    previousLine.textContent = samples[(index + samples.length - 1) % samples.length][language].replace("\n", " ");
-    lyricContent.getAnimations().forEach((animation) => animation.cancel());
-    if (!reducedMotion.matches) {
-      lyricContent.animate(
-        [{ opacity: 0.45, transform: "translateY(5px)" }, { opacity: 1, transform: "translateY(0)" }],
-        { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+    const key = english.checked ? "translated" : "original";
+    const [first, second] = sample[key].split("\n");
+    const line = document.querySelector("#sample-line");
+    line.replaceChildren(
+      document.createTextNode(first),
+      document.createElement("br"),
+    );
+    const emphasis = document.createElement("em");
+    emphasis.textContent = second;
+    line.append(emphasis);
+    line.lang = english.checked ? "tr" : "en";
+    document.querySelector("#sample-previous").lang = line.lang;
+    document.querySelector("#sample-next").lang = line.lang;
+    document.querySelector("#sample-previous").textContent = samples[
+      (index + 2) % 3
+    ][key].replace("\n", " ");
+    document.querySelector("#sample-next").textContent = samples[
+      (index + 1) % 3
+    ][key].replace("\n", " ");
+    const translation = document.querySelector("#sample-translation");
+    translation.lang = "en";
+    translation.textContent = sample.subtext;
+    translation.hidden = !english.checked;
+    content.getAnimations().forEach((animation) => animation.cancel());
+    if (!reducedMotion.matches)
+      content.animate(
+        [
+          { opacity: 0.3, transform: "translateY(5px)" },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        { duration: 280, easing: "ease-out" },
       );
-    }
   }
   function setMode(mode) {
-    const focusInPanel = windowPanel.contains(document.activeElement);
+    const focused = panel.contains(document.activeElement);
     stage.dataset.mode = mode;
+    panel.inert = mode === "docked";
+    panel.setAttribute("aria-hidden", String(mode === "docked"));
     edge.hidden = mode !== "docked";
-    windowPanel.inert = mode === "docked";
-    windowPanel.setAttribute("aria-hidden", String(mode === "docked"));
-    modeButtons.forEach((button) =>
+    modes.forEach((button) =>
       button.setAttribute("aria-pressed", String(button.dataset.mode === mode)),
     );
-    document.querySelector("#mode-description").textContent = modeDescriptions[mode];
-    const expandLabel = mode === "expanded" ? "Compact sample lyrics" : "Expand sample lyrics";
-    expandButton.setAttribute("aria-label", expandLabel);
-    expandButton.title = expandLabel;
-    if (mode === "docked" && focusInPanel) edge.focus();
+    if (mode === "docked" && focused) edge.focus();
   }
-  modeButtons.forEach((button) =>
+  modes.forEach((button) =>
     button.addEventListener("click", () => setMode(button.dataset.mode)),
   );
+  document
+    .querySelector("#demo-dock")
+    .addEventListener("click", () => setMode("docked"));
   edge.addEventListener("click", () => {
     setMode("floating");
-    modeButtons[0].focus();
+    modes[0].focus();
   });
-  document.querySelector("#demo-dock").addEventListener("click", () => setMode("docked"));
-  expandButton.addEventListener("click", () => setMode(stage.dataset.mode === "expanded" ? "floating" : "expanded"));
   document.querySelector("#next-line").addEventListener("click", () => {
     index = (index + 1) % samples.length;
     showLine();
   });
-  translation.addEventListener("change", showLine);
+  english.addEventListener("change", showLine);
   reducedMotion.addEventListener("change", () => {
-    if (reducedMotion.matches) lyricContent.getAnimations().forEach((animation) => animation.cancel());
+    if (reducedMotion.matches)
+      content.getAnimations().forEach((animation) => animation.cancel());
   });
-  const downloads = [...document.querySelectorAll("[data-apk-download]")];
-  const releaseStatus = document.querySelector("#release-status");
+  const gallery = document.querySelector("#card-gallery");
+  for (const kind of ["palette", "format"]) {
+    const buttons = [...document.querySelectorAll(`button[data-${kind}]`)];
+    buttons.forEach((button) =>
+      button.addEventListener("click", () => {
+        gallery.dataset[kind] = button.dataset[kind];
+        buttons.forEach((item) =>
+          item.setAttribute("aria-pressed", String(item === button)),
+        );
+        const title = (text) => text[0].toUpperCase() + text.slice(1);
+        document.querySelector("#card-description").textContent =
+          `${title(gallery.dataset.palette)} · ${title(gallery.dataset.format)}`;
+      }),
+    );
+  }
+  const status = document.querySelector("#release-status");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   fetch("https://api.github.com/repos/kmab5/singalong/releases?per_page=100", {
     headers: { Accept: "application/vnd.github+json" },
-    signal: AbortSignal.timeout(5000),
-  }).then((response) => {
-    if (!response.ok) throw new Error("Release lookup unavailable");
-    return response.json();
-  }).then((releases) => {
-    if (!Array.isArray(releases)) return;
-    const release = releases.find((item) => !item.draft && !item.prerelease &&
-      /^v\d+\.\d+\.\d+$/.test(item.tag_name) &&
-      Array.isArray(item.assets) && item.assets.some((asset) => asset.name === "singalong.apk"));
-    const asset = release?.assets.find((item) => item.name === "singalong.apk");
-    if (!asset?.browser_download_url?.startsWith("https://github.com/kmab5/singalong/releases/download/")) return;
-    downloads.forEach((download) => { download.href = asset.browser_download_url; });
-    document.querySelectorAll("[data-release-version]").forEach((label) => { label.textContent = release.tag_name; });
-    document.querySelectorAll("[data-release-link]").forEach((link) => {
-      link.href = `https://github.com/kmab5/singalong/releases/tag/${release.tag_name}`;
-    });
-    if (Number.isFinite(asset.size) && asset.size > 0) {
-      document.querySelectorAll("[data-release-size]").forEach((label) => {
-        label.textContent = `${(asset.size / 1000000).toFixed(1)} MB`;
+    signal: controller.signal,
+  })
+    .then((response) => {
+      if (!response.ok) throw new Error("Release lookup unavailable");
+      return response.json();
+    })
+    .then((releases) => {
+      if (!Array.isArray(releases)) return;
+      const release = releases.find(
+        (item) =>
+          item &&
+          !item.draft &&
+          !item.prerelease &&
+          /^v\d+\.\d+\.\d+$/.test(item.tag_name) &&
+          Array.isArray(item.assets) &&
+          item.assets.some((asset) => asset?.name === "singalong.apk"),
+      );
+      const apk = release?.assets.find(
+        (asset) => asset?.name === "singalong.apk",
+      );
+      if (!apk || typeof apk.browser_download_url !== "string") return;
+      const prefix = `https://github.com/kmab5/singalong/releases/download/${release.tag_name}/`;
+      if (apk.browser_download_url !== prefix + "singalong.apk") return;
+      document.querySelectorAll("[data-apk-download]").forEach((link) => {
+        link.href = apk.browser_download_url;
       });
-    }
-    releaseStatus.textContent = "Android 12 and newer. Signed with the same release key for updates. Checksums and source are on GitHub Releases.";
-  }).catch(() => {
-    releaseStatus.textContent = "Android 12 and newer. Download the latest signed APK; release details and checksums are on GitHub.";
-  });
+      document.querySelectorAll("[data-release-link]").forEach((link) => {
+        link.href = `https://github.com/kmab5/singalong/releases/tag/${release.tag_name}`;
+      });
+      document.querySelectorAll("[data-release-version]").forEach((label) => {
+        label.textContent = release.tag_name;
+      });
+      const size =
+        Number.isFinite(apk.size) && apk.size > 0
+          ? ` · ${(apk.size / 1_000_000).toFixed(1)} MB`
+          : "";
+      status.textContent = `${release.tag_name}${size}. Signed with the same key for updates. Checksums are on GitHub.`;
+    })
+    .catch(() => {
+      status.textContent =
+        "Download the latest signed APK. Release notes and checksums are on GitHub.";
+    })
+    .finally(() => clearTimeout(timeout));
 })();

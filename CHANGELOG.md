@@ -1,6 +1,9 @@
 # Changelog
 
-## 1.2.0 — prepared, not yet published
+## 1.2.0 — 2026-11-07
+
+- Rebuilt the website around an interactive floating-lyrics demonstration, roomy lyric-card gallery, palette/format previews and direct stable APK downloads.
+- Main-branch version changes now trigger signed release publication as well as explicit tags/manual runs. Duplicate runs skip complete releases; conflicting tags, changed app code without a version bump and incomplete releases fail explicitly. Signing certificate verification remains mandatory.
 
 - Added a locally generated Album art palette using predominant cover colors and contrasting text. It updates with the cover, stays when the foreground cover is hidden, and is unavailable when artwork has no usable pixels.
 - Integrates lyric cards: eight layouts, seven fonts, curated and automatic palettes, seven backgrounds, line emphasis, fine artwork/text sizing, corner branding with local wrapping, and named PNG share/save.
@@ -36,7 +39,7 @@
 - Cards retain song credits, original provider attribution and Singalong/kmab branding. Available local player artwork is snapshotted once; custom cover/background images use the system picker.
 - Share PNGs through Android's Sharesheet or save through the document picker. Rendering is bounded and reports overflow rather than silently dropping lyric text. No new storage permissions.
 
-## 1.1.0 — prepared, not yet published
+## 1.1.0 — included in 1.2.0, not published separately
 
 - Added library sorting and selected-folder/subfolder lyric lookup using audio metadata and filename hints, with cancellation and duplicate prevention.
 - Made floating actions responsive to panel width; preserved long-press movement of the minimized display and tap-to-expand.

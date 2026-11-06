@@ -1,33 +1,40 @@
 # Releasing Singalong
 
-Merge and publish releases only when the maintainer explicitly approves them. The maintainer authorized v1.0.0 (9) publication on 2026-11-02, the 1.1 feature merge on 2026-11-04, and the lyric-card/1.2 merge on 2026-11-06. Main prepares **1.2.0 (20)**. No v1.2.0 tag/publication is authorized by the merge instruction; v1.0.0 remains the published release. Workflow preparation and signed CI artifacts alone are not a public release.
+The maintainer authorized v1.2.0 tagging/publication and automatic versioned main-branch releases on November 7, 2026. Work stays on main. The same existing signing identity is mandatory for every APK update.
 
 ## One version source
 
-`version.properties` supplies `versionName` and the monotonically increasing Android `versionCode` to Gradle. Use `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-rc.N` for candidates. Every distributed build needs a larger code. APK names alone do not identify the installed version; check About and `build-info.json`.
+`version.properties` supplies the Gradle `versionName` and monotonically increasing Android `versionCode`. Names use `MAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCH-rc.N`. Current source is **1.2.0 (20)**; the next distributed app build needs a later name and an unused code above 20.
 
-The promotion from rc.5 (14) to the prepared 1.1.0 source used:
+Use `python tools/release_version.py set <version> --code <code>`, update `RELEASE_NOTES.md` and the changelog, run checks, then commit and push main. New app versions publish automatically. You may explicitly create and push an annotated matching tag; never move/reuse a published tag. Website/documentation changes do not need a new app version or tag.
 
-```sh
-python3 tools/release_version.py set 1.1.0 --code 15
-```
+APK filenames do not establish installed version: inspect About and the release's `build-info.json`. A GitHub Actions candidate artifact is not a public release.
 
-Do not rerun that promotion on the already-updated source. The lyric-card candidate has since consumed code 20; future distributed builds need the next unused code above 20 and an appropriate later version. Update `RELEASE_NOTES.md`, run checks, and commit. Create an annotated tag matching the version exactly and push that tag only when publication is authorized. Never reuse/move a published version tag. Ordinary branch checks allow the current published name/code unchanged; creating a new version still requires both to increase.
+## Main, tag and manual publication
 
-## CI checks and signing
+`.github/workflows/release.yml` runs on main pushes, `v*` tag pushes and manual dispatch. The plan job checks main ancestry, version rules, documentation links and release-helper tests before deciding whether to publish:
 
-`.github/workflows/ci.yml` runs debug tests/lint/build and compiles instrumentation tests on branch pushes and pull requests. It checks version rules and local documentation links. Trusted pushes to this repository also build/test/lint a signed candidate and upload an Actions artifact; pull-request jobs receive no signing credentials. Instrumentation execution still needs a device and is not claimed by this workflow.
+- An unpublished version builds, verifies, tags the checked commit if necessary, then creates its release.
+- An existing complete release with unchanged app source is skipped. This makes repeated main/tag runs and website-only pushes harmless.
+- Changed app source with the same published version fails and requires a version bump.
+- A conflicting tag or incomplete release fails for inspection. Tags and assets are never silently replaced.
 
-Both CI and local builds use the same existing `.signing/singalong-release.jks` key. GitHub stores encrypted secrets named `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Base64 encodes the binary keystore; GitHub Secrets encryption protects its stored value. Passwords are supplied only in the job environment. The temporary keystore is removed in an always-run cleanup step. No workflow generates a key.
+Publication runs queue sequentially, including simultaneous main/tag pushes. The workflow uses GitHub's [expanded concurrency queue](https://github.blog/changelog/2026-05-07-github-actions-concurrency-groups-now-allow-larger-queues/) so a later push does not discard a pending release. A retry of a failed build can use manual dispatch on main, provided the unpublished tag still identifies that commit. If main has moved beyond an unpublished tag, rerun the original tagged run; do not move the tag.
 
-`tools/package_release.py` verifies APK signing, version name/code, and 16 KB ZIP alignment before publishing artifacts. It rejects a certificate different from [the pinned fingerprint](../release-certificate.sha256). The output directory contains `singalong.apk`, `mapping.txt`, `build-info.json` and `SHA256SUMS`. Keep the mapping with its matching APK; obfuscated crash build IDs distinguish older installs from newer fixes.
+Release checks run debug/release unit tests and lint, compile instrumentation tests and assemble the signed release. `tools/package_release.py` validates version, certificate, R8 mapping and 16 KB ZIP alignment. Stable tags become the latest release; `-rc.N` tags become prereleases. Assets are `singalong.apk`, `mapping.txt`, `build-info.json` and `SHA256SUMS`. Keep each crash mapping with its matching APK.
 
-Local credentials remain in ignored `signing.properties`. The Gradle environment overrides are `SINGALONG_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Never print those values or commit them. Maintain an independent secure backup of the existing key and credentials. See [signing details](validation/release-signing.md).
+## CI and signing continuity
 
-## Tagged publication
+`.github/workflows/ci.yml` also runs ordinary branch/PR checks. Trusted upstream pushes build a signed candidate; pull requests receive no signing credentials. Instrumentation compilation does not mean device tests executed. Physical testing remains the maintainer's responsibility.
 
-`.github/workflows/release.yml` runs on `v*` tags. Before accessing signing secrets it verifies that the tagged commit is an ancestor of `origin/main`, the tag matches the version file, and version name/code exceed all earlier versioned tags. Tests/lint/build and certificate verification must pass. It then creates a GitHub Release, marks `-rc.N` tags as prereleases, and attaches the APK, mapping, metadata and checksums. An existing release causes failure; assets are never silently overwritten.
+GitHub stores the existing key in encrypted secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`. Base64 encodes the keystore; GitHub Secrets encryption protects its stored value. Passwords are passed only in the job environment. The temporary key is removed in an always-run cleanup step. No workflow generates a key.
 
-No production tag or release is created during pre-merge preparation. GitHub Pages deploys from main `/docs`. Since v1.0.0 is published, the website's default download uses GitHub's latest stable release asset URL. An optional API lookup adds the exact version; API rate limits or disabled JavaScript do not prevent downloading. Keep the `singalong.apk` asset name consistent in future stable releases.
+Every packaged release must match [release-certificate.sha256](../release-certificate.sha256). Local signing uses ignored `.signing/singalong-release.jks` and `signing.properties`; never commit or print either. Preserve a secure independent backup. See [signing details](validation/release-signing.md).
 
-The Ubuntu 24.04 runner image supplies Android SDK 36/build-tools 36.0.0. The workflows select JDK 21. They do not install emulators, system images or extra SDK packages. If runner images stop supplying the required SDK, update the build environment explicitly.
+The Ubuntu 24.04 runner supplies SDK 36/build-tools 36.0.0 and workflows select JDK 21. They do not install emulators, system images or extra SDK packages. If the runner image stops supplying that SDK, update the environment explicitly.
+
+## Website and final verification
+
+GitHub Pages deploys main `/docs`. The site links directly to the latest stable `singalong.apk`, even without JavaScript. Its optional API request binds the version and exact asset together. Keep that asset name consistent.
+
+After pushing, verify the release job, published assets, APK certificate/version/checksums and Pages deployment. Do not report publication merely because a tag or commit was pushed. Record outcomes in a dated validation checkpoint.

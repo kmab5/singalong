@@ -4,7 +4,7 @@ An Android companion that keeps lyrics over your music player. Made by kmab. Req
 
 ## Status and downloads
 
-Main prepares **1.2.0 (20)** with lyric share cards and album-art palettes; its version is in `version.properties`. The latest published APK remains **1.0.0 (9)**. Merged source and signed test builds are not public releases. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). See the [latest checkpoint](docs/validation/1.2-main-checkpoint.md) for verification and remaining phone checks.
+Current version: **1.2.0 (20)** with lyric share cards and album-art palettes; its version is in `version.properties`. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). New main-branch app versions are tested, signed with the existing key, tagged and published automatically; website-only changes retain the existing release. See the [native checkpoint](docs/validation/1.2-main-checkpoint.md) and [website/release checkpoint](docs/validation/site-release-checkpoint.md) for verification and remaining phone checks.
 
 [Website](https://kmab5.github.io/singalong/) · [GitHub Releases](https://github.com/kmab5/singalong/releases) · [Feedback](https://kmab5.github.io/kmab-feedback/?product=singalong)
 

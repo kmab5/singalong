@@ -26,6 +26,35 @@ class AppContainer(private val context: Context) {
     val openNowRequested = mutableOpenNow.asStateFlow()
     fun openNow() { mutableOpenNow.value = true; minimizePanel() }
     fun openedNow() { mutableOpenNow.value = false }
+    private val mutableCard = MutableStateFlow<com.kmab.singalong.cards.CardRequest?>(null)
+    val card = mutableCard.asStateFlow()
+    private val mutableCardLoading = MutableStateFlow(false)
+    val cardLoading = mutableCardLoading.asStateFlow()
+    private var cardJob: Job? = null
+    private var cardGeneration = 0L
+    fun closeCard() { cardGeneration++; cardJob?.cancel(); mutableCard.value = null; mutableCardLoading.value = false }
+    fun openCard(recording: Recording?, version: LyricVersion, index: Int, sessionId: String? = null) {
+        val content = com.kmab.singalong.cards.CardContent.capture(recording, version, index) ?: return
+        val artwork = sessionId?.let { observer.cardArtwork(it, content.recording) }
+        closeCard()
+        val generation = cardGeneration
+        mutableCardLoading.value = true
+        reader.follow(false)
+        cardJob = scope.launch {
+            try {
+                val image = artwork?.first?.let { original -> withContext(Dispatchers.Default) {
+                    if (original.isRecycled) null else com.kmab.singalong.cards.CardImages.bounded(original)
+                } } ?: artwork?.second?.let { com.kmab.singalong.cards.CardImages.load(context, it) }
+                // A player may reuse a mutable 'current art' URI. Validate again after decoding,
+                // then retain only the owned pixels, never a URI to reload on rotation.
+                val stillMatching = sessionId?.let { observer.cardArtwork(it, content.recording) }
+                    ?.let { it.first != null || it.second != null } == true
+                if (generation == cardGeneration) mutableCard.value = com.kmab.singalong.cards.CardRequest(content, image.takeIf { stillMatching })
+            } finally {
+                if (generation == cardGeneration) mutableCardLoading.value = false
+            }
+        }
+    }
     fun nowAppearance(value: com.kmab.singalong.settings.NowAppearance) { scope.launch { settings.nowAppearance(value) } }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, error ->
         if (error is java.io.IOException || error is android.database.sqlite.SQLiteException) {

@@ -19,9 +19,12 @@ This index describes the current source. Earlier phase plans and validation repo
 - [Word tracking switch and Google Translate checkpoint](validation/word-tracking-controls-checkpoint.md)
 - [1.1 main integration and Translate fallback checkpoint](validation/1.1-main-checkpoint.md)
 - [1.1 website preparation checkpoint](validation/1.1-site-checkpoint.md)
+- [Lyric card feature checkpoint](validation/lyric-card-checkpoint.md)
 - [Translation alternatives, research only](translation-options.md)
 
 ## Accepted changes since the initial design
+
+The 1.2.0-rc.1 feature branch adds draggable lyric actions and a branded card editor with templates, original-line selection, local artwork, layout controls and PNG share/save. The draft snapshots the selected song independently of playback. Minimal floating lyrics retain their long-press movement gesture; standard floating lyrics route card actions into the activity. See the [card plan](superpowers/plans/2026-11-06-lyric-share-cards.md). This new feature is not merged or published yet.
 
 The current app includes simple text editing plus an opt-in per-line timing editor, filename-aware search, optional estimated sync for untimed lyrics, minimal floating lyrics, bottom icon controls, automatic failure docking/recovery, independent Now-tab typography/motion, and a next-launch crash-report prompt. Original metadata/content is preserved; inferred matches and estimated timing remain distinguishable from verified timed lyrics.
 

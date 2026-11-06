@@ -4,13 +4,15 @@ An Android companion that keeps lyrics over your music player. Made by kmab. Req
 
 ## Status and downloads
 
-The source is prepared as **1.1.0 (15)**, with its version in `version.properties`. The latest published APK remains **1.0.0 (9)** until the 1.1.0 release is tagged and published. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). See the [latest checkpoint](docs/validation/1.1-main-checkpoint.md) for verification and remaining phone checks.
+This feature branch prepares **1.2.0-rc.1 (16)** with lyric share cards; its version is in `version.properties`. Main contains the prepared 1.1.0 source. The latest published APK remains **1.0.0 (9)**; candidates are not public releases. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). See the [latest checkpoint](docs/validation/lyric-card-checkpoint.md) for verification and remaining phone checks.
 
 [Website](https://kmab5.github.io/singalong/) · [GitHub Releases](https://github.com/kmab5/singalong/releases) · [Feedback](https://kmab5.github.io/kmab-feedback/?product=singalong)
 
 Each GitHub Release includes `singalong.apk`, checksums, build metadata and the matching R8 crash mapping. Signed test builds are also available in successful CI runs. Install release-signed updates over the existing app to preserve data; debug APKs have a different signing key.
 
 ## What it does
+
+- Creates customizable lyric cards: long-press a line in Now, saved lyrics or standard floating lyrics, then choose Share lyric card. Select original lines, pick a template and edit colors, type, size, format, artwork and positions. Export a branded PNG with song/source credits through Share or Save. Minimal floating mode keeps its existing long-press drag gesture; expand it to use lyric actions.
 
 - Reads song metadata and playback position from selected music apps. No microphone or playback-audio capture; audio recognition is deferred.
 - Shows glass floating lyrics in compact, expanded or minimal mode, with bottom icon controls and a draggable edge handle. Tap expanded lyrics to open Now. Missing lyrics dock after a grace period; successful lyrics restore automatically unless you manually docked or closed the panel.

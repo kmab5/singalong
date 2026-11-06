@@ -38,6 +38,8 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
     val state by container.state.collectAsStateWithLifecycle()
     val settings by container.settings.state.collectAsStateWithLifecycle()
     val reader by container.reader.state.collectAsStateWithLifecycle()
+    val card by container.card.collectAsStateWithLifecycle()
+    val cardLoading by container.cardLoading.collectAsStateWithLifecycle()
     val sessions by container.observer.sessions.collectAsStateWithLifecycle()
     val installed by container.players.collectAsStateWithLifecycle()
     val entries by container.entries.collectAsStateWithLifecycle()
@@ -126,7 +128,9 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                             GlassPanel(Modifier.weight(1f).fillMaxWidth()) {
                                 LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.fillMaxSize(),
                                     textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request,
-                                    appearance = settings.now)
+                                    appearance = settings.now, onLineLongPress = { version, index ->
+                                        container.openCard(reader.snapshot?.recording, version, index, reader.snapshot?.sessionId)
+                                    })
                             }
                             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(reader.version?.sourceName?.let { "Lyrics · $it" } ?: "LRCLIB + lyrics.ovh", style = MaterialTheme.typography.labelSmall, color = SingalongColors.Muted)
@@ -143,7 +147,8 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                             Text(savedRecording?.artists?.joinToString().orEmpty(), color = SingalongColors.Muted)
                             GlassPanel(Modifier.weight(1f).fillMaxWidth()) {
                                 LyricsReader(ReaderState(status = savedStatus, version = savedVersion, translation = if (settings.translationEnabled) savedTranslation else null),
-                                    Modifier.fillMaxSize(), textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onRetry = {
+                                    Modifier.fillMaxSize(), textSize = settings.textSizeSp, translationSize = settings.translationSizeSp,
+                                    onLineLongPress = { version, index -> container.openCard(savedRecording, version, index) }, onRetry = {
                                         val id = savedId
                                         if (id != null) scope.launch {
                                             savedStatus = "loading"
@@ -171,6 +176,13 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                         "settings" -> SettingsScreen(container, permissions, actions, settings, state.tracking, installed, sessions)
                     }
                 }
+            }
+        }
+        card?.let { request -> key(request.id) { LyricCardSheet(request, container::closeCard) } }
+        if (cardLoading && card == null) ModalBottomSheet(onDismissRequest = container::closeCard,
+            containerColor = SingalongColors.Surface, contentColor = SingalongColors.Text) {
+            Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.size(24.dp)); Text("Preparing lyric card…")
             }
         }
         if (folderScanOpen) FolderScanSheet(container) { folderScanOpen = false }

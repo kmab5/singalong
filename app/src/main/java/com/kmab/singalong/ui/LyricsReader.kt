@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.gestures.animateScrollBy
 import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -43,7 +44,9 @@ fun lookupMessage(status: String) = when (status) {
 @Composable
 fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boolean = false, textSize: Float = 22f,
     translationSize: Float = 16f, onFollow: (Boolean) -> Unit = {}, onRetry: () -> Unit = {}, minimal: Boolean = false, shadowText: Boolean = false,
-    appearance: NowAppearance? = null) {
+    appearance: NowAppearance? = null,
+    onLineLongPress: ((com.kmab.singalong.model.LyricVersion, Int) -> Unit)? = null,
+    onLineClick: (() -> Unit)? = null) {
     val size = appearance?.textSizeSp ?: textSize
     val alignment = when (appearance?.alignment) { LyricAlignment.CENTER -> androidx.compose.ui.text.style.TextAlign.Center; LyricAlignment.END -> androidx.compose.ui.text.style.TextAlign.End; else -> androidx.compose.ui.text.style.TextAlign.Start }
     val animateText = appearance?.animation != LyricAnimation.NONE
@@ -110,13 +113,19 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                             verticalArrangement = Arrangement.Center) {
                             val line = version.lines.getOrNull(index)
                             Text(line?.text?.ifBlank { "♪" } ?: state.moment.countdownSeconds?.let { "Lyrics in ${it}s" } ?: "Waiting for the first line",
+                                modifier = if (onLineLongPress != null && line?.text?.isNotBlank() == true) Modifier.fillMaxWidth().combinedClickable(
+                                    onClick = { onLineClick?.invoke() }, onLongClickLabel = "Lyric actions",
+                                    onLongClick = { onFollow(false); onLineLongPress(version, index) }) else Modifier,
                                 style = textStyle, fontSize = textSize.sp, lineHeight = (textSize * 1.35f).sp, fontWeight = FontWeight.SemiBold)
                             line?.id?.let { state.translation?.lines?.get(it) }?.let {
                                 Text(it, Modifier.padding(top = if (minimal) 4.dp else 8.dp), style = textStyle, fontSize = subtextSize.sp,
                                     lineHeight = (subtextSize * 1.4f).sp, color = SingalongColors.PurpleText)
                             }
                             if (!minimal) version.lines.getOrNull(index + 1)?.text?.takeIf { it.isNotBlank() }?.let {
-                                Text(it, Modifier.padding(top = 14.dp), style = MaterialTheme.typography.bodyMedium.copy(shadow = textStyle.shadow), color = SingalongColors.Muted, maxLines = 2)
+                                Text(it, Modifier.padding(top = 14.dp).then(if (onLineLongPress != null) Modifier.combinedClickable(
+                                    onClick = { onLineClick?.invoke() }, onLongClickLabel = "Lyric actions",
+                                    onLongClick = { onFollow(false); onLineLongPress(version, index + 1) }) else Modifier),
+                                    style = MaterialTheme.typography.bodyMedium.copy(shadow = textStyle.shadow), color = SingalongColors.Muted, maxLines = 2)
                             }
                         }
                     }
@@ -129,7 +138,11 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                         val color by animateColorAsState(if (active || appearance?.dimInactive == false) SingalongColors.Text else SingalongColors.Muted,
                             animationSpec = if (animateText) tween(650) else snap(), label = "Line emphasis")
                         Column(Modifier.fillMaxWidth()
-                            .then(if (appearance?.tapToFocus == true) Modifier.clickable(onClickLabel = "Focus lyric line") { focusedLine = index; onFollow(false) } else Modifier)) {
+                            .then(if (onLineLongPress != null && line.text.isNotBlank()) Modifier.combinedClickable(
+                                onClickLabel = if (onLineClick != null) "Open Singalong" else if (appearance?.tapToFocus == true) "Focus lyric line" else null,
+                                onClick = { if (onLineClick != null) onLineClick() else if (appearance?.tapToFocus == true) { focusedLine = index; onFollow(false) } },
+                                onLongClickLabel = "Lyric actions", onLongClick = { onFollow(false); onLineLongPress(version, index) })
+                            else if (appearance?.tapToFocus == true) Modifier.clickable(onClickLabel = "Focus lyric line") { focusedLine = index; onFollow(false) } else Modifier)) {
                             val lineStyle = textStyle.copy(fontSize = size.sp, lineHeight = (size * (appearance?.lineSpacing ?: 1.45f)).sp, fontWeight = FontWeight.SemiBold, color = color)
                             if (appearance != null) AnimatedLyricText(line.text, size,
                                 if (state.hasTiming || state.allowUncertainSync) appearance.timedTextSizeSp else size, timedActive,

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0-rc.1 — unreleased
+
+- Long-press an original lyric in Now, saved lyrics or the standard floating reader to open a draggable context sheet and create a lyric card. Minimal-mode long-press dragging is preserved.
+- Four card templates and square/portrait/story/landscape formats, with editable font, size, alignment, colors, backgrounds and lyric/cover positions. Select original lines without modifying saved lyrics.
+- Cards retain song credits, original provider attribution and Singalong/kmab branding. Available local player artwork is snapshotted once; custom cover/background images use the system picker.
+- Share PNGs through Android's Sharesheet or save through the document picker. Rendering is bounded and reports overflow rather than silently dropping lyric text. No new storage permissions.
+
 ## 1.1.0 — prepared, not yet published
 
 - Added library sorting and selected-folder/subfolder lyric lookup using audio metadata and filename hints, with cancellation and duplicate prevention.

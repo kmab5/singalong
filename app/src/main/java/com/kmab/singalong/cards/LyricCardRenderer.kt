@@ -22,7 +22,8 @@ class LyricCardRenderer(private val context: Context) {
     private val faces = CardFont.entries.associateWith { ResourcesCompat.getFont(context, it.resource) ?: Typeface.DEFAULT }
 
     fun render(content: CardContent, selected: Set<Int>, requestedStyle: CardStyle, cover: Bitmap? = null,
-        background: Bitmap? = null, width: Int = requestedStyle.aspect.width, emphasized: Set<Int> = emptySet()): CardRenderResult {
+        background: Bitmap? = null, width: Int = requestedStyle.aspect.width, emphasized: Set<Int> = emptySet(),
+        artworkColors: CardPaletteColors? = null): CardRenderResult {
         content.selectionError(selected)?.let { return CardRenderResult(error = it) }
         if (width <= 0) return CardRenderResult(error = "Choose a valid card size.")
         val style = requestedStyle.sanitized()
@@ -31,11 +32,13 @@ class LyricCardRenderer(private val context: Context) {
         val outputWidth = width.coerceAtMost(style.aspect.width)
         val outputHeight = (outputWidth * h / w).roundToInt().coerceAtLeast(1)
         val albumArt = cover?.takeUnless { it.isRecycled }
+        val colors = style.palette.colors(artworkColors ?: if (style.palette == CardPalette.ARTWORK) CardArtworkColors.extract(albumArt) else null)
+            ?: return CardRenderResult(error = "Add an album cover or choose another palette.")
         val safeCover = albumArt?.takeIf { style.showCover }
         val photo = background?.takeUnless { it.isRecycled } ?: albumArt
         val layout = CardComposition.create(style, safeCover != null)
         fun CardRegion.bounds() = RectF(x * w, y * h, right * w, bottom * h)
-        val ink = style.palette.ink
+        val ink = colors.ink
         val alignment = when (style.alignment) {
             CardAlignment.START -> Layout.Alignment.ALIGN_NORMAL
             CardAlignment.CENTER -> Layout.Alignment.ALIGN_CENTER
@@ -55,14 +58,14 @@ class LyricCardRenderer(private val context: Context) {
         if (creditText.isNotEmpty() && credits == null) return CardRenderResult(error = "The selected details need more room. Hide a detail or choose a taller format.")
         val size = style.fontSize * if (style.font == CardFont.CAVEAT) 1.14f else 1f
         val face = Typeface.create(faces.getValue(style.font), style.weight.value, false)
-        val text = emphasizedText(content, selected, emphasized, style.palette.accent)
+        val text = emphasizedText(content, selected, emphasized, colors.accent)
         val lyrics = CardTextFlow.fit(text, lyricBox, textPaint(size, ink, face), size * .64f,
             alignment, style.spacing.multiplier, style.placement.bias, exclusion)
             ?: return CardRenderResult(error = "These lyrics do not fit. Reduce text size, select fewer lines, or choose a taller format.")
         val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.scale(outputWidth / w, outputHeight / h)
-        drawBackground(canvas, w, h, style, photo)
+        drawBackground(canvas, w, h, style, photo, colors)
         layout.cover?.let { region -> safeCover?.let { art ->
             val bounds = region.bounds()
             val radius = when (style.corners) {
@@ -139,9 +142,9 @@ class LyricCardRenderer(private val context: Context) {
         }
     }
 
-    private fun drawBackground(canvas: Canvas, w: Float, h: Float, style: CardStyle, photo: Bitmap?) {
-        val base = style.palette.base
-        val accent = style.palette.accent
+    private fun drawBackground(canvas: Canvas, w: Float, h: Float, style: CardStyle, photo: Bitmap?, colors: CardPaletteColors) {
+        val base = colors.base
+        val accent = colors.accent
         canvas.drawColor(base)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         if (style.background == CardBackground.IMAGE && photo != null) {
@@ -173,7 +176,7 @@ class LyricCardRenderer(private val context: Context) {
             }
             CardBackground.PAPER -> {
                 // Stable fine grain, shared by preview and export; no animated noise or image allocation.
-                paint.color = ColorUtils.setAlphaComponent(style.palette.ink, 12)
+                paint.color = ColorUtils.setAlphaComponent(colors.ink, 12)
                 val random = kotlin.random.Random(47)
                 repeat(8000) { canvas.drawCircle(random.nextFloat() * w, random.nextFloat() * h, .65f, paint) }
             }

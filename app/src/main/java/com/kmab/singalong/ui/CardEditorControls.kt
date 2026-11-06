@@ -38,11 +38,15 @@ internal fun CardEditorControls(section: CardEditorSection, request: CardRequest
     coverError: String?, backgroundError: String?, hasCover: Boolean, onStyle: (CardStyle) -> Unit,
     onSelection: (List<Int>) -> Unit, onCover: () -> Unit, onBackground: () -> Unit,
     onResetCover: () -> Unit, onResetBackground: () -> Unit, customCover: Boolean, customBackground: Boolean,
-    emphasized: Set<Int>, onEmphasis: (Int) -> Unit) {
+    emphasized: Set<Int>, onEmphasis: (Int) -> Unit, artworkColors: CardPaletteColors?) {
     when (section) {
         CardEditorSection.LOOKS -> {
             CardControlGroup("Presets") { TemplateChoices(request, selected.toSet(), style.template) { onStyle(style.withTemplate(it)) } }
-            CardControlGroup("Palette") { PaletteChoices(style.palette) { onStyle(style.copy(palette = it)) } }
+            CardControlGroup("Palette") {
+                PaletteChoices(style.palette, artworkColors) { onStyle(style.copy(palette = it)) }
+                if (artworkColors == null) Text("Add album artwork to generate the Album art palette.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+                else if (style.palette == CardPalette.ARTWORK) Text("Generated from this cover’s predominant colors.", style = MaterialTheme.typography.bodySmall, color = SingalongColors.Muted)
+            }
             CardControlGroup("Format") { CardChoices(CardAspect.entries, style.aspect, { it.label }) { onStyle(style.copy(aspect = it)) } }
             CardControlGroup("Artwork") {
                 if (hasCover) {
@@ -179,12 +183,13 @@ private fun FontChoices(value: CardFont, onSelect: (CardFont) -> Unit) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PaletteChoices(value: CardPalette, onSelect: (CardPalette) -> Unit) {
+private fun PaletteChoices(value: CardPalette, artworkColors: CardPaletteColors?, onSelect: (CardPalette) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         CardPalette.entries.forEach { palette ->
-            FilterChip(value == palette, onClick = { onSelect(palette) }, modifier = Modifier.heightIn(min = 48.dp),
+            val colors = palette.colors(artworkColors)
+            FilterChip(value == palette, onClick = { onSelect(palette) }, enabled = colors != null, modifier = Modifier.heightIn(min = 48.dp),
                 label = { Text(palette.label) }, shape = RoundedCornerShape(14.dp), leadingIcon = {
-                    Row { listOf(palette.base, palette.ink, palette.accent).forEach { color ->
+                    Row { listOfNotNull(colors?.base, colors?.ink, colors?.accent).forEach { color ->
                         Box(Modifier.size(12.dp).background(Color(color), CircleShape))
                     } }
                 })

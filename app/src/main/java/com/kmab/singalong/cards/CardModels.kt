@@ -50,7 +50,11 @@ data class CardContent(val recording: Recording, val lines: List<LyricLine>, val
     PLUM("Plum", 0xff38263f.toInt(), 0xfffaeaf5.toInt(), 0xffe2a3cb.toInt()),
     CLAY("Clay", 0xffeeddd1.toInt(), 0xff422e29.toInt(), 0xffa15d48.toInt()),
     FOG("Fog", 0xffdfe8eb.toInt(), 0xff233d48.toInt(), 0xff517c8c.toInt()),
-    AMBER("Amber", 0xff302b22.toInt(), 0xfffff2d7.toInt(), 0xffe8bb6c.toInt())
+    AMBER("Amber", 0xff302b22.toInt(), 0xfffff2d7.toInt(), 0xffe8bb6c.toInt()),
+    ARTWORK("Album art", 0xff20172f.toInt(), 0xfff6efff.toInt(), 0xffb49be5.toInt());
+
+    fun colors(artwork: CardPaletteColors? = null): CardPaletteColors? =
+        if (this == ARTWORK) artwork else CardPaletteColors(base, ink, accent)
 }
 @Serializable data class CardDetails(val title: Boolean = true, val artist: Boolean = true, val album: Boolean = true)
 enum class CardMetadata { TITLE, ARTIST, ALBUM }

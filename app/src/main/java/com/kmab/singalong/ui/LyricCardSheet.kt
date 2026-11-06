@@ -28,7 +28,7 @@ private val CardStyleSaver = Saver<CardStyle, String>(
     restore = { CardStyleState.decode(it) },
 )
 
-private data class CardImageState(val source: String, val bitmap: Bitmap?, val error: String? = null)
+private data class CardImageState(val source: String, val bitmap: Bitmap?, val error: String? = null, val colors: CardPaletteColors? = null)
 
 /** Equality ties a preview and an export to exactly the draft and decoded images they represent. */
 private data class CardDraftFrame(
@@ -40,6 +40,7 @@ private data class CardDraftFrame(
     val coverSource: String,
     val backgroundSource: String,
     val imagesReady: Boolean,
+    val artworkColors: CardPaletteColors?,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,7 +81,8 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
             else -> null
         }
         loadedCover = CardImageState(coverSource, bitmap,
-            if (coverSource != "none" && bitmap == null) "Couldn't open the album cover. Choose another image or use the card without a cover." else null)
+            if (coverSource != "none" && bitmap == null) "Couldn't open the album cover. Choose another image or use the card without a cover." else null,
+            withContext(Dispatchers.Default) { CardArtworkColors.extract(bitmap) })
     }
     LaunchedEffect(frozen.id, backgroundSource) {
         val bitmap = backgroundUri?.let { CardImages.load(context, Uri.parse(it)) }
@@ -89,7 +91,8 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
     }
     val imagesReady = loadedCover?.source == coverSource && loadedBackground?.source == backgroundSource
     val frame = CardDraftFrame(style.sanitized(), selection.toSet(), emphasis.toSet().intersect(selection.toSet()), loadedCover?.takeIf { it.source == coverSource }?.bitmap,
-        loadedBackground?.takeIf { it.source == backgroundSource }?.bitmap, coverSource, backgroundSource, imagesReady)
+        loadedBackground?.takeIf { it.source == backgroundSource }?.bitmap, coverSource, backgroundSource, imagesReady,
+        loadedCover?.takeIf { it.source == coverSource }?.colors)
     val latestFrame by rememberUpdatedState(frame)
     LaunchedEffect(frozen.id, frame, editing) {
         exportJob?.cancel()
@@ -98,7 +101,8 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
         if (!editing || !frame.imagesReady) return@LaunchedEffect
         delay(100)
         val result = withContext(Dispatchers.Default) {
-            renderer.render(frozen.content, frame.selected, frame.style, frame.cover, frame.background, width = 600, emphasized = frame.emphasized)
+            renderer.render(frozen.content, frame.selected, frame.style, frame.cover, frame.background, width = 600, emphasized = frame.emphasized,
+                artworkColors = frame.artworkColors)
         }
         // A cancelled render cannot publish its result. The previous bitmap stays alive while drawn.
         preview = result.bitmap
@@ -143,7 +147,8 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
         exportJob = scope.launch {
             try {
                 val result = withContext(Dispatchers.Default) {
-                    renderer.render(frozen.content, captured.selected, captured.style, captured.cover, captured.background, emphasized = captured.emphasized)
+                    renderer.render(frozen.content, captured.selected, captured.style, captured.cover, captured.background, emphasized = captured.emphasized,
+                        artworkColors = captured.artworkColors)
                 }
                 if (latestFrame != captured) return@launch
                 val bitmap = result.bitmap
@@ -202,7 +207,8 @@ fun LyricCardSheet(request: CardRequest, onDismiss: () -> Unit) {
                             onCover = { coverPicker.launch("image/*") }, onBackground = { backgroundPicker.launch("image/*") },
                             onResetCover = { coverUri = null }, onResetBackground = { backgroundUri = null; style = style.copy(background = style.template.style().background) },
                             customCover = coverUri != null, customBackground = backgroundUri != null,
-                            emphasized = emphasis.toSet(), onEmphasis = { emphasis = if (it in emphasis) emphasis - it else emphasis + it })
+                            emphasized = emphasis.toSet(), onEmphasis = { emphasis = if (it in emphasis) emphasis - it else emphasis + it },
+                            artworkColors = frame.artworkColors)
                     })
             }
         }

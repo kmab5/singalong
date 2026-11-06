@@ -15,6 +15,21 @@ import org.junit.Test
 import kotlin.math.roundToInt
 
 class LyricCardRendererTest {
+    @Test fun albumPaletteUsesCoverEvenWhenHiddenAndIgnoresIndependentBackgroundPhoto() {
+        val album = Bitmap.createBitmap(80, 80, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+        val background = Bitmap.createBitmap(80, 80, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLUE) }
+        try {
+            val style = CardStyle(palette = CardPalette.ARTWORK, background = CardBackground.SOLID, showCover = false)
+            val colors = requireNotNull(CardArtworkColors.extract(album))
+            val result = renderer.render(content, setOf(0), style, album, background, width = 240, artworkColors = colors)
+            val bitmap = requireNotNull(result.bitmap)
+            try { assertEquals(colors.base, bitmap.getPixel(0, 0)) } finally { bitmap.recycle() }
+            album.eraseColor(Color.GREEN)
+            val changed = requireNotNull(CardArtworkColors.extract(album))
+            assertFalse(colors == changed)
+            assertNotNull(renderer.render(content, setOf(0), style, width = 240).error)
+        } finally { album.recycle(); background.recycle() }
+    }
     private val renderer = LyricCardRenderer(ApplicationProvider.getApplicationContext<Context>())
     private val content = CardContent(
         Recording("card-test", "A song title", listOf("An artist"), "An album", null),

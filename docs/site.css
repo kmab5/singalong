@@ -1089,6 +1089,39 @@ h2 em {
   max-width: 44ch;
   margin-top: 16px;
 }
+.apk-options {
+  margin-top: 18px;
+  max-width: 44ch;
+  font-size: 13px;
+}
+.apk-options summary {
+  cursor: pointer;
+  color: var(--accent);
+  padding-block: 12px;
+}
+.apk-options p {
+  color: var(--muted);
+  margin-block: 4px 12px;
+}
+.apk-options ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.apk-options a {
+  display: flex;
+  flex-direction: column;
+  min-height: 44px;
+  padding-block: 10px;
+  border-top: 1px solid var(--line);
+}
+.apk-options a:hover strong {
+  text-decoration: underline;
+}
+.apk-options a span {
+  font-size: 12px;
+  color: var(--muted);
+}
 .setup-steps {
   list-style: none;
   padding: 0;

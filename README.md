@@ -1,55 +1,32 @@
 # singalong
 
-An Android companion that keeps lyrics over your music player. Made by kmab. Requires Android 12 or newer; compile/target SDK 36.
+I’m kmab, and Singalong is my Android lyrics companion. It follows music from the players you choose and keeps the lyrics in a floating window.
 
-## Status and downloads
+[Website](https://kmab5.github.io/singalong/) · [Download](https://github.com/kmab5/singalong/releases/latest) · [Feedback](https://kmab5.github.io/kmab-feedback/?product=singalong)
 
-Current version: **1.2.1 (21)** adds a Quick Settings tracking tile; its version is in `version.properties`. Download the stable APK from [GitHub Releases](https://github.com/kmab5/singalong/releases/latest). New main-branch app versions are tested, signed with the existing key, tagged and published automatically; website-only changes retain the existing release. See the [tracking tile checkpoint](docs/validation/tracking-tile-checkpoint.md) for verification and remaining phone checks.
+## Install
 
-[Website](https://kmab5.github.io/singalong/) · [GitHub Releases](https://github.com/kmab5/singalong/releases) · [Feedback](https://kmab5.github.io/kmab-feedback/?product=singalong)
+Requires **Android 12 or newer**. Download `singalong.apk` from the latest release if you’re unsure which APK to choose. Smaller downloads are available for arm64-v8a, armeabi-v7a, x86 and x86_64 when included in that release.
 
-Each GitHub Release includes `singalong.apk`, checksums, build metadata and the matching R8 crash mapping. Signed test builds are also available in successful CI runs. Install release-signed updates over the existing app to preserve data; debug APKs have a different signing key.
+Open Singalong, allow music access and select your players. Grant overlay permission when you want floating lyrics. Install updates over the existing release to keep your library.
 
-## What it does
+For a shortcut, expand Quick Settings, open **Edit**, and add **Singalong** beside your other tiles. Tap it to start or stop tracking. Adding the tile or opening the shade doesn’t start tracking.
 
-- Creates customizable lyric cards: long-press a line in Now, saved lyrics or standard floating lyrics, then choose Share lyric card. Select original lines, choose among eight roomy artwork layouts, ten curated palettes, an automatic album-art palette and seven fonts, and preview edits in a pinned rounded-square viewport. Adjust text size/weight/spacing/placement, continuous artwork scale/corners, seven background treatments and corner logo size/placement/style in a stable full-screen editor. Toggle song details, cover and app name; export a PNG through Share or Save. The corner icon stays, while the app name is optional. Selected lines can use bold/glow emphasis; file metadata is excluded. PNG filenames use the song title and one-based selected line numbers. Minimal floating mode keeps its existing long-press drag gesture; expand it to use lyric actions.
+## Features
 
-- Reads song metadata and playback position from selected music apps. No microphone or playback-audio capture; audio recognition is deferred.
-- Toggles song tracking from a **Singalong** Quick Settings tile beside Wi-Fi/Bluetooth. Open the shade's Edit controls and add the tile, then tap to start/stop. It reflects live tracking, including stops from the existing notification. Setup is required before starting; locked-device taps ask you to unlock. Opening the shade or adding the tile does not start tracking.
-- Shows glass floating lyrics in compact, expanded or minimal mode, with bottom icon controls and a draggable edge handle. Tap expanded lyrics to open Now. Missing lyrics dock after a grace period; successful lyrics restore automatically unless you manually docked or closed the panel.
-- Searches LRCLIB and lyrics.ovh, including conservative filename-derived title/artist/album hints. Preserves original metadata, source attribution and uncertainty. Lyrics are cached locally; transient failures retry with bounded attempts and provider cooldowns.
-- Offers timed following, manual scrolling, optional estimated sync for untimed lyrics, and precise sync offsets. Estimated timing is explicitly approximate.
-- Provides independent Now-tab text and current timed-line sizes, alignment, spacing, line animation, dimming and tap-to-focus controls. Optional Glow uses LRCLIB word timestamps when available and estimates progression for line-only lyrics. Its brighter highlights and slow word drift/scale retain stable wrapping during focus changes. Floating size/opacity remain separate. Settings panels fill the available width.
-- Prefers timed lyric matches and then the closest known duration for new automatic selections. Real timestamps start following automatically, including possible matches that remain labelled as uncertain. Explicit selections and personal versions are retained; untimed estimated sync is opt-in.
-- Keeps a local library, favorites and play history. Supports TXT/LRC import, simple text editing, opt-in per-line timing, personal versions and JSON backup/restore. User edits never overwrite originals.
-- Sorts saved lyrics by title, artist, album, recent playback or play count. The Library folder action scans a selected folder and subfolders, reads audio metadata/filenames locally and saves found lyrics. Existing saved matches are skipped, misses create no empty entries, and the scan supports progress/cancellation. Keep the app open; reselect the folder after an interruption to continue without saving duplicates.
-- Optionally translates opened lyrics into English through MyMemory, progressively saving translations beside originals. Language identification uses on-device ML Kit; its SDK may send usage/performance metrics to Google. Read the [privacy details](PRIVACY.md).
-- Settings → Now → Word tracking can disable per-word processing and animation while keeping line sync. Lyric options → Open in Google Translate copies the full original lyrics and attempts to prefill a browser with English output. Paste if the input opens empty; long lyrics may need sections. External results are not saved back into Singalong.
-- Offers a quiet tracking notification, About/feedback, and a next-launch prompt to review/save a recorded Java/Kotlin crash log. Feedback is submitted by the user; nothing is automatically uploaded.
+- Floating lyrics in compact, expanded or minimal mode.
+- Synced lyrics, word highlighting where available, timing adjustments and manual reading.
+- Offline library, favorites, history, folder lookup and TXT/LRC import.
+- Personal edits and JSON backup/restore.
+- Custom lyric cards with local artwork, palettes, fonts and PNG sharing.
+- Optional English translation and a Google Translate shortcut.
 
-Ten seconds of observed playback qualifies a history entry; pauses, buffering and seeking do not count as listening. Tracking resumes after a process restart only when the app is opened or the Quick Settings tile is explicitly turned on. Closing floating lyrics does not stop authorized background collection. Locks/screens-off suppress rendering, and Android may intentionally suppress overlays on sensitive screens. No universal player/device compatibility is claimed; see [compatibility](docs/validation/compatibility.md).
+Singalong reads song metadata and playback position; it doesn’t record audio. Online lookup sends song details to lyric providers, and optional translation sends lyric text to a translation service. See [privacy](PRIVACY.md).
 
-## Build and release signing
+Player support depends on the information each app exposes. Estimated timing and uncertain matches are labelled; translation and lyrics may be unavailable.
 
-Use JDK 21 and existing Android SDK platform 36/build-tools 36.0.0. Dependencies and plugins are pinned in `gradle/libs.versions.toml`; JVM bytecode targets Java 17. Configure an ignored `local.properties` or `ANDROID_HOME` for your SDK.
+## Development
 
-On the current Windows workspace:
+See [building](docs/BUILDING.md), [testing](docs/TESTING.md) and [contributing](CONTRIBUTING.md). The [documentation index](docs/README.md) covers design, providers, releases and the website.
 
-```powershell
-$env:JAVA_HOME = 'D:/Code/java/jdk-21.0.12.1'
-.\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug '-Dorg.gradle.java.home=D:/Code/java/jdk-21.0.12.1' --console=plain
-.\gradlew.bat :app:testReleaseUnitTest :app:lintRelease :app:assembleRelease '-Dorg.gradle.java.home=D:/Code/java/jdk-21.0.12.1' --console=plain
-python tools/package_release.py
-```
-
-Local SDK: `D:/Code/android-sdk`. Do not install emulators, system images or SDK packages for this workspace. Physical testing is handled by the user; compiling instrumentation tests does not mean they ran.
-
-Debug output: `app/build/outputs/apk/debug/app-debug.apk`. Release output: `app/build/outputs/apk/release/app-release.apk`. Release builds use R8/resource shrinking and require the **existing** ignored signing key and credentials. GitHub uses that same key through encrypted secrets, then checks [the pinned certificate](release-certificate.sha256). See [release/version/CI instructions](docs/RELEASING.md) and [signing continuity](docs/validation/release-signing.md).
-
-## Documentation, contributions and licensing
-
-[Documentation index](docs/README.md) · [Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Privacy](PRIVACY.md)
-
-Original project code is licensed under [GNU GPL v3](LICENSE) with the user-approved [ML Kit linking permission](LICENSE-EXCEPTION). Third-party SDKs, fonts and retrieved content retain their own terms; see [notices](NOTICE.md). No lyrics or personal data are bundled in this repository.
-
-The static site lives in `docs/`; PNG/SVG icon and wordmark exports are in `docs/assets/` and `public/docs/`. Fonts are self-hosted. See [site maintenance](docs/SITE.md). Historical phase plans/checkpoints remain dated evidence, clearly separated from the current status in the documentation index.
+Licensed under [GPL v3](LICENSE) with an [ML Kit linking exception](LICENSE-EXCEPTION). Third-party software, fonts and lyric content retain their own terms; see [notices](NOTICE.md).

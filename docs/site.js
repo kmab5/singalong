@@ -144,15 +144,46 @@
       document.querySelectorAll("[data-release-version]").forEach((label) => {
         label.textContent = release.tag_name;
       });
+      const variants = [
+        [
+          "singalong-arm64-v8a.apk",
+          "ARM64",
+          "Most modern phones, including Galaxy S25 FE",
+        ],
+        ["singalong-armeabi-v7a.apk", "ARMv7", "Older 32-bit ARM devices"],
+        ["singalong-x86_64.apk", "x86_64", "64-bit Intel or AMD devices"],
+        ["singalong-x86.apk", "x86", "32-bit Intel or AMD devices"],
+      ];
+      const downloads = document.querySelector("#apk-variants");
+      for (const [filename, label, description] of variants) {
+        const asset = release.assets.find(
+          (item) =>
+            item?.name === filename &&
+            item.browser_download_url === prefix + filename,
+        );
+        if (!asset) continue;
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = asset.browser_download_url;
+        const title = document.createElement("strong");
+        title.textContent = `${label} APK`;
+        const detail = document.createElement("span");
+        detail.textContent = description;
+        link.append(title, detail);
+        item.append(link);
+        downloads.append(item);
+      }
+      document.querySelector("#apk-options").hidden =
+        !downloads.childElementCount;
       const size =
         Number.isFinite(apk.size) && apk.size > 0
           ? ` · ${(apk.size / 1_000_000).toFixed(1)} MB`
           : "";
-      status.textContent = `${release.tag_name}${size}. Signed with the same key for updates. Checksums are on GitHub.`;
+      status.textContent = `${release.tag_name}${size}. Universal APK. Signed with the same key for updates.`;
     })
     .catch(() => {
       status.textContent =
-        "Download the latest signed APK. Release notes and checksums are on GitHub.";
+        "Download the latest signed universal APK. Release notes are on GitHub.";
     })
     .finally(() => clearTimeout(timeout));
 })();

@@ -1,7 +1,9 @@
-# Security reports
+# Security
 
-Report suspected vulnerabilities through the [kmab feedback form](https://kmab5.github.io/kmab-feedback/?product=singalong&type=bug), identifying the report as security-related. Do not publish working exploits, credentials or private user information in public issues. Include affected versions, a minimal reproduction and impact. There is no promised response SLA or bounty program.
+Report vulnerabilities through the [kmab feedback form](https://kmab5.github.io/kmab-feedback/?product=singalong&type=bug), marked as security-related. Include affected versions, a minimal reproduction and the impact. Keep exploits, credentials and private information out of public issues.
 
-The latest published release is the maintenance target. Older APKs may lack fixes. Verify release APKs using the certificate fingerprint in [release-certificate.sha256](release-certificate.sha256) and the published `SHA256SUMS`.
+I maintain the latest published release. There is no promised response time or bounty program.
 
-Never share the signing keystore/passwords. Release signing uses encrypted repository secrets and checks the certificate before artifact upload or publication. If signing material is suspected compromised, stop publishing and contact the maintainer; do not silently replace the key or attempt to overwrite an existing release.
+Release APKs must match the signing certificate in [release-certificate.sha256](release-certificate.sha256). CI checks the certificate before publication. From 1.2.2, build metadata, checksums and crash mappings are retained as CI artifacts for 90 days; public release attachments contain APKs only. Earlier releases keep their original assets.
+
+Never share the signing key or passwords. If the key may be compromised, stop publication and contact me through the feedback form. Don’t silently replace the key or overwrite a published release.

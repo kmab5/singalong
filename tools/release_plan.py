@@ -6,8 +6,9 @@ import subprocess
 import urllib.error
 import urllib.request
 from release_version import ROOT, git, parse, validate
+from release_assets import APK_NAMES
 
-REQUIRED_ASSETS = {"singalong.apk", "mapping.txt", "build-info.json", "SHA256SUMS"}
+REQUIRED_ASSETS = set(APK_NAMES.values())
 
 
 def decide(name, code, ref, release, tagged_commit, head, app_changed=False):
@@ -55,7 +56,7 @@ def main():
             raise ValueError("Published tag missing locally; fetch all tags")
         comparison = subprocess.run(["git", "diff", "--quiet", tag, "HEAD", "--", "app", "gradle",
             "gradlew", "gradlew.bat", "build.gradle.kts", "settings.gradle.kts", "gradle.properties",
-            "version.properties", "tools/package_release.py", "tools/prepare_ci_signing.py"], cwd=ROOT)
+            "version.properties", "tools/package_release.py", "tools/release_assets.py", "tools/prepare_ci_signing.py"], cwd=ROOT)
         if comparison.returncode not in (0, 1):
             raise ValueError("Could not compare published source")
         app_changed = comparison.returncode == 1

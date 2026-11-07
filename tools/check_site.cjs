@@ -75,6 +75,7 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
       await page.locator("#apk-download").getAttribute("href"),
       fallback,
     );
+    assert.equal(await page.locator("#apk-options").isVisible(), false);
     await page
       .getByRole("button", { name: "Tide palette", exact: true })
       .click();
@@ -128,7 +129,7 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
       .getByText("Where do the lyrics come from?", { exact: true })
       .click();
     assert.equal(
-      await page.locator("details").first().getAttribute("open"),
+      await page.locator(".faq details").first().getAttribute("open"),
       "",
     );
     const assets = await page
@@ -254,6 +255,7 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
       await noJs.locator("#apk-download").getAttribute("href"),
       fallback,
     );
+    assert.equal(await noJs.locator("#apk-options").isVisible(), false);
     await noJs.close();
     const release = {
       tag_name: "v1.2.0",
@@ -293,8 +295,156 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
             nodes.every((node) => node.href.endsWith("/v1.2.0/singalong.apk")),
         ),
     );
+    assert.equal(await page.locator("#apk-options").isVisible(), false);
+    const universal = release.assets[0];
+    const variantAsset = (name) => ({
+      name,
+      browser_download_url: universal.browser_download_url.replace(
+        "singalong.apk",
+        name,
+      ),
+    });
+    const variants = [
+      "singalong-arm64-v8a.apk",
+      "singalong-armeabi-v7a.apk",
+      "singalong-x86_64.apk",
+      "singalong-x86.apk",
+    ];
+    async function mockReleases(body) {
+      await page.unroute(api);
+      await page.route(api, (route) =>
+        route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify(body),
+        }),
+      );
+      await page.reload({ waitUntil: "networkidle" });
+    }
+    await mockReleases([
+      { ...release, assets: [universal, ...variants.map(variantAsset)] },
+    ]);
+    const options = page.locator("#apk-options");
+    assert.equal(await options.isVisible(), true);
+    await options.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await options.getAttribute("open"), "");
+    assert.deepEqual(
+      await options
+        .locator("a")
+        .evaluateAll((nodes) => nodes.map((node) => node.href)),
+      variants.map((name) => variantAsset(name).browser_download_url),
+    );
+    assert.match(await options.innerText(), /Galaxy S25 FE/);
+    for (const width of [320, 390, 1440]) {
+      await page.setViewportSize({ width, height: 1050 });
+      assert.ok(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      );
+      for (const link of await options.locator("a").all()) {
+        assert.ok(
+          await link.evaluate((el) => el.getBoundingClientRect().height >= 44),
+        );
+      }
+      if (width !== 320)
+        await page.locator("#download").screenshot({
+          path: path.join(root, `artifacts/site-downloads-${width}.png`),
+        });
+    }
+    // Only this release's canonical, supported APKs may become download links.
+    await mockReleases([
+      {
+        ...release,
+        assets: [
+          universal,
+          variantAsset("singalong-arm64-v8a.apk"),
+          variantAsset("unrelated.apk"),
+          {
+            name: "singalong-armeabi-v7a.apk",
+            browser_download_url: "https://example.com/evil.apk",
+          },
+          {
+            name: "singalong-x86.apk",
+            browser_download_url: "javascript:alert(1)",
+          },
+          {
+            ...variantAsset("singalong-x86_64.apk"),
+            browser_download_url:
+              "https://github.com/kmab5/singalong/releases/download/v1.1.0/singalong-x86_64.apk",
+          },
+          null,
+        ],
+      },
+    ]);
+    assert.deepEqual(
+      await options
+        .locator("a")
+        .evaluateAll((nodes) => nodes.map((node) => node.href)),
+      [variantAsset("singalong-arm64-v8a.apk").browser_download_url],
+    );
+    await mockReleases([
+      { ...release, assets: [universal, variantAsset("unrelated.apk")] },
+    ]);
+    assert.equal(await options.isVisible(), false);
+    const newerRelease = {
+      ...release,
+      tag_name: "v2.0.0",
+      assets: [universal, ...variants.map(variantAsset)].map((asset) => ({
+        ...asset,
+        browser_download_url: asset.browser_download_url.replace(
+          "v1.2.0",
+          "v2.0.0",
+        ),
+      })),
+    };
+    await mockReleases([
+      { ...newerRelease, tag_name: "v2.1.0", prerelease: true },
+      { ...newerRelease, tag_name: "v2.2.0", draft: true },
+      newerRelease,
+      release,
+    ]);
+    assert.equal(
+      await page.locator("[data-release-version]").innerText(),
+      "v2.0.0",
+    );
+    assert.equal(
+      await page.locator("#apk-download").getAttribute("href"),
+      newerRelease.assets[0].browser_download_url,
+    );
+    assert.deepEqual(
+      await options
+        .locator("a")
+        .evaluateAll((nodes) => nodes.map((node) => node.href)),
+      newerRelease.assets.slice(1).map((asset) => asset.browser_download_url),
+    );
+    assert.ok(
+      await page
+        .locator("[data-release-link]")
+        .evaluateAll((nodes) =>
+          nodes.every(
+            (node) =>
+              node.href ===
+              "https://github.com/kmab5/singalong/releases/tag/v2.0.0",
+          ),
+        ),
+    );
     for (const body of [
       "{}",
+      "null",
+      JSON.stringify([{ tag_name: "v1.2.0" }]),
+      JSON.stringify([
+        { ...release, assets: [variantAsset("singalong-arm64-v8a.apk")] },
+      ]),
+      JSON.stringify([
+        {
+          ...release,
+          assets: [
+            { name: "singalong.apk" },
+            variantAsset("singalong-arm64-v8a.apk"),
+          ],
+        },
+      ]),
       JSON.stringify([
         {
           ...release,
@@ -316,6 +466,8 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
         await page.locator("#apk-download").getAttribute("href"),
         fallback,
       );
+      assert.equal(await options.isVisible(), false);
+      assert.equal(await options.locator("a").count(), 0);
     }
     await page.unroute(api);
     await page.route(api, (route) => route.abort());
@@ -324,6 +476,7 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
       await page.locator("#apk-download").getAttribute("href"),
       fallback,
     );
+    assert.equal(await options.isVisible(), false);
     assert.deepEqual(errors, []);
     console.log(
       JSON.stringify(
@@ -337,6 +490,7 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
             "keyboard and reduced motion",
             "no-JS content",
             "release metadata and malformed/network fallback",
+            "canonical architecture downloads and legacy/partial release fallback",
             "downloads/assets/anchors",
             "no overflow or page errors",
           ],

@@ -24,4 +24,4 @@ Dependency versions are pinned in `gradle/libs.versions.toml`; Gradle resolves t
 
 ## Retrieved content
 
-LRCLIB, lyrics.ovh and MyMemory provide content under their own terms and applicable rights. Software licensing does not grant a right to redistribute a downloaded lyric collection. Release artifacts contain the application and diagnostic mapping, not a user's database, lyrics, backups or feedback files. Font license texts accompany the downloadable website font assets.
+LRCLIB, lyrics.ovh and MyMemory provide content under their own terms and applicable rights. Software licensing does not grant a right to redistribute a downloaded lyric collection. Public release attachments contain APKs only; build diagnostics remain in CI artifacts. Neither includes a user's database, lyrics, backups or feedback files. Font license texts accompany the downloadable website font assets.

@@ -9,6 +9,7 @@
 - Release preparation, GPL v3 with the ML Kit linking exception, documentation and CI are authorized. The user authorized v1.2.0 tagging/publication and automatic versioned main-branch releases on 2026-11-07. Stay on main for this website/release work. CI must verify `release-certificate.sha256` and use the existing signing key. Never move a published tag or replace its assets; new app changes require a version bump.
 - Report implemented source separately from verified behavior. Never mark a milestone passed without its evidence.
 - Keep commits focused and descriptive. Exclude machine configuration, build output, signing keys and personal data.
+- Public release uploads contain only the universal and ABI-specific APKs. Keep mappings/build metadata/checksums in CI artifacts. Do not monitor GitHub runs or poll publication status unless explicitly requested; complete local verification and push the version/tag.
 
 ## Code principles
 

@@ -1,23 +1,31 @@
-# Privacy and external services
+# Privacy
 
-Singalong reads metadata and playback position from music apps you select. It does not capture playback audio or record the microphone. Audio recognition is not implemented. Lyrics, translations, history, favorites and edits are stored in the app's local database. Android backup is disabled; exporting a backup is an explicit action.
+Singalong reads metadata and playback position from music apps you select. It doesn’t record the microphone or capture playback audio. Lyrics, translations, history, favorites and edits stay in the app’s local database. Android backup is disabled; exporting a backup is your choice.
 
-The optional Singalong Quick Settings tile starts or stops the same tracking session as the app. Adding the tile or opening the notification shade does not start tracking. Tapping to start is an explicit action, including after the app process has stopped; music access and selected players are still required. The tile adds no runtime permission or audio capture.
+## Tracking and files
 
-Online lyric lookup sends song search details, including supported filename-derived hints, to LRCLIB and lyrics.ovh. Their servers see normal network information such as IP address. Downloaded lyrics retain source attribution and are not bundled with the APK or published through this repository.
+Tracking starts through the app or an explicit Quick Settings tile tap. Adding the tile or opening the shade doesn’t start it. The tile adds no runtime permission.
 
-The optional folder scan reads files only within a folder and subfolders selected through Android's document picker. Audio is read locally for metadata and is not uploaded. Filename search hints may be stored with saved recordings and included in exported backups. No broad storage permission or permanent folder access is requested. Scanning respects the Wi-Fi-only setting and can be cancelled; successful saves remain in the library.
+Folder lookup reads only the folder and subfolders you select through Android’s document picker. Audio is read locally for metadata, never uploaded. Filename-derived search hints may be saved and included in backups. Scans respect Wi-Fi-only lookup, support cancellation and don’t request broad storage permission or permanent folder access.
 
-Lyric cards render locally from the original lines you select, the song details you choose and optional artwork. Player artwork is copied for the open draft; local cover/background images are read only through their granted URI and are never altered. The Album art palette samples predominant colors locally from the selected cover; this sends no pixels or color data to a service. Drafts and artwork are transient, not added to the library. Temporary PNGs live in a narrowly exposed cache folder; older exports are removed as new cards are created. **Share PNG** grants the chosen receiving app temporary read access; that app controls further handling. **Save PNG** writes to the destination you choose in the system document picker. Audio filename and file-folder location are not included in cards. Suggested saved PNG names contain the song title and one-based selected lyric line numbers; the system picker lets you change the name. No location permission is requested. The icon remains on cards; the app name is optional. Provider attribution remains in the saved lyric record, rather than the exported image. No card or image is automatically uploaded, and no broad storage permission is requested.
+Lyric cards render locally from selected original lines, optional song details and artwork. Album-art palettes are also generated locally. Drafts and artwork are temporary; selected source images aren’t changed. Temporary PNGs are cleaned up as new exports are created.
 
-Optional English translation sends lyric text to MyMemory after consent. MyMemory stores submitted text and applies its own limits and [terms](https://mymemory.translated.net/terms-and-conditions). Originals remain available when translation is disabled or unavailable.
+**Share PNG** grants the receiving app temporary access; that app controls subsequent handling. **Save PNG** writes to your chosen destination. Cards exclude audio filenames and folder locations, but suggested PNG names contain the song title and selected line numbers. Provider attribution remains in the saved lyric record. Nothing is automatically uploaded.
 
-Choosing **Open in Google Translate** in Lyric options copies the selected original lyrics to the system clipboard, replacing its previous contents, then attempts to send them to Google in a browser URL with automatic source detection and English output. If the receiver opens with empty input, paste the copied text. For lyrics too long for a URL, Singalong opens the English-target page without text and keeps the clipboard copy. If copying cannot safely complete, the app reports that instead of truncating lyrics. This happens only when you tap the button; Google's privacy terms and input limits apply. Text may appear in browser or clipboard history and is subject to your device's clipboard-sharing settings. This external action is separate from MyMemory and Singalong's Wi-Fi-only lookup setting; results are not imported or saved automatically.
+## External services
 
-Language identification uses Google's ML Kit on this device. Google states that input text and identification results are processed locally, but the SDK may contact Google for updates and send usage/performance metrics. See [ML Kit terms and privacy](https://developers.google.com/ml-kit/terms). Singalong has no separate application analytics service; this does not mean third-party SDKs or providers make no network requests.
+Lyric lookup sends song search details, including filename-derived hints, to LRCLIB and lyrics.ovh. Providers also see ordinary network information such as your IP address. Retrieved lyrics retain source attribution.
 
-One bounded uncaught Java/Kotlin crash log is kept in private no-backup storage. It includes app/Android versions, timestamp, exception types and code locations; exception messages, song details and lyrics are excluded. On the next launch, a prompt offers review and export. Logs are not uploaded automatically. Choosing feedback opens the kmab form; the user attaches the exported log and submits it there. Native crashes, operating-system kills and all possible ANRs are not guaranteed to be captured by this handler.
+Optional English translation sends lyric text to MyMemory after consent. MyMemory retains submitted text and applies its own limits and [terms](https://mymemory.translated.net/terms-and-conditions). Disabling translation doesn’t remove the originals.
 
-The static GitHub Pages site has no app analytics or third-party fonts. Its download section checks public GitHub release metadata; GitHub's hosting/API terms apply. The feedback form is a separate service with its own submission and attachment handling.
+**Open in Google Translate** copies the full original lyrics to the clipboard, replacing its contents, and attempts to prefill a browser with English output. Long text or receivers that ignore the link may require manual paste. Text can appear in browser or clipboard history and follows your device’s clipboard-sharing settings. This action uses Google’s terms and is separate from Singalong’s Wi-Fi-only lookup setting. Results aren’t saved back automatically.
 
-Use Settings → Library & backup to export or clear supported data. Clearing Android app storage removes local settings and content. Keep backups you want to retain before doing so.
+ML Kit identifies language on the device. Google states that input and results are processed locally, but the SDK may contact Google for updates and send usage/performance metrics. See [ML Kit terms and privacy](https://developers.google.com/ml-kit/terms). Singalong has no separate app analytics service.
+
+## Diagnostics and deletion
+
+The app keeps one bounded Java/Kotlin crash log in private no-backup storage. It records versions, a timestamp, exception types and code locations; exception messages, lyrics and song details are excluded. A next-launch prompt lets you review and export it. Logs are never uploaded automatically, and not all crashes or app freezes can be captured.
+
+The website uses GitHub Pages and requests public GitHub release metadata. It has no app analytics or third-party fonts. The feedback form is a separate service; you choose attachments and submit the report yourself.
+
+Use **Settings → Library & backup** to export or clear supported data. Clearing Android app storage removes local settings and content. Save any backup you want to keep first.

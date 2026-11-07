@@ -27,6 +27,14 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
     signingConfigs {
         create("release") {
             signingValue("storeFile", "SINGALONG_KEYSTORE_PATH")?.let { storeFile = rootProject.file(it) }
@@ -59,7 +67,7 @@ val verifyReleaseSigning by tasks.registering {
     doLast {
         check(mapOf("storeFile" to "SINGALONG_KEYSTORE_PATH", "storePassword" to "ANDROID_KEYSTORE_PASSWORD", "keyAlias" to "ANDROID_KEY_ALIAS", "keyPassword" to "ANDROID_KEY_PASSWORD").all { (key, env) ->
             !signingValue(key, env).isNullOrBlank()
-        }) { "Release signing requires local signing.properties. See docs/validation/release-signing.md." }
+        }) { "Release signing requires local signing.properties. See docs/BUILDING.md." }
         check(rootProject.file(requireNotNull(signingValue("storeFile", "SINGALONG_KEYSTORE_PATH"))).isFile) { "Release keystore is missing. Restore the existing key; do not replace it." }
     }
 }

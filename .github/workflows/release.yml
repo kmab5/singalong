@@ -67,6 +67,13 @@ jobs:
         run: bash ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest :app:testReleaseUnitTest :app:lintRelease :app:assembleRelease --console=plain
       - name: Verify signing continuity and prepare artifacts
         run: python3 tools/package_release.py
+      - name: Retain release diagnostics
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-diagnostics-${{ env.RELEASE_TAG }}
+          path: artifacts/release/diagnostics/
+          if-no-files-found: error
+          retention-days: 90
       - name: Tag the checked main commit
         run: |
           if git rev-parse --verify "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
@@ -83,7 +90,7 @@ jobs:
         run: |
           args=()
           if [[ "$RELEASE_TAG" == *-rc.* ]]; then args+=(--prerelease); else args+=(--latest); fi
-          gh release create "$RELEASE_TAG" artifacts/release/* --verify-tag --title "Singalong $RELEASE_TAG" --notes-file RELEASE_NOTES.md "${args[@]}"
+          gh release create "$RELEASE_TAG" artifacts/release/apks/*.apk --verify-tag --title "Singalong $RELEASE_TAG" --notes-file RELEASE_NOTES.md "${args[@]}"
       - name: Remove temporary key
         if: always()
         run: rm -f "$RUNNER_TEMP/singalong-release.jks"

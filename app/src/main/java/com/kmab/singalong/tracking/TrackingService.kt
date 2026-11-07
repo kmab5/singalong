@@ -42,6 +42,7 @@ class TrackingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        container.serviceCreated()
         overlay = OverlayWindowHost(this, container)
         getSystemService(AppOpsManager::class.java).startWatchingMode(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, packageName, overlayPermissionListener)
         ContextCompat.registerReceiver(this, screenReceiver, IntentFilter().apply {
@@ -77,8 +78,8 @@ class TrackingService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        // Rebinding or Android recreating a service is not a user opening the app.
-        if (!container.appOpened || intent == null || (intent.action == ACTION_START && !container.gate.active)) {
+        // Rebinding/recreation is not an explicit app-open or tile-start gesture.
+        if (!container.userSessionAuthorized || intent == null || (intent.action == ACTION_START && !container.gate.active)) {
             stopSelf()
             return START_NOT_STICKY
         }

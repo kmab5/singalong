@@ -5,6 +5,7 @@ This index describes the current source. Earlier phase plans and validation repo
 ## Current guides
 
 - [Build, features and project status](../README.md)
+- [1.2.1 Quick Settings tracking tile checkpoint](validation/tracking-tile-checkpoint.md)
 - [1.2 integration and album-art palette checkpoint](validation/1.2-main-checkpoint.md)
 - [Website overhaul and 1.2 publication checkpoint](validation/site-release-checkpoint.md)
 - [Release/version/signing workflow](RELEASING.md)
@@ -26,6 +27,8 @@ This index describes the current source. Earlier phase plans and validation repo
 
 ## Accepted changes since the initial design
 
+Version 1.2.1 adds a manually installed Singalong Quick Settings tile. Tapping it explicitly starts/stops tracking through the existing session controls; adding/viewing the tile does not resume tracking. The existing notification is unchanged. See the [tile plan](superpowers/plans/2026-11-07-tracking-tile.md).
+
 The 1.2.0 source adds draggable lyric actions and a branded card editor with eight layouts, a pinned preview, seven bundled fonts, ten curated palettes plus a locally generated album-art palette, optional metadata, selected-line emphasis, local artwork and PNG share/save. Corner logo overlays wrap nearby text; photo backgrounds remain independent of cover visibility. The draft snapshots the selected song independently of playback. Minimal floating lyrics retain their long-press movement gesture; standard floating lyrics route card actions into the activity. See the [card plan](superpowers/plans/2026-11-06-lyric-share-cards.md) and [integration plan](superpowers/plans/2026-11-06-album-palette-integration.md).
 
 The current app includes simple text editing plus an opt-in per-line timing editor, filename-aware search, optional estimated sync for untimed lyrics, minimal floating lyrics, bottom icon controls, automatic failure docking/recovery, independent Now-tab typography/motion, and a next-launch crash-report prompt. Original metadata/content is preserved; inferred matches and estimated timing remain distinguishable from verified timed lyrics.
@@ -34,7 +37,7 @@ The 1.1.0 source adds responsive floating actions, tap-only edge expansion, libr
 
 Audio recognition and microphone/playback capture remain out of scope. Supplied word timestamps are supported; generating word timestamps from audio is not. Some Android screens may suppress overlays by policy; Singalong must respect that policy. Player compatibility and device acceptance must be based on testing, not inferred from a successful build.
 
-The maintainer authorized the 1.1 merge on 2026-11-04, the lyric-card/1.2 merge on 2026-11-06, and v1.2.0 tagging/publication on 2026-11-07. Main contains **1.2.0 (20)**. Publication follows the [release guide](RELEASING.md), automatically publishes new main-branch app versions and retains the existing signing certificate. Website-only changes leave published APKs intact.
+The maintainer authorized the 1.1 merge on 2026-11-04, the lyric-card/1.2 merge on 2026-11-06, and automatic versioned main-branch releases on 2026-11-07. Main contains **1.2.1 (21)**. Publication follows the [release guide](RELEASING.md) and retains the existing signing certificate. Website-only changes leave published APKs intact.
 
 ## Historical evidence
 

@@ -2,6 +2,8 @@
 
 Singalong reads metadata and playback position from music apps you select. It does not capture playback audio or record the microphone. Audio recognition is not implemented. Lyrics, translations, history, favorites and edits are stored in the app's local database. Android backup is disabled; exporting a backup is an explicit action.
 
+The optional Singalong Quick Settings tile starts or stops the same tracking session as the app. Adding the tile or opening the notification shade does not start tracking. Tapping to start is an explicit action, including after the app process has stopped; music access and selected players are still required. The tile adds no runtime permission or audio capture.
+
 Online lyric lookup sends song search details, including supported filename-derived hints, to LRCLIB and lyrics.ovh. Their servers see normal network information such as IP address. Downloaded lyrics retain source attribution and are not bundled with the APK or published through this repository.
 
 The optional folder scan reads files only within a folder and subfolders selected through Android's document picker. Audio is read locally for metadata and is not uploaded. Filename search hints may be stored with saved recordings and included in exported backups. No broad storage permission or permanent folder access is requested. Scanning respects the Wi-Fi-only setting and can be cancelled; successful saves remain in the library.

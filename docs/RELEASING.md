@@ -4,7 +4,7 @@ The maintainer authorized v1.2.0 tagging/publication and automatic versioned mai
 
 ## One version source
 
-`version.properties` supplies the Gradle `versionName` and monotonically increasing Android `versionCode`. Names use `MAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCH-rc.N`. Current source is **1.2.0 (20)**; the next distributed app build needs a later name and an unused code above 20.
+`version.properties` supplies the Gradle `versionName` and monotonically increasing Android `versionCode`. Names use `MAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCH-rc.N`. Current source is **1.2.1 (21)**; the next distributed app build needs a later name and an unused code above 21.
 
 Use `python tools/release_version.py set <version> --code <code>`, update `RELEASE_NOTES.md` and the changelog, run checks, then commit and push main. New app versions publish automatically. You may explicitly create and push an annotated matching tag; never move/reuse a published tag. Website/documentation changes do not need a new app version or tag.
 

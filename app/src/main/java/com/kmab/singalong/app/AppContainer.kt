@@ -15,7 +15,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 data class FoundationState(val tracking: Boolean = false, val listenerConnected: Boolean = false,
-    val overlayVisible: Boolean = false, val message: String? = null)
+    val overlayVisible: Boolean = false, val message: String? = null,
+    val trackingStarting: Boolean = false, val trackingStopping: Boolean = false)
 
 private data class PanelObservation(val songId: String?, val playing: Boolean?, val status: String, val hasLyrics: Boolean, val retrying: Boolean)
 
@@ -58,7 +59,7 @@ class AppContainer(private val context: Context) {
     fun nowAppearance(value: com.kmab.singalong.settings.NowAppearance) { scope.launch { settings.nowAppearance(value) } }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, error ->
         if (error is java.io.IOException || error is android.database.sqlite.SQLiteException) {
-            serviceStopped()
+            stopTrackingWork()
             context.stopService(Intent(context, TrackingService::class.java))
             message("Local storage is unavailable. Free some space and reopen Singalong.")
         } else throw error
@@ -97,9 +98,12 @@ class AppContainer(private val context: Context) {
     val panel = mutablePanel.asStateFlow()
     private val mutablePlayers = MutableStateFlow<List<PlayerApp>>(emptyList())
     val players = mutablePlayers.asStateFlow()
-    var appOpened = false; private set
-    private var startPending = false
-    private var generation = 0
+    var userSessionAuthorized = false; private set
+    private val startPending get() = state.value.trackingStarting
+    private val startRequests = TrackingStartRequests { pending ->
+        mutableState.update { it.copy(trackingStarting = pending) }
+    }
+    private var serviceRunning = false
     private var readerVisible = false
     private var activityVisible = false
     private var screenAllowed = true
@@ -131,21 +135,27 @@ class AppContainer(private val context: Context) {
     fun hasMusicAccess() = context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context)
     private fun networkAllowed() = connection.value.permits(settings.state.value.wifiOnly)
     fun onAppOpened() {
-        appOpened = true
-        val expected = generation
+        userSessionAuthorized = true
+        val expected = startRequests.current
         scope.launch {
             val prefs = settings.state.first { it.ready }
-            if (expected == generation && prefs.trackingEnabled && !state.value.tracking && !startPending) beginTracking()
+            if (startRequests.isCurrent(expected) && prefs.trackingEnabled && !state.value.tracking && !startPending) {
+                beginTracking(startRequests.begin())
+            }
             mutablePlayers.value = PlayerCatalog(context).installed()
         }
     }
     fun enableTracking() {
-        val expected = ++generation
+        if (startPending || state.value.tracking || state.value.trackingStopping) return
+        // A tile click is explicit user authorization, including in a fresh process.
+        userSessionAuthorized = true
+        val expected = startRequests.begin()
         scope.launch {
             settings.state.first { it.ready }
-            if (expected != generation || !canStart()) return@launch
+            if (!startRequests.isCurrent(expected)) return@launch
+            if (!canStart()) { startRequests.finish(expected); return@launch }
             settings.tracking(true)
-            if (expected == generation) beginTracking()
+            if (startRequests.isCurrent(expected)) beginTracking(expected)
         }
     }
     private fun canStart(): Boolean {
@@ -153,13 +163,13 @@ class AppContainer(private val context: Context) {
         if (settings.state.value.allowedPlayers.isEmpty()) { message("Select at least one music app in settings."); return false }
         return true
     }
-    private fun beginTracking() {
-        if (!canStart()) return
-        gate.onAppOpened(true); startPending = true
+    private fun beginTracking(request: Long) {
+        if (state.value.trackingStopping || !canStart()) { startRequests.finish(request); return }
+        gate.onAppOpened(true)
         startService(TrackingService.ACTION_START)
     }
     fun disableTracking() {
-        generation++; serviceStopped()
+        stopTrackingWork()
         scope.launch { settings.tracking(false) }
         context.stopService(Intent(context, TrackingService::class.java))
     }
@@ -186,15 +196,15 @@ class AppContainer(private val context: Context) {
         if (demand != previousDemand) { previousDemand = demand; reader.visible(demand) }
     }
     fun showLyrics() {
-        if (!appOpened) return
-        val expected = ++generation
+        if (!userSessionAuthorized || state.value.trackingStopping) return
+        val expected = startRequests.begin()
         scope.launch {
             settings.state.first { it.ready }
-            if (expected != generation) return@launch
+            if (!startRequests.isCurrent(expected)) return@launch
             if (!gate.active) {
-                if (!canStart()) return@launch
+                if (!canStart()) { startRequests.finish(expected); return@launch }
                 settings.tracking(true)
-                if (expected != generation) return@launch
+                if (!startRequests.isCurrent(expected)) return@launch
                 gate.onAppOpened(true)
             }
             startService(TrackingService.ACTION_SHOW_OVERLAY)
@@ -231,11 +241,12 @@ class AppContainer(private val context: Context) {
         catch (_: SecurityException) { startFailed("Check music and notification access, then try again.") }
     }
     private fun startFailed(reason: String) {
-        serviceStopped(); context.stopService(Intent(context, TrackingService::class.java)); message(reason)
+        stopTrackingWork(); context.stopService(Intent(context, TrackingService::class.java)); message(reason)
     }
+    fun serviceCreated() { serviceRunning = true }
     fun serviceStarted() {
-        startPending = false
-        mutableState.update { it.copy(tracking = gate.active, message = null) }
+        startRequests.finish(startRequests.current)
+        mutableState.update { it.copy(tracking = gate.active, trackingStopping = false, message = null) }
         reader.tracking(gate.active)
         if (gate.active) {
             tracking.start()
@@ -244,12 +255,16 @@ class AppContainer(private val context: Context) {
         }
     }
     fun serviceStopped() {
-        startPending = false; gate.disable(); tracking.stop(); observer.stop(); reader.tracking(false)
+        serviceRunning = false
+        stopTrackingWork()
+    }
+    private fun stopTrackingWork() {
+        startRequests.cancel(); gate.disable(); tracking.stop(); observer.stop(); reader.tracking(false)
         collectionJobs.values.toList().forEach { it.cancel() }; collectionJobs.clear()
         provider.cancelRequests()
         translationProvider.cancelRequests()
         closePanel()
-        mutableState.update { it.copy(tracking = false, overlayVisible = false) }
+        mutableState.update { it.copy(tracking = false, overlayVisible = false, trackingStopping = serviceRunning) }
     }
     fun listenerConnected(connected: Boolean) {
         mutableState.update { it.copy(listenerConnected = connected) }

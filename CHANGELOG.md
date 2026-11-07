@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1 — 2026-11-07
+
+- Added a Singalong Quick Settings tile to turn song tracking on/off from the notification shade. The existing tracking notification is unchanged.
+- Tile state follows the live session, waits during startup/shutdown, and guides incomplete setups into the app. Merely opening the shade never starts tracking; locked taps require unlocking.
+
 ## 1.2.0 — 2026-11-07
 
 - Rebuilt the website around an interactive floating-lyrics demonstration, roomy lyric-card gallery, palette/format previews and direct stable APK downloads.

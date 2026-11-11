@@ -33,11 +33,12 @@ fun BackupControls(container: AppContainer) {
     var busy by remember { mutableStateOf(false) }
     var choosing by rememberSaveable { mutableStateOf(false) }
     var lyrics by rememberSaveable { mutableStateOf(LyricsBackupMode.FULL) }
+    var versionScope by rememberSaveable { mutableStateOf(LyricVersionScope.ALL) }
     var songs by rememberSaveable { mutableStateOf(true) }
     var history by rememberSaveable { mutableStateOf(true) }
     var settings by rememberSaveable { mutableStateOf(true) }
     var restoreSettings by remember { mutableStateOf(false) }
-    val options = BackupOptions(lyrics, songs, history, settings)
+    val options = BackupOptions(lyrics, songs, history, settings, versionScope)
 
     fun action(block: suspend () -> Unit) {
         if (busy) return
@@ -106,6 +107,19 @@ fun BackupControls(container: AppContainer) {
                 LyricsBackupMode.LINKS_METADATA -> "Keeps source references only. Text, personal edits, translations and timing are omitted. A source may not be available later."
                 LyricsBackupMode.NONE -> "No lyric text or source references."
             }, style = MaterialTheme.typography.bodySmall)
+            if (lyrics != LyricsBackupMode.NONE) {
+                HorizontalDivider()
+                Text("Lyric versions", style = MaterialTheme.typography.titleSmall)
+                LyricVersionScope.entries.forEach { choice ->
+                    FilterChip(selected = versionScope == choice, onClick = { versionScope = choice },
+                        modifier = Modifier.fillMaxWidth(), label = {
+                            Text(if (choice == LyricVersionScope.ALL) "All saved versions" else "Selected / preferred only")
+                        })
+                }
+                Text(if (versionScope == LyricVersionScope.ALL) "Keep every saved version, including alternate matches and personal edits."
+                    else "One version per song: your saved selection, or the recommended version if none is selected. Other versions stay in your library.",
+                    style = MaterialTheme.typography.bodySmall)
+            }
             BackupChoice("Song metadata", "Album, duration, filenames and favorites. No audio files.", songs) { songs = it }
             BackupChoice("Play history", "Play counts and last-played dates.", history) { history = it }
             BackupChoice("All settings", "Every saved preference, including music apps, tracking and translation choices, notification prompt state and appearance. Android permissions are not included.", settings) { settings = it }

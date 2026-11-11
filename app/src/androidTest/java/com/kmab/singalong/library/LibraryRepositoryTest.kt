@@ -14,6 +14,27 @@ class LibraryRepositoryTest {
     private val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, LibraryDatabase::class.java).build()
     private val repository = LibraryRepository(db)
     @After fun closeDatabase() { db.close() }
+    @Test fun preferredLinksExportHonorsSavedPersonalSelectionWithoutMutatingLibrary() = runTest {
+        val recording = repository.resolveRecording(Recording("raw", "Preferred export", listOf("Artist"), null, 120000))
+        val timed = LyricVersion("timed", recording.id, "timed-hash", LyricOrigin.PROVIDER,
+            listOf(LyricLine("line", 1000, "Provider words")), "Source", "https://example.com/song", MatchConfidence.CONFIDENT,
+            providerDurationMs = 120000)
+        repository.saveCandidates(recording, listOf(timed))
+        val personal = com.kmab.singalong.editor.LyricsEditor.import(recording.id, "Personal untimed words")
+        repository.savePersonal(personal)
+        repository.adjust(AdjustmentEntity(personal.id, 150))
+        val before = repository.exportBackup()
+        val options = BackupOptions(lyrics = LyricsBackupMode.LINKS_METADATA, versionScope = LyricVersionScope.PREFERRED)
+        val links = repository.exportBackup(options)
+        assertEquals(listOf(personal.id), links.songs.single().lyricReferences.map { it.id })
+        assertTrue(links.songs.single().versions.isEmpty())
+        assertEquals(links, links.select(options))
+        val full = repository.exportBackup(options.copy(lyrics = LyricsBackupMode.FULL))
+        assertEquals(listOf(personal), full.songs.single().versions)
+        assertEquals(listOf(personal.id), full.songs.single().adjustments.map { it.versionId })
+        assertEquals(before, repository.exportBackup())
+        assertEquals(personal.id, repository.selectedVersion(recording.id)?.id)
+    }
     @Test fun partialRestoreKeepsSameTitleRecordingsHistoryAndSelectionsSeparate() = runTest {
         val songs = listOf("first" to "Album A", "second" to "Album B").mapIndexed { index, (id, album) ->
             val recording = Recording(id, "Same title", listOf("Artist"), album, 120000L + index * 30000L)

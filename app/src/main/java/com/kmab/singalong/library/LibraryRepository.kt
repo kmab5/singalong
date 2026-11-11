@@ -101,7 +101,7 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
         val fullLyrics = options.lyrics == LyricsBackupMode.FULL
         BackupDocument(songs = dao.allRecordings().map { r ->
             val versions = if (options.lyrics != LyricsBackupMode.NONE) versions(r.id) else emptyList()
-            BackupSong(r.toModel(), r.playCount, r.lastPlayedAtMs, r.favorite, versions, if (fullLyrics) dao.selected(r.id)?.id else null,
+            BackupSong(r.toModel(), r.playCount, r.lastPlayedAtMs, r.favorite, versions, if (options.lyrics != LyricsBackupMode.NONE) dao.selected(r.id)?.id else null,
                 if (fullLyrics) versions.map { adjustment(it.id) }.map { BackupAdjustment(it.versionId, it.delayMs, it.allowUncertainSync) } else emptyList(),
                 if (fullLyrics) versions.mapNotNull { translation(it.id) } else emptyList(),
                 if (options.lyrics != LyricsBackupMode.NONE) lyricReferences(r.id).filter { ref -> versions.none { LyricReference.from(it) == ref } } else emptyList())

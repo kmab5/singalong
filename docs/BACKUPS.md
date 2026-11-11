@@ -9,6 +9,8 @@ In **Settings → Library & backup → Export backup**, choose the contents and 
 - **Play history:** play counts and last-played dates.
 - **All settings:** every persisted preference, including selected players, tracking and translation choices, notification prompt state, appearance, sorting, Wi-Fi and the backup-size limit. Android-granted permissions, caches and temporary drafts are not preferences.
 
+**Lyric versions** lets you export **All saved versions** or **Selected / preferred only**. The latter keeps one version per song: your selection first, otherwise the recommended match. It includes that version’s timing and saved translation; other versions stay in the library. This also applies to links-only exports.
+
 Lyrics and history carry song IDs, titles and artists even when full song metadata is excluded. This keeps the saved data associated with its song.
 
 ## Restore

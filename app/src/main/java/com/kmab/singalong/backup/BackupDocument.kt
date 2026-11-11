@@ -58,6 +58,8 @@ object BackupCodec {
             require(song.plays >= 0 && (song.lastPlayed ?: 0) >= 0 && (r.durationMs ?: 0) >= 0)
             require((r.fileName?.length ?: 0) <= 4096)
             require(song.versions.size <= 500)
+            require(document.options.lyrics == LyricsBackupMode.NONE || document.options.versionScope != LyricVersionScope.PREFERRED ||
+                (song.versions.map { it.id } + song.lyricReferences.map { it.id }).toSet().size <= 1) { "A preferred-only backup contains multiple lyric versions." }
             require(document.options.history || (song.plays == 0L && song.lastPlayed == null))
             require(document.options.songMetadata || (!song.favorite && r == r.identityOnly()))
             require(document.options.lyrics == LyricsBackupMode.FULL ||

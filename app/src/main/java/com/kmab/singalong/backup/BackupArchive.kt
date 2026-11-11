@@ -1,26 +1,30 @@
+@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package com.kmab.singalong.backup
 
 import com.kmab.singalong.model.LyricVersion
 import com.kmab.singalong.model.Recording
 import com.kmab.singalong.translation.TranslationRecord
-import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FilterOutputStream
 import java.io.InputStream
 import java.io.OutputStream
-import java.io.FilterOutputStream
-import java.nio.ByteBuffer
-import java.nio.charset.CodingErrorAction
+import java.io.PushbackInputStream
 import java.security.MessageDigest
+import java.util.zip.CRC32
 import java.util.zip.ZipEntry
+import java.util.zip.ZipException
+import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
-import java.util.zip.CRC32
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import kotlinx.serialization.json.encodeToStream
 
 @Serializable private data class ArchiveIndex(val format: String = "singalong", val schema: Int = 1,
     val options: BackupOptions, val entries: List<ArchiveEntry>)
-@Serializable private data class ArchiveEntry(val path: String, val bytes: Int, val sha256: String)
+@Serializable private data class ArchiveEntry(val path: String, val bytes: Long, val sha256: String)
 @Serializable private data class ArchiveDetails(val recordings: List<Recording>, val mediaFilesIncluded: Boolean = false,
     val createdAtEpochMs: Long? = null, val appVersion: String? = null)
 @Serializable private data class SongMetadata(val recording: Recording, val favorite: Boolean)
@@ -29,102 +33,122 @@ import kotlinx.serialization.json.Json
     val references: List<LyricReference>, val selected: String?, val adjustments: List<BackupAdjustment>,
     val translations: List<TranslationRecord>)
 
-/** Bounded, self-describing ZIP format. No entry is extracted to the filesystem. */
+/** Streaming ZIP format. Only a temporary archive is written; archive paths are never extracted. */
 object BackupArchive {
-    const val MAX_ENTRY_BYTES = 8 * 1024 * 1024
-    const val MAX_ENTRIES = 20_006
-    private const val MAX_ARCHIVE_BYTES = BackupCodec.MAX_BYTES + 4 * 1024 * 1024
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = false }
 
     fun write(document: BackupDocument, output: OutputStream, options: BackupOptions = document.options,
-        createdAtEpochMs: Long? = null, appVersion: String? = null) {
+        createdAtEpochMs: Long? = null, appVersion: String? = null, limits: BackupLimits = BackupLimits()) {
         require((createdAtEpochMs ?: 0) >= 0 && (appVersion?.length ?: 0) <= 100) { "Invalid backup creation details." }
         val selected = document.select(options)
         BackupCodec.validate(selected)
-        val entries = linkedMapOf<String, ByteArray>()
-        var expandedBytes = 0L
-        fun add(path: String, text: String) {
-            val bytes = text.toByteArray(Charsets.UTF_8)
-            require(bytes.size <= MAX_ENTRY_BYTES) { "A backup section exceeds 8 MiB." }
-            expandedBytes += bytes.size
-            require(entries.size < MAX_ENTRIES - 1 && expandedBytes <= BackupCodec.MAX_BYTES) { "Backup exceeds its size limit." }
-            entries[path] = bytes
-        }
-        add("details.json", json.encodeToString(ArchiveDetails(selected.songs.map { it.recording.identityOnly() },
-            createdAtEpochMs = createdAtEpochMs, appVersion = appVersion)))
-        if (options.songMetadata) add("songs.json", json.encodeToString(selected.songs.map { SongMetadata(it.recording, it.favorite) }))
-        if (options.history) add("history.json", json.encodeToString(selected.songs.map { SongHistory(it.recording.id, it.plays, it.lastPlayed) }))
-        if (options.settings) add("settings.json", json.encodeToString(selected.preferences))
-        if (options.lyrics != LyricsBackupMode.NONE) {
-            var versionIndex = 0
-            val lyrics = selected.songs.map { song ->
-                val paths = song.versions.map { version ->
-                    val path = "lyrics/${versionIndex++}.json"
-                    add(path, json.encodeToString(version)); path
-                }
-                SongLyrics(song.recording.id, paths, song.lyricReferences, song.selected, song.adjustments, song.translations)
-            }
-            add("lyrics.json", json.encodeToString(lyrics))
-        }
-        val index = json.encodeToString(ArchiveIndex(options = options, entries = entries.map { (path, bytes) -> ArchiveEntry(path, bytes.size, hash(bytes)) }))
-        require(index.toByteArray().size <= MAX_ENTRY_BYTES && entries.values.sumOf { it.size.toLong() } + index.toByteArray().size <= BackupCodec.MAX_BYTES) { "Backup exceeds 50 MiB." }
-        // Release the compressor while leaving ownership of the destination with the caller.
+        // Close the compressor while leaving the destination owned by the caller.
         ZipOutputStream(object : FilterOutputStream(output) {
             override fun write(bytes: ByteArray, offset: Int, length: Int) = output.write(bytes, offset, length)
             override fun close() = flush()
         }).use { zip ->
-            fun put(path: String, bytes: ByteArray) { zip.putNextEntry(ZipEntry(path)); zip.write(bytes); zip.closeEntry() }
-            put("index.json", index.toByteArray(Charsets.UTF_8))
-            entries.forEach { (path, bytes) -> put(path, bytes) }
+            val writer = EntryWriter(zip, BackupByteBudget(limits))
+            writer.add("details.json", ArchiveDetails(selected.songs.map { it.recording.identityOnly() },
+                createdAtEpochMs = createdAtEpochMs, appVersion = appVersion))
+            if (options.songMetadata) writer.add("songs.json", selected.songs.map { SongMetadata(it.recording, it.favorite) })
+            if (options.history) writer.add("history.json", selected.songs.map { SongHistory(it.recording.id, it.plays, it.lastPlayed) })
+            if (options.settings) writer.add("settings.json", selected.preferences)
+            if (options.lyrics != LyricsBackupMode.NONE) {
+                var versionIndex = 0L
+                val lyrics = selected.songs.map { song ->
+                    val paths = song.versions.map { version ->
+                        val path = "lyrics/${versionIndex++}.json"
+                        writer.add(path, version)
+                        path
+                    }
+                    SongLyrics(song.recording.id, paths, song.lyricReferences, song.selected, song.adjustments, song.translations)
+                }
+                writer.add("lyrics.json", lyrics)
+            }
+            // The manifest follows the streamed payloads so it needs only hashes and byte counts.
+            writer.add("index.json", ArchiveIndex(options = options, entries = writer.entries.toList()), indexed = false)
         }
     }
 
-    fun read(input: InputStream): BackupDocument {
-        val bytes = boundedRead(input, MAX_ARCHIVE_BYTES)
-        if (bytes.size < 4 || bytes[0] != 0x50.toByte() || bytes[1] != 0x4b.toByte()) {
-            return BackupCodec.decode(utf8(bytes).removePrefix("\uFEFF"))
+    fun read(input: InputStream, limits: BackupLimits = BackupLimits(), scratchDirectory: File? = null): BackupDocument {
+        val source = PushbackInputStream(input, 4)
+        val prefix = ByteArray(4)
+        var count = 0
+        while (count < prefix.size) {
+            val next = source.read(prefix, count, prefix.size - count)
+            if (next < 0) break
+            count += next
         }
-        val directory = readDirectory(bytes)
-        val entries = linkedMapOf<String, ByteArray>()
-        var total = 0L
-        ZipInputStream(bytes.inputStream()).use { zip ->
-            while (true) {
-                val entry = zip.nextEntry ?: break
-                require(!entry.isDirectory && safePath(entry.name)) { "Unsafe backup entry." }
-                require(entries.size < MAX_ENTRIES && !entries.containsKey(entry.name)) { "Duplicate or excessive backup entries." }
-                val content = boundedRead(zip, minOf(MAX_ENTRY_BYTES, (BackupCodec.MAX_BYTES - total).toInt()))
-                total += content.size
-                entries[entry.name] = content
-                zip.closeEntry()
+        val isZip = count >= 2 && prefix[0] == 0x50.toByte() && prefix[1] == 0x4b.toByte()
+        val bom = if (!isZip && count >= 3 && prefix[0] == 0xef.toByte() && prefix[1] == 0xbb.toByte() && prefix[2] == 0xbf.toByte()) 3 else 0
+        source.unread(prefix, bom, count - bom)
+        if (!isZip) return BackupCodec.decode(source, limits)
+
+        val temporary = File.createTempFile("singalong-backup-", ".zip", scratchDirectory)
+        try {
+            val compressedBudget = BackupByteBudget(BackupLimits(limits.compressedLimit()))
+            temporary.outputStream().buffered().use { destination ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val read = source.read(buffer)
+                    if (read < 0) break
+                    compressedBudget.add(read)
+                    destination.write(buffer, 0, read)
+                }
             }
+            try {
+                ZipFile(temporary).use { zip ->
+                    val entries = linkedMapOf<String, ZipEntry>()
+                    var declaredSize = 0L
+                    val directory = zip.entries()
+                    while (directory.hasMoreElements()) {
+                        val entry = directory.nextElement()
+                        require(!entry.isDirectory && safePath(entry.name) && !entries.containsKey(entry.name)) { "Duplicate or unsafe backup entries." }
+                        require(entry.size >= 0 && entry.compressedSize >= 0 && declaredSize <= Long.MAX_VALUE - entry.size) { "Invalid ZIP entry size." }
+                        declaredSize += entry.size
+                        limits.check(declaredSize)
+                        entries[entry.name] = entry
+                    }
+                    val budget = BackupByteBudget(limits)
+                    val verified = entries.mapValues { (name, entry) ->
+                        zip.getInputStream(entry).use { content ->
+                            val result = inspect(name, content, budget)
+                            require(result.bytes == entry.size && result.crc == entry.crc) { "Damaged ZIP entry: $name" }
+                            result
+                        }
+                    }
+                    verifyLocalEntries(temporary, verified, limits)
+                    return decodeArchive(zip, entries, verified)
+                }
+            } catch (failure: ZipException) {
+                throw IllegalArgumentException("Damaged or incomplete ZIP backup.", failure)
+            }
+        } finally {
+            if (!temporary.delete() && temporary.exists()) throw java.io.IOException("Could not remove temporary backup file.")
         }
-        require(entries.keys == directory.keys) { "Incomplete ZIP directory." }
-        entries.forEach { (path, content) ->
-            val entry = requireNotNull(directory[path])
-            require(entry.size == content.size.toLong() && entry.crc == CRC32().apply { update(content) }.value) { "Damaged ZIP directory." }
-        }
-        fun text(path: String) = utf8(requireNotNull(entries[path]) { "Missing backup entry: $path" })
-        val index = json.decodeFromString<ArchiveIndex>(text("index.json"))
+    }
+
+    private fun decodeArchive(zip: ZipFile, entries: Map<String, ZipEntry>, verified: Map<String, VerifiedEntry>): BackupDocument {
+        val index = decode<ArchiveIndex>(zip, entries, "index.json")
         require(index.format == "singalong" && index.schema == 1) { "Unsupported backup version. Update Singalong before restoring." }
-        require(index.options.hasContent && index.entries.size < MAX_ENTRIES)
+        require(index.options.hasContent)
         require(index.entries.map { it.path }.toSet().size == index.entries.size && index.entries.none { it.path == "index.json" }) { "Duplicate backup index entries." }
         require(entries.keys == (index.entries.map { it.path } + "index.json").toSet()) { "Backup entries do not match its index." }
         index.entries.forEach { item ->
-            val data = requireNotNull(entries[item.path])
-            require(item.bytes == data.size && item.sha256 == hash(data)) { "Damaged backup entry: ${item.path}" }
+            val entry = requireNotNull(verified[item.path])
+            require(item.bytes == entry.bytes && item.sha256 == entry.sha256) { "Damaged backup entry: ${item.path}" }
         }
-        val details = json.decodeFromString<ArchiveDetails>(text("details.json"))
+        val details = decode<ArchiveDetails>(zip, entries, "details.json")
         require(!details.mediaFilesIncluded) { "Audio files are not supported in backups." }
         require((details.createdAtEpochMs ?: 0) >= 0 && (details.appVersion?.length ?: 0) <= 100) { "Invalid backup creation details." }
-        require(details.recordings.size <= 20_000 && details.recordings.all { it == it.identityOnly() })
+        require(details.recordings.all { it == it.identityOnly() })
         val ids = details.recordings.map { it.id }.toSet()
         require(ids.size == details.recordings.size) { "Duplicate recordings." }
         val used = mutableSetOf("index.json", "details.json")
-        fun section(path: String): String { used.add(path); return text(path) }
         val options = index.options
-        val metadata = if (options.songMetadata) json.decodeFromString<List<SongMetadata>>(section("songs.json")) else emptyList()
-        val history = if (options.history) json.decodeFromString<List<SongHistory>>(section("history.json")) else emptyList()
-        val lyrics = if (options.lyrics != LyricsBackupMode.NONE) json.decodeFromString<List<SongLyrics>>(section("lyrics.json")) else emptyList()
+        val metadata = if (options.songMetadata) decode<List<SongMetadata>>(zip, entries, "songs.json".also(used::add)) else emptyList()
+        val history = if (options.history) decode<List<SongHistory>>(zip, entries, "history.json".also(used::add)) else emptyList()
+        val lyrics = if (options.lyrics != LyricsBackupMode.NONE) decode<List<SongLyrics>>(zip, entries, "lyrics.json".also(used::add)) else emptyList()
         fun requireIds(values: List<String>, included: Boolean) {
             require(values.toSet().size == values.size && (!included || values.toSet() == ids)) { "Inconsistent recording references." }
         }
@@ -141,66 +165,91 @@ object BackupArchive {
             val lyric = lyricsById[identity.id]
             val versions = lyric?.versions.orEmpty().map { path ->
                 require(path.matches(Regex("lyrics/[0-9]+\\.json")) && used.add(path)) { "Invalid or repeated lyric file reference." }
-                json.decodeFromString<LyricVersion>(text(path))
+                decode<LyricVersion>(zip, entries, path)
             }
             BackupSong(meta?.recording ?: identity, plays?.plays ?: 0, plays?.lastPlayed, meta?.favorite ?: false,
                 versions, lyric?.selected, lyric?.adjustments.orEmpty(), lyric?.translations.orEmpty(), lyric?.references.orEmpty())
         }
-        val settings = if (options.settings) json.decodeFromString<Map<String, String>>(section("settings.json")) else emptyMap()
+        val settings = if (options.settings) decode<Map<String, String>>(zip, entries, "settings.json".also(used::add)) else emptyMap()
         require(used == entries.keys) { "Unexpected backup entries." }
         return BackupDocument(songs = songs, preferences = settings, options = options).also(BackupCodec::validate)
     }
 
-    private fun boundedRead(input: InputStream, limit: Int): ByteArray {
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(8192)
-        while (true) {
-            val count = input.read(buffer)
-            if (count < 0) break
-            require(output.size().toLong() + count <= limit) { "Backup exceeds its size limit." }
-            output.write(buffer, 0, count)
-        }
-        return output.toByteArray()
+    private inline fun <reified T> decode(zip: ZipFile, entries: Map<String, ZipEntry>, path: String): T {
+        val entry = requireNotNull(entries[path]) { "Missing backup entry: $path" }
+        return zip.getInputStream(entry).use { json.decodeFromStream<T>(it) }
     }
-    private fun utf8(bytes: ByteArray): String = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
-        .decode(ByteBuffer.wrap(bytes)).toString()
-    private fun hash(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
+    private class EntryWriter(private val zip: ZipOutputStream, private val budget: BackupByteBudget) {
+        val entries = mutableListOf<ArchiveEntry>()
+        inline fun <reified T> add(path: String, value: T, indexed: Boolean = true) {
+            zip.putNextEntry(ZipEntry(path))
+            val digest = MessageDigest.getInstance("SHA-256")
+            var count = 0L
+            val output = object : OutputStream() {
+                override fun write(value: Int) {
+                    budget.add(1)
+                    count++
+                    digest.update(value.toByte())
+                    zip.write(value)
+                }
+                override fun write(bytes: ByteArray, offset: Int, length: Int) {
+                    budget.add(length)
+                    count += length
+                    digest.update(bytes, offset, length)
+                    zip.write(bytes, offset, length)
+                }
+            }
+            json.encodeToStream(value, output)
+            zip.closeEntry()
+            if (indexed) entries.add(ArchiveEntry(path, count, hex(digest.digest())))
+        }
+    }
+
+    private data class VerifiedEntry(val bytes: Long, val sha256: String, val crc: Long)
+    private fun inspect(name: String, input: InputStream, budget: BackupByteBudget): VerifiedEntry {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val crc = CRC32()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var count = 0L
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            budget.add(read)
+            require(count <= Long.MAX_VALUE - read) { "Invalid byte count for $name." }
+            count += read
+            digest.update(buffer, 0, read)
+            crc.update(buffer, 0, read)
+        }
+        return VerifiedEntry(count, hex(digest.digest()), crc.value)
+    }
+
+    /** Also inspect local headers, so central-directory aliases cannot conceal different entries. */
+    private fun verifyLocalEntries(file: File, expected: Map<String, VerifiedEntry>, limits: BackupLimits) {
+        val seen = mutableSetOf<String>()
+        val budget = BackupByteBudget(limits)
+        ZipInputStream(file.inputStream().buffered()).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                require(!entry.isDirectory && safePath(entry.name) && seen.add(entry.name)) { "Duplicate or unsafe local ZIP entries." }
+                val verified = requireNotNull(expected[entry.name]) { "Unexpected local ZIP entry." }
+                require(inspect(entry.name, zip, budget) == verified) { "Local ZIP entry differs from directory." }
+                zip.closeEntry()
+            }
+        }
+        require(seen == expected.keys) { "Incomplete ZIP directory." }
+    }
+
+    private fun hex(bytes: ByteArray): String {
+        val digits = "0123456789abcdef"
+        val characters = CharArray(bytes.size * 2)
+        bytes.forEachIndexed { index, value ->
+            val unsigned = value.toInt() and 255
+            characters[index * 2] = digits[unsigned ushr 4]
+            characters[index * 2 + 1] = digits[unsigned and 15]
+        }
+        return String(characters)
+    }
     private fun safePath(path: String): Boolean = path.length in 1..200 && !path.startsWith('/') &&
         path.split('/').all { it.isNotEmpty() && it != "." && it != ".." } && path.all { it.isLetterOrDigit() || it in "/_.-" }
-
-    private data class DirectoryEntry(val size: Long, val crc: Long)
-
-    /** Check central and local records together, rejecting truncation, duplicate names and ZIP64. */
-    private fun readDirectory(bytes: ByteArray): Map<String, DirectoryEntry> {
-        fun short(at: Int) = (bytes[at].toInt() and 255) or ((bytes[at + 1].toInt() and 255) shl 8)
-        fun uint(at: Int): Long = (0..3).sumOf { (bytes[at + it].toLong() and 255) shl (8 * it) }
-        for (at in bytes.size - 22 downTo maxOf(0, bytes.size - 65_557)) {
-            if (uint(at) != 0x06054b50L || at + 22 + short(at + 20) != bytes.size) continue
-            val count = short(at + 10)
-            require(short(at + 4) == 0 && short(at + 6) == 0 && short(at + 8) == count && count in 1..MAX_ENTRIES)
-            require(uint(at + 12) + uint(at + 16) == at.toLong()) { "Invalid ZIP directory." }
-            var cursor = uint(at + 16).toInt()
-            val result = linkedMapOf<String, DirectoryEntry>()
-            val offsets = mutableSetOf<Int>()
-            repeat(count) {
-                require(cursor >= 0 && cursor + 46 <= at && uint(cursor) == 0x02014b50L) { "Invalid ZIP directory entry." }
-                val nameLength = short(cursor + 28)
-                val end = cursor + 46 + nameLength + short(cursor + 30) + short(cursor + 32)
-                require(end <= at && short(cursor + 34) == 0)
-                val nameBytes = bytes.copyOfRange(cursor + 46, cursor + 46 + nameLength)
-                val name = utf8(nameBytes)
-                val localOffset = uint(cursor + 42)
-                require(localOffset <= bytes.size.toLong() && offsets.add(localOffset.toInt()))
-                val local = localOffset.toInt()
-                require(local >= 0 && local + 30 <= uint(at + 16) && uint(local) == 0x04034b50L) { "Missing local ZIP entry." }
-                require(local + 30 + short(local + 26) <= cursor && short(local + 26) == nameLength &&
-                    bytes.copyOfRange(local + 30, local + 30 + nameLength).contentEquals(nameBytes)) { "Inconsistent ZIP paths." }
-                require(safePath(name) && result.put(name, DirectoryEntry(uint(cursor + 24), uint(cursor + 16))) == null) { "Duplicate or unsafe ZIP paths." }
-                cursor = end
-            }
-            require(cursor == at) { "Unexpected ZIP directory data." }
-            return result
-        }
-        throw IllegalArgumentException("Incomplete ZIP backup.")
-    }
 }

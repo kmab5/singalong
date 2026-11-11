@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0-rc.2 — awaiting phone testing
+
+- Make the backup-size limit adjustable or unlimited for export and restore; remove the separate per-file cap.
+- Stream archive contents and use a temporary file for ZIP validation.
+- Export every persisted setting, including chosen players, tracking/translation preferences and notification prompt state.
+
 ## 1.3.0-rc.1 — awaiting phone testing
 
 - Add floating text alignment and independent current/other-line sizes.

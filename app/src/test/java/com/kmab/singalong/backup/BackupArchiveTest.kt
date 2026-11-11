@@ -2,6 +2,9 @@ package com.kmab.singalong.backup
 
 import com.kmab.singalong.model.*
 import java.io.ByteArrayOutputStream
+import java.nio.file.Files
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -109,9 +112,14 @@ class BackupArchiveTest {
             BackupArchive.read(zip(original + ("history.json" to "[]".toByteArray())).inputStream())
         }
     }
-    @Test fun expandedEntryLimitIsEnforced() {
-        val malicious = zip(mapOf("index.json" to ByteArray(BackupArchive.MAX_ENTRY_BYTES + 1)))
-        assertThrows(IllegalArgumentException::class.java) { BackupArchive.read(malicious.inputStream()) }
+    @Test fun adjustableLimitAppliesToWritingAndTotalExpandedReadingIncludingIndex() {
+        val valid = archive()
+        val expanded = entries(valid).values.sumOf { it.size.toLong() }
+        assertEquals(document, BackupArchive.read(valid.inputStream(), BackupLimits(expanded)))
+        assertThrows(IllegalArgumentException::class.java) { BackupArchive.read(valid.inputStream(), BackupLimits(expanded - 1)) }
+        assertThrows(IllegalArgumentException::class.java) { BackupArchive.write(document, ByteArrayOutputStream(), limits = BackupLimits(64)) }
+        assertThrows(IllegalArgumentException::class.java) { BackupLimits(0) }
+        assertThrows(IllegalArgumentException::class.java) { BackupLimits(-1) }
     }
     @Test fun duplicatePathsAndTruncatedDirectoryAreRejected() {
         val valid = archive()
@@ -124,14 +132,58 @@ class BackupArchiveTest {
         }
         assertThrows(IllegalArgumentException::class.java) { BackupArchive.read(duplicate.inputStream()) }
     }
-    @Test fun totalExpandedLimitRejectsManyIndividuallyAllowedEntries() {
-        val payload = ByteArray(BackupArchive.MAX_ENTRY_BYTES)
-        val bytes = ByteArrayOutputStream().also { output ->
-            ZipOutputStream(output).use { zip -> repeat(7) {
-                zip.putNextEntry(ZipEntry("$it.json")); zip.write(payload); zip.closeEntry()
-            } }
-        }.toByteArray()
+    @Test fun unlimitedAndLargerLimitsRoundTripValidDataBeyondFormerEntryAndTotalCaps() {
+        val lines = List(8) { LyricLine("line-$it", null, "x".repeat(100_000)) }
+        val versions = List(60) { version.copy(id = "large-$it", lines = lines) }
+        val large = document.copy(songs = listOf(document.songs.single().copy(versions = versions, selected = "large-0")),
+            preferences = mapOf("large-setting" to "s".repeat(9 * 1024 * 1024)))
+        assertThrows(IllegalArgumentException::class.java) { BackupArchive.write(large, ByteArrayOutputStream()) }
+        val bytes = ByteArrayOutputStream().also { BackupArchive.write(large, it, limits = BackupLimits(null)) }.toByteArray()
         assertThrows(IllegalArgumentException::class.java) { BackupArchive.read(bytes.inputStream()) }
+        val restored = BackupArchive.read(bytes.inputStream(), BackupLimits(null))
+        assertEquals(60, restored.songs.single().versions.size)
+        assertEquals(lines, restored.songs.single().versions.last().lines)
+        assertEquals(9 * 1024 * 1024, restored.preferences.getValue("large-setting").length)
+        assertEquals(large, BackupArchive.read(bytes.inputStream(), BackupLimits(64L * 1024 * 1024)))
+    }
+    @Test fun temporaryArchiveIsRemovedAfterSuccessFailureAndInputFailure() {
+        val directory = Files.createTempDirectory("backup-cleanup").toFile()
+        try {
+            val valid = archive()
+            assertEquals(document, BackupArchive.read(valid.inputStream(), scratchDirectory = directory))
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+            assertThrows(IllegalArgumentException::class.java) { BackupArchive.read(valid.inputStream(), BackupLimits(64), directory) }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+            val broken = object : java.io.InputStream() {
+                private val prefix = intArrayOf(0x50, 0x4b, 3, 4)
+                private var position = 0
+                override fun read(): Int = if (position < prefix.size) prefix[position++] else throw java.io.IOException("injected read failure")
+            }
+            assertThrows(java.io.IOException::class.java) { BackupArchive.read(broken, scratchDirectory = directory) }
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+        } finally { directory.delete() }
+    }
+    @Test fun readsZip64Directory() {
+        val original = archive()
+        val end = original.size - 22
+        val eocd = ByteBuffer.wrap(original, end, 22).slice().order(ByteOrder.LITTLE_ENDIAN)
+        val count = eocd.getShort(10).toLong() and 0xffff
+        val directorySize = eocd.getInt(12).toLong() and 0xffffffffL
+        val directoryOffset = eocd.getInt(16).toLong() and 0xffffffffL
+        val tail = ByteBuffer.allocate(56 + 20 + 22).order(ByteOrder.LITTLE_ENDIAN)
+        tail.putInt(0x06064b50).putLong(44).putShort(45).putShort(45).putInt(0).putInt(0)
+            .putLong(count).putLong(count).putLong(directorySize).putLong(directoryOffset)
+        tail.putInt(0x07064b50).putInt(0).putLong(end.toLong()).putInt(1)
+        tail.putInt(0x06054b50).putShort(0).putShort(0).putShort(-1).putShort(-1).putInt(-1).putInt(-1).putShort(0)
+        assertEquals(document, BackupArchive.read((original.copyOf(end) + tail.array()).inputStream()))
+    }
+    @Test fun legacyJsonUsesSelectedLimitsAndRetainsLargeSettingsValues() {
+        val settings = document.copy(preferences = (0..60).associate { "key-$it" to "x".repeat(2000) })
+        val text = BackupCodec.encode(settings, BackupLimits(null))
+        assertThrows(IllegalArgumentException::class.java) { BackupCodec.encode(settings, BackupLimits(100)) }
+        assertThrows(IllegalArgumentException::class.java) { BackupCodec.decode(text, BackupLimits(100)) }
+        assertThrows(IllegalArgumentException::class.java) { BackupArchive.read(text.byteInputStream(), BackupLimits(100)) }
+        assertEquals(settings, BackupArchive.read(text.byteInputStream(), BackupLimits(null)))
     }
     @Test fun allNonemptySectionCombinationsRoundTripWithoutReintroducingOmissions() {
         LyricsBackupMode.entries.forEach { mode ->

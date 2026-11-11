@@ -2,7 +2,7 @@ package com.kmab.singalong.settings
 
 import com.kmab.singalong.library.LibrarySort
 
-/** Portable reading preferences. Device permissions, player access and consent are never restored. */
+/** Legacy reading-settings representation, retained alongside the complete typed preference snapshot. */
 object SettingsBackup {
     fun export(p: AppSettings): Map<String, String> = mapOf(
         "wifiOnly" to p.wifiOnly.toString(), "translationSize" to p.translationSizeSp.toString(),

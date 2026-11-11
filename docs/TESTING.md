@@ -4,7 +4,7 @@ Automated checks verify logic and build output. They don’t establish phone com
 
 ## Recorded baseline
 
-For the **1.3.0-rc.1 (23)** branch candidate, local debug and release runs each passed **186 unit tests**, including selective ZIP round trips, corrupt archives, safe settings restoration and floating word-tracking eligibility. Both lint variants reported **0 errors and 33 warnings**. Debug and signed release builds passed.
+For the **1.3.0-rc.2 (24)** branch candidate, local debug and release runs each passed **195 unit tests**, including adjustable/unlimited backups above the old 50 MiB cap, ZIP64 reading, temporary-file cleanup, complete preference snapshots, pre-restore validation and floating word-tracking eligibility. Both lint variants reported **0 errors and 33 warnings**. Debug and signed release builds passed.
 
 Device tests for migration, restore identity and floating typography compile but have not been run. Phone acceptance remains pending.
 
@@ -20,11 +20,13 @@ Use synthetic lyrics in fixtures. Test ownership/cancellation, stale responses, 
 
 ## Phone checks
 
-For the **1.3.0-rc.1** branch candidate, also check:
+For the **1.3.0-rc.2** branch candidate, also check:
 
 - Set floating alignment and different current/other-line sizes; inspect compact, expanded and minimal modes, translations and large system text.
 - Play supplied word-timed lyrics, pause and seek. Turn floating word tracking off and confirm line sync continues. Check that the Now-tab word switch remains independent.
 - Export full, links-only, history-only and settings-only ZIPs. Inspect the separate files, restore twice and check the results. Try an older JSON backup as well.
+- Set a small backup limit to exercise the size error, increase it and retry, then turn it off for Unlimited. The choice must survive restart and apply to both export and restore.
+- Inspect the complete settings snapshot for selected players and tracking/translation choices. Restore settings and verify selected apps and appearance return while current tracking and translation consent stay unchanged.
 - Restore two recordings with the same title/artist but different album/duration from a partial backup; they must remain separate. Test settings restore both unchecked and checked.
 - Install over 1.2.2 to exercise the Room 3→4 migration. Existing saved versions and history must remain available.
 

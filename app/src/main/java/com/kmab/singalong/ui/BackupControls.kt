@@ -16,7 +16,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.kmab.singalong.app.AppContainer
 import com.kmab.singalong.backup.*
-import com.kmab.singalong.settings.SettingsBackup
 import com.kmab.singalong.ui.theme.SingalongColors
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -25,7 +24,9 @@ import java.io.IOException
 @Composable
 fun BackupControls(container: AppContainer) {
     val scope = rememberCoroutineScope()
-    val resolver = LocalContext.current.contentResolver
+    val context = LocalContext.current
+    val resolver = context.contentResolver
+    val preferences by container.settings.state.collectAsState()
     var message by remember { mutableStateOf<String?>(null) }
     var pending by remember { mutableStateOf<BackupDocument?>(null) }
     var clear by remember { mutableStateOf<String?>(null) }
@@ -52,12 +53,14 @@ fun BackupControls(container: AppContainer) {
     }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) action {
-            val preferences = if (options.settings) SettingsBackup.export(container.settings.state.first { it.ready }) else emptyMap()
+            val current = container.settings.state.first { it.ready }
+            val limits = BackupLimits(current.backupLimitMiB.takeIf { it > 0 }?.times(1024L * 1024))
+            val savedPreferences = if (options.settings) container.settings.exportPreferences() else emptyMap()
             withContext(Dispatchers.IO) {
-                val document = container.library.exportBackup(options).copy(preferences = preferences)
+                val document = container.library.exportBackup(options).copy(preferences = savedPreferences)
                 requireNotNull(resolver.openOutputStream(uri, "wt")) { "Could not open the backup destination." }.use {
                     BackupArchive.write(document, it, createdAtEpochMs = System.currentTimeMillis(),
-                        appVersion = com.kmab.singalong.BuildConfig.VERSION_NAME)
+                        appVersion = com.kmab.singalong.BuildConfig.VERSION_NAME, limits = limits)
                 }
             }
             message = "ZIP backup saved. Keep a second copy somewhere safe."
@@ -65,14 +68,21 @@ fun BackupControls(container: AppContainer) {
     }
     val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) action {
+            val current = container.settings.state.first { it.ready }
+            val limits = BackupLimits(current.backupLimitMiB.takeIf { it > 0 }?.times(1024L * 1024))
             pending = withContext(Dispatchers.IO) {
-                requireNotNull(resolver.openInputStream(uri)) { "Could not open the backup." }.use(BackupArchive::read)
+                requireNotNull(resolver.openInputStream(uri)) { "Could not open the backup." }.use {
+                    BackupArchive.read(it, limits, context.cacheDir)
+                }
             }
             restoreSettings = false
         }
     }
     Text("Library backup", style = MaterialTheme.typography.titleLarge)
-    Text("Choose what to keep in a ZIP: lyrics, song details, history and reading settings. Audio files are never copied.", color = SingalongColors.Muted)
+    Text("Choose what to keep in a ZIP: lyrics, song details, history and all saved settings. Audio files are never copied.", color = SingalongColors.Muted)
+    BackupSizeControls(preferences.backupLimitMiB, enabled = !busy && preferences.ready) { value ->
+        action { container.settings.backupLimit(value) }
+    }
     message?.let { Text(it) }
     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -98,7 +108,7 @@ fun BackupControls(container: AppContainer) {
             }, style = MaterialTheme.typography.bodySmall)
             BackupChoice("Song metadata", "Album, duration, filenames and favorites. No audio files.", songs) { songs = it }
             BackupChoice("Play history", "Play counts and last-played dates.", history) { history = it }
-            BackupChoice("Reading settings", "Appearance, library sorting and Wi-Fi preference. Access and consent stay on this phone.", settings) { settings = it }
+            BackupChoice("All settings", "Every saved preference, including music apps, tracking and translation choices, notification prompt state and appearance. Android permissions are not included.", settings) { settings = it }
             Text("Song titles and artists accompany lyrics and history so they can be matched when restored.", style = MaterialTheme.typography.bodySmall)
         }
     }, confirmButton = { ActionButton(enabled = options.hasContent && !busy, onClick = { choosing = false; export.launch("singalong-backup.zip") }) { Text("Save ZIP") } },
@@ -109,16 +119,19 @@ fun BackupControls(container: AppContainer) {
             Text("${document.songs.size} songs · ${document.songs.sumOf { it.versions.size }} lyric versions · ${document.songs.sumOf { it.lyricReferences.size }} source references")
             Text("Merge included data. Existing selections and personal edits stay intact. Missing sections leave your library unchanged. Source references contain no offline lyrics.")
             if (document.options.history) Text("Includes play counts and last-played dates.", style = MaterialTheme.typography.bodySmall)
-            if (document.options.settings && document.preferences.isNotEmpty()) BackupChoice("Restore reading settings", "Replace appearance, sorting and Wi-Fi preferences. Tracking, access and translation consent stay unchanged.", restoreSettings) { restoreSettings = it }
+            if (document.options.settings && document.preferences.isNotEmpty()) BackupChoice("Restore settings", "Restore saved preferences and selected music apps. Current tracking and translation consent stay unchanged; Android permissions must be granted on this phone.", restoreSettings) { restoreSettings = it }
         }
     }, confirmButton = { ActionButton(enabled = !busy, onClick = { action {
-        val added = withContext(Dispatchers.IO) { container.library.restore(document) }
+        val result = withContext(Dispatchers.IO) {
+            restoreBackup(document, restoreSettings, container.settings::validateBackupPreferences,
+                container.library::restore, container.settings::restorePreferences)
+        }
         container.reader.refreshLocal()
         pending = null
-        message = "Restored $added new library records."
-        if (restoreSettings) {
-            try { container.settings.restorePreferences(document.preferences); message = "Restored $added new library records and reading settings." }
-            catch (_: IOException) { message = "Library restored, but settings could not be written. Try restoring again." }
+        message = when (result.settings) {
+            SettingsRestoreStatus.NOT_SELECTED -> "Restored ${result.added} new library records."
+            SettingsRestoreStatus.RESTORED -> "Restored ${result.added} new library records and settings."
+            SettingsRestoreStatus.WRITE_FAILED -> "Library restored, but settings could not be written. Try restoring again."
         }
     } }) { Text("Restore") } }, dismissButton = { ActionButton(enabled = !busy, onClick = { pending = null }) { Text("Cancel") } }) }
 

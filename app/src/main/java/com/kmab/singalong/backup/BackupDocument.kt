@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package com.kmab.singalong.backup
 
 import com.kmab.singalong.model.*
@@ -5,6 +7,7 @@ import com.kmab.singalong.translation.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import java.io.InputStream
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -25,23 +28,28 @@ object BackupCodec {
         while (true) {
             val count = input.read(buffer)
             if (count < 0) break
-            require(out.size() + count <= limit) { "File is too large (limit ${limit / 1024 / 1024} MiB)." }
+            require(out.size().toLong() + count <= limit) { "File is too large (limit ${limit / 1024 / 1024} MiB)." }
             out.write(buffer, 0, count)
         }
         return Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(out.toByteArray())).toString().removePrefix("\uFEFF")
     }
-    fun encode(document: BackupDocument): String { validate(document); return json.encodeToString(document).also { require(it.toByteArray().size <= MAX_BYTES) { "Backup exceeds 50 MiB." } } }
-    fun decode(text: String): BackupDocument {
-        require(text.toByteArray().size <= MAX_BYTES) { "Backup exceeds 50 MiB." }
+    fun encode(document: BackupDocument, limits: BackupLimits = BackupLimits()): String {
+        validate(document)
+        return json.encodeToString(document).also { limits.check(it.utf8Size()) }
+    }
+    fun decode(text: String, limits: BackupLimits = BackupLimits()): BackupDocument {
+        limits.check(text.utf8Size())
         return json.decodeFromString<BackupDocument>(text).also(::validate)
     }
+    internal fun decode(input: InputStream, limits: BackupLimits): BackupDocument =
+        json.decodeFromStream<BackupDocument>(BudgetInputStream(input, BackupByteBudget(limits))).also(::validate)
     fun validate(document: BackupDocument) {
         require(document.schema == 1) { "Unsupported backup version. Update Singalong before restoring." }
         require(document.options.hasContent)
         require(document.options.settings || document.preferences.isEmpty())
         require(document.options.songMetadata || document.options.history || document.options.lyrics != LyricsBackupMode.NONE || document.songs.isEmpty())
-        require(document.songs.size <= 20_000 && document.songs.map { it.recording.id }.distinct().size == document.songs.size) { "Duplicate or excessive recordings." }
-        require(document.preferences.size <= 50 && document.preferences.all { it.key.length <= 100 && it.value.length <= 1000 })
+        require(document.songs.map { it.recording.id }.distinct().size == document.songs.size) { "Duplicate recordings." }
+        require(document.preferences.all { it.key.isNotBlank() && it.key.length <= 200 })
         val ids = mutableSetOf<String>()
         val referenceIds = mutableSetOf<String>()
         document.songs.forEach { song ->

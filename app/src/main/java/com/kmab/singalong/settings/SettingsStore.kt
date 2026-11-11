@@ -21,6 +21,7 @@ data class AppSettings(
     val allowedPlayers: Set<String> = emptySet(),
     val wifiOnly: Boolean = false,
     val notificationRequested: Boolean = false,
+    val backupLimitMiB: Long = 50,
     val opacity: Float = .85f,
     val widthDp: Float = 344f,
     val heightDp: Float = 260f,
@@ -64,6 +65,7 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
         val floatingOtherSize = floatPreferencesKey("floating_other_text_size")
         val floatingAlignment = stringPreferencesKey("floating_alignment")
         val floatingWords = booleanPreferencesKey("floating_word_tracking")
+        val backupLimit = longPreferencesKey("backup_limit_mib")
     }
     val state = store.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map(::readSettings).stateIn(scope, SharingStarted.Eagerly, AppSettings())
@@ -72,6 +74,7 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
             ready = true, translationEnabled = p[Keys.translation] == true && p[Keys.translationConsent] == true, translationSizeSp = (p[Keys.translationSize] ?: 16f).safe(10f, 22f, 16f), trackingEnabled = p[Keys.tracking] ?: false,
             allowedPlayers = p[Keys.allowed].orEmpty(), wifiOnly = p[Keys.wifi] ?: false,
             notificationRequested = p[Keys.notification] ?: false,
+            backupLimitMiB = (p[Keys.backupLimit] ?: 50L).coerceIn(0L, Long.MAX_VALUE / (1024 * 1024)),
             opacity = (p[Keys.opacity] ?: .85f).safe(.20f, .96f, .85f),
             widthDp = (p[Keys.width] ?: 344f).safe(160f, 560f, 344f),
             heightDp = (p[Keys.height] ?: 260f).safe(120f, 640f, 260f),
@@ -94,9 +97,31 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
             librarySort = com.kmab.singalong.library.LibrarySort.entries.firstOrNull { it.name == p[Keys.librarySort] } ?: com.kmab.singalong.library.LibrarySort.TITLE,
         )
 
+    suspend fun exportPreferences(): Map<String, String> {
+        val preferences = store.data.first()
+        return SettingsBackup.export(readSettings(preferences)) + PreferenceBackup.export(preferences)
+    }
+
+    suspend fun backupLimit(value: Long) {
+        require(value in 0L..Long.MAX_VALUE / (1024 * 1024))
+        store.edit { it[Keys.backupLimit] = value }
+    }
+
+    suspend fun validateBackupPreferences(values: Map<String, String>) {
+        restoredSettings(store.data.first().toMutablePreferences(), values)
+    }
+
+    private fun restoredSettings(p: MutablePreferences, values: Map<String, String>): AppSettings {
+        if (PreferenceBackup.contains(values)) PreferenceBackup.restoreInto(p, values)
+        val current = try { readSettings(p) } catch (_: ClassCastException) {
+            throw IllegalArgumentException("A saved setting has the wrong type.")
+        }
+        return SettingsBackup.merge(current, values)
+    }
+
     /** Merge against the current DataStore transaction, never a potentially stale UI snapshot. */
     suspend fun restorePreferences(values: Map<String, String>) { store.edit { p ->
-        val v = SettingsBackup.merge(readSettings(p), values)
+        val v = restoredSettings(p, values)
         p[Keys.wifi] = v.wifiOnly; p[Keys.translationSize] = v.translationSizeSp
         p[Keys.floatingCurrentSize] = v.floating.currentTextSizeSp; p[Keys.floatingOtherSize] = v.floating.otherTextSizeSp
         p[Keys.floatingAlignment] = v.floating.alignment.name; p[Keys.floatingWords] = v.floating.wordTrackingEnabled

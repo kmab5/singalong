@@ -64,6 +64,16 @@ def verify_abi(apk, abi):
         raise ValueError(f"Native libraries do not match the {abi} APK label: {sorted(actual)}")
 
 
+def verify_release_notes(apk, expected):
+    with ZipFile(apk) as archive:
+        try:
+            actual = archive.read("assets/releases.json")
+        except KeyError as error:
+            raise ValueError("APK is missing its offline release notes") from error
+    if actual != expected:
+        raise ValueError("APK release notes do not match the shared website source")
+
+
 def main():
     sdk_path = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
     local = ROOT / "local.properties"
@@ -86,6 +96,7 @@ def main():
         apk = source / outputs[abi]
         map_id = verify_mapping(apk, mapping)
         verify_abi(apk, abi)
+        verify_release_notes(apk, (ROOT / "docs/releases.json").read_bytes())
         verify_certificate(run([signer, "verify", "--verbose", "--print-certs", apk]), expected)
         badging = run([build_tools / ("aapt2" + suffix), "dump", "badging", apk])
         if "package: name='com.kmab.singalong'" not in badging or f"versionCode='{code}'" not in badging or f"versionName='{name}'" not in badging:

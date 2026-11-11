@@ -13,6 +13,10 @@ val releaseSigning = Properties().apply {
     if (credentials.exists()) credentials.inputStream().use { load(it) }
 }
 val appVersion = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
+val bundleReleaseNotes by tasks.registering(Sync::class) {
+    from(rootProject.file("docs/releases.json"))
+    into(layout.buildDirectory.dir("generated/releaseNotesAssets"))
+}
 fun signingValue(key: String, environment: String): String? = System.getenv(environment)?.takeIf { it.isNotBlank() } ?: releaseSigning.getProperty(key)
 
 android {
@@ -57,6 +61,7 @@ android {
     }
     testOptions { animationsDisabled = true }
     sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/releaseNotesAssets"))
     lint { warningsAsErrors = false }
 }
 
@@ -72,6 +77,10 @@ val verifyReleaseSigning by tasks.registering {
     }
 }
 tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(verifyReleaseSigning) }
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(bundleReleaseNotes) }
+tasks.withType<Test>().configureEach {
+    systemProperty("singalong.releaseNotes", rootProject.file("docs/releases.json").absolutePath)
+}
 
 dependencies {
     implementation(libs.androidx.core)

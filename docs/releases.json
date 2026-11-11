@@ -1,0 +1,54 @@
+{
+  "releases": [
+    {
+      "version": "1.3.0",
+      "title": "Your lyrics, your way",
+      "summary": "A more personal floating window and backups that fit what you want to keep.",
+      "sections": [
+        {
+          "kind": "new",
+          "items": [
+            {
+              "title": "Make the words fit",
+              "body": "Choose start, center or end alignment, with separate sizes for current and surrounding lines. Turn on floating word sync to follow supplied word timing without glow."
+            },
+            {
+              "title": "Choose what travels with you",
+              "body": "Build a ZIP backup with full lyrics, links and metadata, or no lyrics. Export every saved lyric version or only the preferred version per song. Choose whether to include song metadata, history and all app settings."
+            },
+            {
+              "title": "Room for your backup",
+              "body": "Adjust the backup size limit, or choose unlimited for larger collections."
+            }
+          ]
+        },
+        {
+          "kind": "improved",
+          "items": [
+            {
+              "title": "Larger backups, less overhead",
+              "body": "ZIP backups stream lyrics as separate files to keep memory use down as your library grows."
+            },
+            {
+              "title": "Your older backups still belong",
+              "body": "Import existing JSON backups alongside the new ZIP format. Preview the contents and choose whether to restore included settings."
+            }
+          ]
+        },
+        {
+          "kind": "fixed",
+          "items": [
+            {
+              "title": "Different recordings stay distinct",
+              "body": "Restoring lyrics keeps different recordings of a song separate instead of treating matching titles and artists as the same recording."
+            },
+            {
+              "title": "Check first, restore second",
+              "body": "Selected backup data is validated before restore writes begin. Invalid contents are caught before they change your library."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

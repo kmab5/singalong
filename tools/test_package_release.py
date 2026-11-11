@@ -1,11 +1,22 @@
 import unittest
-from package_release import verify_certificate, verify_mapping, release_outputs, verify_abi
+from package_release import verify_certificate, verify_mapping, release_outputs, verify_abi, verify_release_notes
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 
 class CertificateTest(unittest.TestCase):
+    def test_packaged_notes_must_match_shared_source(self):
+        with TemporaryDirectory() as folder:
+            apk = Path(folder) / 'fixture.apk'
+            with ZipFile(apk, 'w') as archive:
+                archive.writestr('assets/releases.json', b'{"releases":[]}')
+            verify_release_notes(apk, b'{"releases":[]}')
+            with self.assertRaises(ValueError): verify_release_notes(apk, b'other notes')
+            with ZipFile(apk, 'w') as archive:
+                archive.writestr('other.json', b'{}')
+            with self.assertRaises(ValueError): verify_release_notes(apk, b'{}')
+
     def test_release_outputs_reject_missing_duplicate_wrong_version_and_unsafe_paths(self):
         abis = ('arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64')
         def element(abi):

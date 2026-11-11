@@ -56,7 +56,7 @@ def main():
             raise ValueError("Published tag missing locally; fetch all tags")
         comparison = subprocess.run(["git", "diff", "--quiet", tag, "HEAD", "--", "app", "gradle",
             "gradlew", "gradlew.bat", "build.gradle.kts", "settings.gradle.kts", "gradle.properties",
-            "version.properties", "tools/package_release.py", "tools/release_assets.py", "tools/prepare_ci_signing.py"], cwd=ROOT)
+            "version.properties", "docs/releases.json", "tools/package_release.py", "tools/release_assets.py", "tools/prepare_ci_signing.py"], cwd=ROOT)
         if comparison.returncode not in (0, 1):
             raise ValueError("Could not compare published source")
         app_changed = comparison.returncode == 1

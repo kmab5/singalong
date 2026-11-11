@@ -19,6 +19,7 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
     ".html": "text/html",
     ".css": "text/css",
     ".js": "text/javascript",
+    ".json": "application/json",
     ".svg": "image/svg+xml",
     ".png": "image/png",
     ".woff2": "font/woff2",
@@ -76,6 +77,23 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
       fallback,
     );
     assert.equal(await page.locator("#apk-options").isVisible(), false);
+    const journal = JSON.parse(await fs.readFile(path.join(docs, "releases.json"), "utf8"));
+    const notes = journal.releases.find((item) => item.version === "1.3.0");
+    assert.ok(notes, "Versioned release notes are present");
+    assert.deepEqual(
+      await page.locator(".release-group h3").allTextContents(),
+      ["+New", "↗Improved", "✓Fixed"],
+    );
+    assert.deepEqual(
+      await page.locator(".release-group h4").allTextContents(),
+      notes.sections.flatMap((group) => group.items.map((item) => item.title)),
+    );
+    assert.equal(await page.locator("#notes-summary").innerText(), notes.summary);
+    assert.equal(await page.locator("#notes-fallback").isVisible(), false);
+    assert.equal(
+      await page.getByRole("link", { name: "Samuel - kmab", exact: true }).getAttribute("href"),
+      "https://kmab5.github.io",
+    );
     await page
       .getByRole("button", { name: "Tide palette", exact: true })
       .click();
@@ -157,6 +175,12 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
         ),
         `Overflow at ${width}`,
       );
+      assert.equal(await page.locator(".release-group").count(), 3);
+      assert.ok(await page.locator("#notes-content").evaluate((el) => {
+        const groups = [...el.children].map((group) => group.getBoundingClientRect());
+        return groups.every((box) => box.left >= 0 && box.right <= innerWidth) &&
+          (innerWidth > 760 || groups.every((box, i) => i === 0 || box.top >= groups[i - 1].bottom));
+      }), `Release notes overflow or overlap at ${width}`);
       assert.ok(
         await page.locator("#apk-download").evaluate((el) => {
           const r = el.getBoundingClientRect();
@@ -218,6 +242,17 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
         await page.locator("#cards").screenshot({
           path: path.join(root, `artifacts/site-cards-${width}.png`),
         });
+        await page.locator("#release-notes").screenshot({
+          path: path.join(root, `artifacts/site-notes-${width}.png`),
+          // Large element captures can include a fixed link above the viewport.
+          style: ".skip-link:not(:focus) { opacity: 0; }",
+        });
+        await page.locator("#release-notes").evaluate((el) =>
+          el.scrollIntoView({ behavior: "instant", block: "start" }),
+        );
+        await page.screenshot({
+          path: path.join(root, `artifacts/site-notes-viewport-${width}.png`),
+        });
       }
     }
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -256,6 +291,11 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
       fallback,
     );
     assert.equal(await noJs.locator("#apk-options").isVisible(), false);
+    assert.equal(await noJs.locator("#notes-fallback").isVisible(), true);
+    assert.equal(
+      await noJs.locator("#notes-fallback a").getAttribute("href"),
+      "https://github.com/kmab5/singalong/releases/tag/v1.3.0",
+    );
     await noJs.close();
     const release = {
       tag_name: "v1.2.0",
@@ -408,6 +448,10 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
       await page.locator("[data-release-version]").innerText(),
       "v2.0.0",
     );
+    assert.equal(await page.locator(".release-version").innerText(), "v1.3.0");
+    assert.equal(await page.locator("#notes-summary").innerText(), notes.summary);
+    assert.equal(await page.locator("#notes-github").getAttribute("href"),
+      "https://github.com/kmab5/singalong/releases/tag/v1.3.0");
     assert.equal(
       await page.locator("#apk-download").getAttribute("href"),
       newerRelease.assets[0].browser_download_url,
@@ -477,6 +521,29 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
       fallback,
     );
     assert.equal(await options.isVisible(), false);
+    const notesUrl = `${base}releases.json`;
+    for (const body of ["null", "{}", '{"releases":{}}', JSON.stringify({ releases: [] }),
+      JSON.stringify({ releases: [{ ...notes, sections: [{ kind: "unknown", items: [] }] }] })]) {
+      await page.route(notesUrl, (route) => route.fulfill({ contentType: "application/json", body }));
+      await page.reload({ waitUntil: "networkidle" });
+      assert.equal(await page.locator("#notes-fallback").isVisible(), true);
+      assert.equal(await page.locator("#notes-content").isVisible(), false);
+      await page.unroute(notesUrl);
+    }
+    await page.route(notesUrl, (route) => route.abort());
+    await page.reload({ waitUntil: "networkidle" });
+    assert.equal(await page.locator("#notes-fallback").isVisible(), true);
+    await page.unroute(notesUrl);
+    const literalTitle = '<img src=x onerror="window.injected = true">';
+    const escapedJournal = structuredClone(journal);
+    escapedJournal.releases[0].sections[0].items[0].title = literalTitle;
+    await page.route(notesUrl, (route) => route.fulfill({
+      contentType: "application/json", body: JSON.stringify(escapedJournal),
+    }));
+    await page.reload({ waitUntil: "networkidle" });
+    assert.equal(await page.locator(".release-group h4").first().innerText(), literalTitle);
+    assert.equal(await page.locator("#notes-content img").count(), 0);
+    assert.equal(await page.evaluate(() => window.injected), undefined);
     assert.deepEqual(errors, []);
     console.log(
       JSON.stringify(
@@ -489,6 +556,8 @@ const api = "https://api.github.com/repos/kmab5/singalong/releases?*";
             "palette/format gallery",
             "keyboard and reduced motion",
             "no-JS content",
+            "versioned release journal, mobile layout and safe text rendering",
+            "release journal malformed/network/no-JS fallback",
             "release metadata and malformed/network fallback",
             "canonical architecture downloads and legacy/partial release fallback",
             "downloads/assets/anchors",

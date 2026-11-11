@@ -1,3 +1,84 @@
+// Keep the journal tied to its own version, independently of the latest APK.
+(() => {
+  "use strict";
+  const section = document.querySelector("#release-notes");
+  const content = document.querySelector("#notes-content");
+  const fallback = document.querySelector("#notes-fallback");
+  const kinds = {
+    new: { label: "New", icon: "+" },
+    improved: { label: "Improved", icon: "↗" },
+    fixed: { label: "Fixed", icon: "✓" },
+  };
+  const isText = (value) => typeof value === "string" && value.trim().length > 0;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  fetch("releases.json", { signal: controller.signal })
+    .then((response) => {
+      if (!response.ok) throw new Error("Release journal unavailable");
+      return response.json();
+    })
+    .then((data) => {
+      const release = data?.releases?.find?.(
+        (item) => item?.version === section.dataset.notesVersion,
+      );
+      if (
+        !release || !isText(release.title) || !isText(release.summary) ||
+        !Array.isArray(release.sections) || release.sections.length !== 3 ||
+        new Set(release.sections.map((group) => group?.kind)).size !== 3 ||
+        !release.sections.every((group) =>
+          group && Object.hasOwn(kinds, group.kind) &&
+          Array.isArray(group.items) && group.items.length > 0 &&
+          group.items.every((item) => item && isText(item.title) && isText(item.body)),
+        )
+      ) throw new Error("Release journal is incomplete");
+
+      const groups = document.createDocumentFragment();
+      for (const group of release.sections) {
+        const article = document.createElement("article");
+        article.className = "release-group";
+        article.dataset.kind = group.kind;
+        const heading = document.createElement("h3");
+        const icon = document.createElement("span");
+        icon.className = "release-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = kinds[group.kind].icon;
+        heading.append(icon, document.createTextNode(kinds[group.kind].label));
+        const list = document.createElement("ul");
+        for (const item of group.items) {
+          const row = document.createElement("li");
+          const title = document.createElement("h4");
+          title.textContent = item.title;
+          const body = document.createElement("p");
+          body.textContent = item.body;
+          row.append(title, body);
+          list.append(row);
+        }
+        article.append(heading, list);
+        groups.append(article);
+      }
+      const heading = document.querySelector("#notes-heading");
+      const comma = release.title.indexOf(",");
+      if (comma >= 0) {
+        const emphasis = document.createElement("em");
+        emphasis.textContent = release.title.slice(comma + 1).trim();
+        heading.replaceChildren(
+          document.createTextNode(release.title.slice(0, comma + 1)),
+          document.createElement("br"), emphasis,
+        );
+      } else heading.textContent = release.title;
+      document.querySelector("#notes-summary").textContent = release.summary;
+      content.replaceChildren(groups);
+      content.hidden = false;
+      fallback.hidden = true;
+    })
+    .catch(() => {
+      // The static versioned link remains usable offline and without JavaScript.
+      content.hidden = true;
+      fallback.hidden = false;
+    })
+    .finally(() => clearTimeout(timeout));
+})();
+
 (() => {
   "use strict";
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");

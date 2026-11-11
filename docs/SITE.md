@@ -4,6 +4,10 @@
 
 The floating reader and lyric-card gallery use original sample text and artwork. They are interactive illustrations, not Android screenshots. Motion respects reduced-motion settings, and core content and the universal download work without JavaScript.
 
+## Release notes
+
+`releases.json` supplies the website journal and the Android About page. Gradle bundles the same file for offline reading; APK packaging checks that it matches. Keep notes labelled with their own version, independently of the latest-release download metadata. New, Improved and Fixed sections use icons and text as well as color.
+
 ## Downloads
 
 Download links default to the latest stable `singalong.apk`. A bounded GitHub API request can supply the exact version, asset size and release URL, plus architecture APK links when present. Only canonical release URLs from this repository are accepted.

@@ -24,6 +24,8 @@
   --text: #f1edf7;
   --muted: #aaa4b6;
   --accent: #bda0f5;
+  --release-improved: #a5cbd8;
+  --release-fixed: #b3ca8d;
   --line: #35303f;
   --light: #eee8f5;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -1070,6 +1072,98 @@ h2 em {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
+}
+.release-section {
+  padding-block: 100px;
+  border-top: 1px solid var(--line);
+}
+.release-heading {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 48px;
+  align-items: end;
+}
+.release-heading .eyebrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.release-version {
+  color: var(--accent);
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: 5px;
+  letter-spacing: 0;
+}
+.release-intro {
+  max-width: 430px;
+  color: var(--muted);
+}
+.release-intro .text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 20px;
+  color: var(--text);
+}
+.release-groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 40px;
+  margin-top: 56px;
+}
+.release-group {
+  --note-color: var(--accent);
+  border-top: 2px solid var(--note-color);
+  padding-top: 20px;
+}
+.release-group[data-kind="improved"] { --note-color: var(--release-improved); }
+.release-group[data-kind="fixed"] { --note-color: var(--release-fixed); }
+.release-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--note-color);
+  font-size: 16px;
+  font-weight: 550;
+}
+.release-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font: 18px/1 "PT Mono", monospace;
+}
+.release-group ul {
+  list-style: none;
+  margin: 26px 0 0;
+  padding: 0;
+}
+.release-group li + li { margin-top: 26px; }
+.release-group h4 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+.release-group li p,
+.notes-fallback {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.75;
+}
+.notes-fallback { margin-top: 32px; }
+.notes-fallback a { text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 760px) {
+  .release-section { padding-block: 64px; }
+  .release-heading { grid-template-columns: 1fr; gap: 28px; }
+  .release-groups { grid-template-columns: 1fr; gap: 36px; margin-top: 36px; }
+  .release-group ul { margin-top: 20px; }
+  .release-group li + li { margin-top: 20px; }
 }
 .download-section {
   display: grid;

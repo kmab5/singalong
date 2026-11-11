@@ -31,7 +31,7 @@
         /><span>singalong<span class="brand-credit">by kmab</span></span></a
       >
       <nav aria-label="Main navigation">
-        <a href="#experience">The experience</a><a href="#cards">Lyric cards</a
+        <a href="#experience">The experience</a><a href="#cards">Lyric cards</a><a href="#release-notes">What’s new</a
         ><a
           class="nav-download"
           data-apk-download
@@ -212,6 +212,7 @@
               <p>
                 Float above your player. Expand for the whole verse, strip it
                 back to just the words, or tuck it into the edge of your screen.
+                Set the alignment and lyric sizes to suit the way you read.
               </p>
             </div>
           </article>
@@ -222,8 +223,8 @@
             <div>
               <h3>Follow every little word.</h3>
               <p>
-                Glow follows supplied word timestamps when available. Prefer a
-                quieter view? Turn word tracking off and keep line sync.
+                Follow supplied word timestamps in the floating window without
+                glow. Prefer a quieter view? Turn off floating word sync.
               </p>
             </div>
           </article>
@@ -423,9 +424,26 @@
           </p>
           <p class="section-aside">
             Fix a word in the simple editor, or switch on timing tools when you
-            need them. Your edits stay yours.
+            need them. Your edits stay yours. Back up every saved lyric version
+            or just your preferred version per song in a ZIP. Adjust the backup
+            size limit—or go unlimited.
           </p>
         </div>
+      </section>
+
+      <section class="release-section wrap" id="release-notes" aria-labelledby="notes-heading" data-notes-version="1.3.0">
+        <div class="release-heading">
+          <div>
+            <p class="eyebrow">THE RELEASE JOURNAL <span class="release-version">v1.3.0</span></p>
+            <h2 id="notes-heading">Your lyrics,<br /><em>your way.</em></h2>
+          </div>
+          <div class="release-intro">
+            <p id="notes-summary">A more personal floating window and backups that fit what you want to keep.</p>
+            <a class="text-link" id="notes-github" href="https://github.com/kmab5/singalong/releases/tag/v1.3.0">v1.3.0 on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <div class="release-groups" id="notes-content" hidden></div>
+        <p class="notes-fallback" id="notes-fallback">Explore the v1.3.0 changes in the <a href="https://github.com/kmab5/singalong/releases/tag/v1.3.0">release notes on GitHub ↗</a>.</p>
       </section>
 
       <section
@@ -528,8 +546,8 @@
             <summary>Does every song follow automatically?</summary>
             <p>
               Following needs timestamps and playback position from your player.
-              Word glow uses supplied word timing when present; line-only timing
-              can use estimated word progression. Untimed lyrics have optional
+              Floating word sync uses supplied word timing without glow;
+              line-only timing can use estimated word progression. Untimed lyrics have optional
               experimental sync that you can turn off.
             </p>
           </details>
@@ -551,6 +569,17 @@
               the metadata and playback position exposed by your player. Some
               Android screens intentionally hide overlays; Singalong respects
               those restrictions.
+            </p>
+          </details>
+          <details>
+            <summary>Can I take my library with me?</summary>
+            <p>
+              Export a ZIP with full lyrics, links and metadata, or no lyrics.
+              Include every saved lyric version or only the preferred version
+              per song. Choose whether to include song metadata, history and all app settings.
+              Preview an import and choose whether to restore its settings. Older
+              JSON backups still work. Adjust the backup size limit or choose
+              unlimited for larger collections.
             </p>
           </details>
           <details>
@@ -582,7 +611,7 @@
       </div>
       <div class="footer-bottom">
         <span
-          >Made by <a href="https://github.com/kmab5">kmab</a> · GPL v3 with ML
+          >Made by <a href="https://kmab5.github.io">Samuel - kmab</a> · GPL v3 with ML
           Kit linking permission</span
         >
         <div>

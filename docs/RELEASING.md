@@ -1,10 +1,10 @@
 # Releasing
 
-`version.properties` is the source of the Android version name and code. Each distributed app change needs a new name and a higher code. Current feature-branch source targets **1.3.0-rc.2 (24)**. It must remain unmerged and untagged until phone testing is confirmed.
+`version.properties` is the source of the Android version name and code. Each distributed app change needs a new name and a higher code. Current source targets **1.3.0 (25)**. The maintainer confirmed testing and authorized merging, tagging and pushing this release.
 
 For the next release, use `python tools/release_version.py set VERSION --code CODE` with a later version and code. Don’t rerun the command with the current version.
 
-Update release notes and the changelog, run the [build checks](BUILDING.md), then commit and push main. A new main-branch version automatically runs tests, builds, signs, tags and publishes. Matching explicit `v*` tags and manual dispatch are also supported. Website and documentation changes can keep the existing version.
+Update `docs/releases.json` (shared by the website and the app’s offline About page), `RELEASE_NOTES.md` and the changelog, run the [build checks](BUILDING.md), then commit and push main. A new main-branch version automatically runs tests, builds, signs, tags and publishes. Matching explicit `v*` tags and manual dispatch are also supported. Website and documentation changes can keep the existing version, except changes to the bundled `docs/releases.json`, which require a new app version.
 
 ## Publication rules
 

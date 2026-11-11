@@ -4,13 +4,13 @@ Automated checks verify logic and build output. They don’t establish phone com
 
 ## Recorded baseline
 
-For the **1.3.0-rc.2 (24)** branch candidate, local debug and release runs each passed **195 unit tests**, including adjustable/unlimited backups above the old 50 MiB cap, ZIP64 reading, temporary-file cleanup, complete preference snapshots, pre-restore validation and floating word-tracking eligibility. Both lint variants reported **0 errors and 33 warnings**. Debug and signed release builds passed.
+For **1.3.0 (25)**, local debug and release runs each passed **204 unit tests**. Coverage includes preferred-version export and attachments, unlimited/large backups, ZIP64 reading, complete preference snapshots, pre-restore validation, floating word-tracking eligibility and shared release-note parsing. Debug lint reported **0 errors / 31 warnings**; release lint reported **0 errors / 33 warnings**. Debug and signed release builds passed.
 
-Device tests for migration, restore identity and floating typography compile but have not been run. Phone acceptance remains pending.
+Device tests for migration, restore identity, preferred export and floating typography compile but have not been run. The maintainer confirmed feature testing and authorized this stable release; the final preferred-export and About changes have automated checks, not additional phone verification.
 
-Local packaging verified all five candidate APKs: existing release certificate, version, matching R8 ID, intended native architecture and 16 KB ZIP alignment.
+Local packaging verified all five APKs: existing release certificate, version, matching R8 ID, intended native architecture, 16 KB ZIP alignment and release-note assets matching the website source.
 
-Thirteen release-tool tests and documentation link checks passed. The website is unchanged; its last browser checks were for 1.2.2 at five widths. GitHub runs were not monitored. No candidate tag or public release was created.
+Fourteen release-tool tests and documentation link checks passed. Website browser checks passed at five widths, including release-note content, responsive layout, download fallbacks and the author link. GitHub runs and publication status were not monitored.
 
 ## Automated checks
 
@@ -20,11 +20,12 @@ Use synthetic lyrics in fixtures. Test ownership/cancellation, stale responses, 
 
 ## Phone checks
 
-For the **1.3.0-rc.2** branch candidate, also check:
+For **1.3.0**, the targeted phone checklist is:
 
 - Set floating alignment and different current/other-line sizes; inspect compact, expanded and minimal modes, translations and large system text.
 - Play supplied word-timed lyrics, pause and seek. Turn floating word tracking off and confirm line sync continues. Check that the Now-tab word switch remains independent.
-- Export full, links-only, history-only and settings-only ZIPs. Inspect the separate files, restore twice and check the results. Try an older JSON backup as well.
+- Export full, links-only, history-only and settings-only ZIPs. Compare All saved versions with Selected / preferred only, including a selected personal edit. Inspect the separate files, restore twice and check the results. Try an older JSON backup as well.
+- Open About, expand release notes and follow the Samuel / kmab credit. Notes should work offline; the credit should open the homepage.
 - Set a small backup limit to exercise the size error, increase it and retry, then turn it off for Unlimited. The choice must survive restart and apply to both export and restore.
 - Inspect the complete settings snapshot for selected players and tracking/translation choices. Restore settings and verify selected apps and appearance return while current tracking and translation consent stay unchanged.
 - Restore two recordings with the same title/artist but different album/duration from a partial backup; they must remain separate. Test settings restore both unchecked and checked.
@@ -44,6 +45,6 @@ On a release-signed build:
 
 The primary target is a Samsung S25 FE on Android 16. Samsung Music, Spotify, SoundCloud, Musicolet and AMPlayer are compatibility targets, not a verified support list.
 
-The full player matrix, API 31 hardware coverage, device migrations/recovery and current release acceptance remain unverified here.
+The maintainer confirmed feature acceptance before release. The full player matrix, API 31 hardware coverage and device migrations/recovery have not been independently verified here. The last additions—preferred-version export and About release notes—have local automated coverage; no device execution is claimed for them.
 
 For phone results, record the app version, device/OS, player package/version, date and observed behavior. No emulator or device execution is claimed by the automated baseline.

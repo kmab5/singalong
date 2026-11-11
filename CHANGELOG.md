@@ -1,17 +1,14 @@
 # Changelog
 
-## 1.3.0-rc.2 — awaiting phone testing
+## 1.3.0 — 2026-11-11
 
-- Make the backup-size limit adjustable or unlimited for export and restore; remove the separate per-file cap.
-- Stream archive contents and use a temporary file for ZIP validation.
-- Export every persisted setting, including chosen players, tracking/translation preferences and notification prompt state.
-
-## 1.3.0-rc.1 — awaiting phone testing
-
-- Add floating text alignment and independent current/other-line sizes.
-- Highlight supplied word timing in floating lyrics without glow, with an independent off switch.
-- Add selective ZIP backups with separate lyric files, source metadata, song metadata, history and settings.
-- Keep legacy JSON restores and retain links-only references without creating empty lyrics. Allow optional reading-settings restore.
+- Add floating alignment, separate current/other-line sizes and optional supplied-timestamp word highlighting without glow.
+- Add selective ZIP backups with all saved lyric versions or only the selected/preferred version per song.
+- Export all persisted settings, with adjustable or unlimited archive size and no separate per-file cap.
+- Stream archive data, preserve legacy JSON imports and keep distinct recordings separate during restore.
+- Validate selected settings before library writes and report any later settings-write failure clearly.
+- Add styled release notes in About and on the website, sharing one content file.
+- Link the Samuel / kmab credit to the author’s homepage.
 
 ## 1.2.2 — prepared
 

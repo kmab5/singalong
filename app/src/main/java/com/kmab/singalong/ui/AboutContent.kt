@@ -3,6 +3,7 @@ package com.kmab.singalong.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Feedback
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -18,8 +19,13 @@ fun AboutContent(openLink: (String) -> Unit) {
             Text("Singalong", style = MaterialTheme.typography.headlineMedium)
             Text("Keep the words close.", color = SingalongColors.Muted)
             Text("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})${if (BuildConfig.DEBUG) " · Debug" else ""}", style = MaterialTheme.typography.labelMedium)
-            Text("Made by Samuel · kmab\nAndroid 12 and newer", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
+            ActionButton(onClick = { openLink("https://kmab5.github.io") }) {
+                Text("Made by Samuel · kmab")
+                Spacer(Modifier.width(8.dp)); Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, Modifier.size(18.dp))
+            }
+            Text("Android 12 and newer", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted)
         } }
+        AboutReleaseNotes(openLink)
         Button(onClick = { openLink(FeedbackLink.url(BuildConfig.VERSION_NAME)) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
             Icon(Icons.Outlined.Feedback, null); Spacer(Modifier.width(10.dp)); Text("Send feedback")
         }

@@ -11,4 +11,4 @@
 
 See also [privacy](../PRIVACY.md), [security](../SECURITY.md), [contributing](../CONTRIBUTING.md), [changelog](../CHANGELOG.md) and [third-party notices](../NOTICE.md).
 
-Current feature-branch source targets 1.3.0-rc.2 and awaits phone testing before merge. Prepared source, passing local checks and a published release are separate states; use [GitHub Releases](https://github.com/kmab5/singalong/releases) for available downloads.
+Current source targets 1.3.0. The maintainer confirmed feature testing and authorized the stable release. Prepared source, passing local checks and a published release are separate states; use [GitHub Releases](https://github.com/kmab5/singalong/releases) for available downloads.

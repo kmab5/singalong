@@ -57,6 +57,7 @@ class AppContainer(private val context: Context) {
         }
     }
     fun nowAppearance(value: com.kmab.singalong.settings.NowAppearance) { scope.launch { settings.nowAppearance(value) } }
+    fun floatingAppearance(value: com.kmab.singalong.settings.FloatingAppearance) { scope.launch { settings.floatingAppearance(value) } }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, error ->
         if (error is java.io.IOException || error is android.database.sqlite.SQLiteException) {
             stopTrackingWork()
@@ -92,7 +93,7 @@ class AppContainer(private val context: Context) {
     )
     val translations = com.kmab.singalong.translation.TranslationRepository(library, translationProvider)
     val reader = ReaderCoordinator(scope, tracking.current, library, repository, ::networkAllowed, SystemClock::elapsedRealtime, translations,
-        wordTrackingEnabled = { settings.state.value.now.wordTrackingEnabled },
+        wordTrackingEnabled = { screenAllowed && activityVisible && readerVisible && settings.state.value.now.wordTrackingEnabled },
         translationEnabled = { settings.state.value.translationEnabled })
     private val mutablePanel = MutableStateFlow(OverlayState())
     val panel = mutablePanel.asStateFlow()
@@ -178,7 +179,6 @@ class AppContainer(private val context: Context) {
     fun notificationRequested() { scope.launch { settings.notificationRequested() } }
     fun translation(enabled: Boolean) { scope.launch { settings.translation(enabled); reader.request() } }
     fun translationSize(value: Float) { scope.launch { settings.translationSize(value) } }
-    fun textSize(value: Float) { scope.launch { settings.textSize(value) } }
     fun opacity(value: Float) { scope.launch { settings.opacity(value) } }
     fun minimalHeight(value: Float) { scope.launch { settings.minimalHeight(value) } }
     fun minimalPanel(enabled: Boolean) { scope.launch {

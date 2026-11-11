@@ -45,13 +45,14 @@ fun lookupMessage(status: String) = when (status) {
 fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boolean = false, textSize: Float = 22f,
     translationSize: Float = 16f, onFollow: (Boolean) -> Unit = {}, onRetry: () -> Unit = {}, minimal: Boolean = false, shadowText: Boolean = false,
     appearance: NowAppearance? = null,
+    floatingAppearance: FloatingAppearance? = null,
     onLineLongPress: ((com.kmab.singalong.model.LyricVersion, Int) -> Unit)? = null,
     onLineClick: (() -> Unit)? = null) {
-    val size = appearance?.textSizeSp ?: textSize
-    val alignment = when (appearance?.alignment) { LyricAlignment.CENTER -> androidx.compose.ui.text.style.TextAlign.Center; LyricAlignment.END -> androidx.compose.ui.text.style.TextAlign.End; else -> androidx.compose.ui.text.style.TextAlign.Start }
+    val size = floatingAppearance?.otherTextSizeSp ?: appearance?.textSizeSp ?: textSize
+    val currentSize = floatingAppearance?.currentTextSizeSp ?: textSize
+    val alignment = when (floatingAppearance?.alignment ?: appearance?.alignment) { LyricAlignment.CENTER -> androidx.compose.ui.text.style.TextAlign.Center; LyricAlignment.END -> androidx.compose.ui.text.style.TextAlign.End; else -> androidx.compose.ui.text.style.TextAlign.Start }
     val animateText = appearance?.animation != LyricAnimation.NONE
     val textStyle = MaterialTheme.typography.bodyLarge.copy(shadow = if (shadowText) Shadow(Color.Black, Offset(0f, 1f), 6f) else null)
-    val subtextSize = minOf(translationSize, size - 2)
     // Do not animate the whole reader on every clock tick.
     Crossfade(state.version, modifier, animationSpec = tween(450), label = "Lyric version") { version ->
         if (version == null) {
@@ -112,20 +113,32 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = if (minimal) 12.dp else 22.dp, vertical = if (minimal) 6.dp else 10.dp),
                             verticalArrangement = Arrangement.Center) {
                             val line = version.lines.getOrNull(index)
-                            Text(line?.text?.ifBlank { "♪" } ?: state.moment.countdownSeconds?.let { "Lyrics in ${it}s" } ?: "Waiting for the first line",
-                                modifier = if (onLineLongPress != null && line?.text?.isNotBlank() == true) Modifier.fillMaxWidth().combinedClickable(
+                            val lineModifier = if (onLineLongPress != null && line?.text?.isNotBlank() == true) Modifier.fillMaxWidth().combinedClickable(
                                     onClick = { onLineClick?.invoke() }, onLongClickLabel = "Lyric actions",
-                                    onLongClick = { onFollow(false); onLineLongPress(version, index) }) else Modifier,
-                                style = textStyle, fontSize = textSize.sp, lineHeight = (textSize * 1.35f).sp, fontWeight = FontWeight.SemiBold)
+                                    onLongClick = { onFollow(false); onLineLongPress(version, index) }) else Modifier.fillMaxWidth()
+                            val currentStyle = textStyle.copy(fontSize = currentSize.sp, lineHeight = (currentSize * 1.35f).sp, fontWeight = FontWeight.SemiBold)
+                            if (floatingAppearance != null && line != null) {
+                                val wordLineEnd = remember(version.lines, index, state.snapshot?.recording?.durationMs, floatingAppearance.wordTrackingEnabled) {
+                                    if (floatingAppearance.wordTrackingEnabled) com.kmab.singalong.lyrics.WordSync.displayEnd(version.lines, index, state.snapshot?.recording?.durationMs) else null
+                                }
+                                FloatingLyricText(line, wordLineEnd, floatingAppearance.wordTrackingEnabled,
+                                    current = index == state.moment.index, playback = state.snapshot, delayMs = state.delayMs,
+                                    style = currentStyle, alignment = alignment, modifier = lineModifier)
+                            } else Text(line?.text?.ifBlank { "♪" } ?: state.moment.countdownSeconds?.let { "Lyrics in ${it}s" } ?: "Waiting for the first line",
+                                modifier = lineModifier, style = currentStyle, textAlign = alignment)
+                            val currentSubtextSize = minOf(translationSize, currentSize - 2)
                             line?.id?.let { state.translation?.lines?.get(it) }?.let {
-                                Text(it, Modifier.padding(top = if (minimal) 4.dp else 8.dp), style = textStyle, fontSize = subtextSize.sp,
-                                    lineHeight = (subtextSize * 1.4f).sp, color = SingalongColors.PurpleText)
+                                Text(it, Modifier.fillMaxWidth().padding(top = if (minimal) 4.dp else 8.dp), style = textStyle, fontSize = currentSubtextSize.sp,
+                                    lineHeight = (currentSubtextSize * 1.4f).sp, color = SingalongColors.PurpleText, textAlign = alignment)
                             }
                             if (!minimal) version.lines.getOrNull(index + 1)?.text?.takeIf { it.isNotBlank() }?.let {
-                                Text(it, Modifier.padding(top = 14.dp).then(if (onLineLongPress != null) Modifier.combinedClickable(
+                                Text(it, Modifier.fillMaxWidth().padding(top = 14.dp).then(if (onLineLongPress != null) Modifier.combinedClickable(
                                     onClick = { onLineClick?.invoke() }, onLongClickLabel = "Lyric actions",
                                     onLongClick = { onFollow(false); onLineLongPress(version, index + 1) }) else Modifier),
-                                    style = MaterialTheme.typography.bodyMedium.copy(shadow = textStyle.shadow), color = SingalongColors.Muted, maxLines = 2)
+                                    style = MaterialTheme.typography.bodyMedium.copy(shadow = textStyle.shadow),
+                                    fontSize = floatingAppearance?.otherTextSizeSp?.sp ?: MaterialTheme.typography.bodyMedium.fontSize,
+                                    lineHeight = floatingAppearance?.otherTextSizeSp?.let { (it * 1.4f).sp } ?: MaterialTheme.typography.bodyMedium.lineHeight,
+                                    textAlign = alignment, color = SingalongColors.Muted, maxLines = 2)
                             }
                         }
                     }
@@ -143,8 +156,18 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                                 onClick = { if (onLineClick != null) onLineClick() else if (appearance?.tapToFocus == true) { focusedLine = index; onFollow(false) } },
                                 onLongClickLabel = "Lyric actions", onLongClick = { onFollow(false); onLineLongPress(version, index) })
                             else if (appearance?.tapToFocus == true) Modifier.clickable(onClickLabel = "Focus lyric line") { focusedLine = index; onFollow(false) } else Modifier)) {
-                            val lineStyle = textStyle.copy(fontSize = size.sp, lineHeight = (size * (appearance?.lineSpacing ?: 1.45f)).sp, fontWeight = FontWeight.SemiBold, color = color)
-                            if (appearance != null) AnimatedLyricText(line.text, size,
+                            val lineSize by animateFloatAsState(
+                                if (floatingAppearance != null && timedActive) currentSize else size,
+                                animationSpec = if (floatingAppearance != null && animateText) tween(450, easing = FastOutSlowInEasing) else snap(),
+                                label = "Floating line size")
+                            val lineStyle = textStyle.copy(fontSize = lineSize.sp, lineHeight = (lineSize * (appearance?.lineSpacing ?: 1.45f)).sp, fontWeight = FontWeight.SemiBold, color = color)
+                            if (floatingAppearance != null) {
+                                val wordLineEnd = remember(version.lines, index, state.snapshot?.recording?.durationMs, floatingAppearance.wordTrackingEnabled, timedActive) {
+                                    if (floatingAppearance.wordTrackingEnabled && timedActive) com.kmab.singalong.lyrics.WordSync.displayEnd(version.lines, index, state.snapshot?.recording?.durationMs) else null
+                                }
+                                FloatingLyricText(line, wordLineEnd, floatingAppearance.wordTrackingEnabled, timedActive,
+                                    state.snapshot, state.delayMs, lineStyle, alignment)
+                            } else if (appearance != null) AnimatedLyricText(line.text, size,
                                 if (state.hasTiming || state.allowUncertainSync) appearance.timedTextSizeSp else size, timedActive,
                                 glow = appearance.wordTrackingEnabled && appearance.animation == LyricAnimation.WORD_GLOW && state.hasTiming,
                                 gentle = appearance.animation == LyricAnimation.FOCUS, animate = animateText,
@@ -155,9 +178,10 @@ fun LyricsReader(state: ReaderState, modifier: Modifier = Modifier, compact: Boo
                                 playback = state.snapshot, delayMs = state.delayMs,
                                 wordLineEndMs = if (appearance.wordTrackingEnabled) com.kmab.singalong.lyrics.WordSync.displayEnd(version.lines, index, state.snapshot?.recording?.durationMs) else null)
                             else Text(line.text.ifBlank { "♪" }, Modifier.fillMaxWidth(), textAlign = alignment, style = lineStyle)
+                            val lineSubtextSize = minOf(translationSize, lineSize - 2)
                             AnimatedVisibility(state.translation?.lines?.containsKey(line.id) == true) {
                                 Text(state.translation?.lines?.get(line.id).orEmpty(), Modifier.fillMaxWidth().padding(top = if (minimal) 4.dp else 8.dp), textAlign = alignment, style = textStyle,
-                                    fontSize = subtextSize.sp, lineHeight = (subtextSize * 1.5f).sp,
+                                    fontSize = lineSubtextSize.sp, lineHeight = (lineSubtextSize * 1.5f).sp,
                                     color = SingalongColors.PurpleText)
                             }
                         }

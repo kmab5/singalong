@@ -15,6 +15,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import com.kmab.singalong.ui.theme.SingalongColors
 import com.kmab.singalong.ui.theme.SingalongTheme
+import com.kmab.singalong.settings.FloatingAppearance
+import com.kmab.singalong.settings.LyricAlignment
+import androidx.compose.ui.text.style.TextAlign
 
 /** Original sample copy, explicitly a layout preview, never passed off as fetched lyrics. */
 @Composable
@@ -25,8 +28,11 @@ fun PreviewLyricsPanel(
     onClose: (() -> Unit)? = null,
     textSize: Float = 22f,
     translationSize: Float = 16f,
+    appearance: FloatingAppearance = FloatingAppearance(currentTextSizeSp = textSize),
 ) {
-    val subtextSize = minOf(translationSize, textSize - 2)
+    val currentSize = appearance.currentTextSizeSp
+    val subtextSize = minOf(translationSize, currentSize - 2)
+    val alignment = when (appearance.alignment) { LyricAlignment.START -> TextAlign.Start; LyricAlignment.CENTER -> TextAlign.Center; LyricAlignment.END -> TextAlign.End }
     Surface(modifier, shape = RoundedCornerShape(16.dp), color = SingalongColors.Surface, tonalElevation = 0.dp) {
         Column(Modifier.padding(start = 20.dp, end = 12.dp, bottom = 24.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -42,11 +48,14 @@ fun PreviewLyricsPanel(
             Row(Modifier.fillMaxWidth().padding(end = 8.dp)) {
                 Box(Modifier.padding(top = 5.dp).width(3.dp).height(if (bilingual) 78.dp else 54.dp).clip(RoundedCornerShape(2.dp)).background(SingalongColors.Purple))
                 Column(Modifier.padding(start = 16.dp).weight(1f)) {
-                    Text(if (bilingual) "La noche guarda\nnuestra voz." else "Let the next line\nfind you here.", style = MaterialTheme.typography.titleLarge, fontSize = textSize.sp, lineHeight = (textSize * 1.4f).sp)
+                    Text(if (bilingual) "La noche guarda\nnuestra voz." else "Let the next line\nfind you here.", Modifier.fillMaxWidth(), textAlign = alignment,
+                        style = MaterialTheme.typography.titleLarge, fontSize = currentSize.sp, lineHeight = (currentSize * 1.4f).sp)
                     if (bilingual) {
                         Spacer(Modifier.height(8.dp))
-                        Text("The night holds our voice.", fontSize = subtextSize.sp, lineHeight = (subtextSize * 1.4f).sp, color = SingalongColors.PurpleText)
+                        Text("The night holds our voice.", Modifier.fillMaxWidth(), textAlign = alignment, fontSize = subtextSize.sp, lineHeight = (subtextSize * 1.4f).sp, color = SingalongColors.PurpleText)
                     }
+                    Text("Another line waits below.", Modifier.fillMaxWidth().padding(top = 14.dp), textAlign = alignment,
+                        fontSize = appearance.otherTextSizeSp.sp, lineHeight = (appearance.otherTextSizeSp * 1.4f).sp, color = SingalongColors.Muted)
                 }
             }
             Spacer(Modifier.height(20.dp))

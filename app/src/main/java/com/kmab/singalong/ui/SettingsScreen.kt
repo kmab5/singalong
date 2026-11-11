@@ -89,9 +89,17 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     }
                 }
                 "appearance" -> {
-                    item { PreviewLyricsPanel(settings.translationEnabled, Modifier.fillMaxWidth(), textSize = settings.textSizeSp, translationSize = settings.translationSizeSp) }
+                    item { PreviewLyricsPanel(settings.translationEnabled, Modifier.fillMaxWidth(), translationSize = settings.translationSizeSp, appearance = settings.floating) }
                     item { ToggleSetting("Minimal floating lyrics", "Only the words. Tap to reveal controls; long-press and drag to move.", settings.minimalMode, container::minimalPanel) }
-                    item { SettingSlider("Lyric size", settings.textSizeSp, 12f..32f, "${settings.textSizeSp.roundToInt()} sp", container::textSize) }
+                    item { SettingSlider("Current floating line", settings.floating.currentTextSizeSp, 12f..32f, "${settings.floating.currentTextSizeSp.roundToInt()} sp") { container.floatingAppearance(settings.floating.copy(currentTextSizeSp = it)) } }
+                    item { SettingSlider("Other floating lines", settings.floating.otherTextSizeSp, 12f..32f, "${settings.floating.otherTextSizeSp.roundToInt()} sp") { container.floatingAppearance(settings.floating.copy(otherTextSizeSp = it)) } }
+                    item { GlassPanel(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                        Text("Floating text alignment", style = MaterialTheme.typography.titleMedium)
+                        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { LyricAlignment.entries.forEach { value ->
+                            FilterChip(settings.floating.alignment == value, { container.floatingAppearance(settings.floating.copy(alignment = value)) }, modifier = Modifier.weight(1f), label = { Text(value.name.lowercase().replaceFirstChar { it.uppercase() }) })
+                        } }
+                    } } }
+                    item { ToggleSetting("Floating word tracking", "Highlight supplied word timestamps without glow or movement. Turn off to reduce processing while keeping line sync. Independent of Now-tab tracking.", settings.floating.wordTrackingEnabled) { container.floatingAppearance(settings.floating.copy(wordTrackingEnabled = it)) } }
                     item { SettingSlider("Glass opacity", settings.opacity, .20f.. .96f, "${(settings.opacity * 100).roundToInt()}%", container::opacity) }
                     item { Text("Background blur follows your phone's settings. A text shadow helps at lower opacity; readability also depends on the app underneath.", style = MaterialTheme.typography.bodyMedium, color = SingalongColors.Muted) }
                     item { SettingSlider("Floating width", settings.widthDp, 160f..560f, "${settings.widthDp.roundToInt()} dp", { container.geometry(settings.xFraction, settings.yFraction, it, settings.heightDp) }) }

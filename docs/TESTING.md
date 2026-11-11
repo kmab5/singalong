@@ -4,11 +4,13 @@ Automated checks verify logic and build output. They don’t establish phone com
 
 ## Recorded baseline
 
-For **1.2.2 (22)**, local debug and release runs each passed **167 unit tests**. Both lint variants reported **0 errors and 33 warnings**. Debug/release builds and instrumentation-test compilation passed; instrumentation tests were not run.
+For the **1.3.0-rc.1 (23)** branch candidate, local debug and release runs each passed **186 unit tests**, including selective ZIP round trips, corrupt archives, safe settings restoration and floating word-tracking eligibility. Both lint variants reported **0 errors and 33 warnings**. Debug and signed release builds passed.
 
-Local packaging verified all five APKs: existing release certificate, version, matching R8 ID, intended native architecture and 16 KB ZIP alignment. These results apply to 1.2.2, not automatically to later source.
+Device tests for migration, restore identity and floating typography compile but have not been run. Phone acceptance remains pending.
 
-Thirteen release-tool tests passed. Website browser checks passed at five widths, including architecture links, future stable releases, partial/malformed responses and universal fallback. GitHub runs and publication status were not monitored for this update.
+Local packaging verified all five candidate APKs: existing release certificate, version, matching R8 ID, intended native architecture and 16 KB ZIP alignment.
+
+Thirteen release-tool tests and documentation link checks passed. The website is unchanged; its last browser checks were for 1.2.2 at five widths. GitHub runs were not monitored. No candidate tag or public release was created.
 
 ## Automated checks
 
@@ -17,6 +19,14 @@ Use the commands in [building](BUILDING.md). Run `:app:assembleDebugAndroidTest`
 Use synthetic lyrics in fixtures. Test ownership/cancellation, stale responses, qualification clocks, matching, timing, personal-version preservation, atomic restore and deletion races.
 
 ## Phone checks
+
+For the **1.3.0-rc.1** branch candidate, also check:
+
+- Set floating alignment and different current/other-line sizes; inspect compact, expanded and minimal modes, translations and large system text.
+- Play supplied word-timed lyrics, pause and seek. Turn floating word tracking off and confirm line sync continues. Check that the Now-tab word switch remains independent.
+- Export full, links-only, history-only and settings-only ZIPs. Inspect the separate files, restore twice and check the results. Try an older JSON backup as well.
+- Restore two recordings with the same title/artist but different album/duration from a partial backup; they must remain separate. Test settings restore both unchecked and checked.
+- Install over 1.2.2 to exercise the Room 3→4 migration. Existing saved versions and history must remain available.
 
 On a release-signed build:
 

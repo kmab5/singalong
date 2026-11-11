@@ -16,4 +16,4 @@ P0–P5 source is implemented. P6 automated verification has run, but complete p
 
 Subsequent work adds folder lookup, supplied word timing, lyric cards, the website and Quick Settings tracking. These are part of the current design; generated audio timing, audio capture, paid services and new permission scopes remain outside it.
 
-The current delivery work is [1.2.2 release packaging](2026-11-07-release-packaging.md). Device testing remains with the maintainer; no emulator or SDK-package installation is part of this work.
+The current delivery work is [floating controls and selective backups](2026-11-11-floating-backups.md), on a feature branch until phone testing is confirmed. Device testing remains with the maintainer; no emulator or SDK-package installation is part of this work.

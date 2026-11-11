@@ -3,6 +3,7 @@ package com.kmab.singalong.library
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kmab.singalong.model.*
+import com.kmab.singalong.backup.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -13,6 +14,112 @@ class LibraryRepositoryTest {
     private val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, LibraryDatabase::class.java).build()
     private val repository = LibraryRepository(db)
     @After fun closeDatabase() { db.close() }
+    @Test fun partialRestoreKeepsSameTitleRecordingsHistoryAndSelectionsSeparate() = runTest {
+        val songs = listOf("first" to "Album A", "second" to "Album B").mapIndexed { index, (id, album) ->
+            val recording = Recording(id, "Same title", listOf("Artist"), album, 120000L + index * 30000L)
+            val version = com.kmab.singalong.editor.LyricsEditor.import(id, "Original words $id")
+            BackupSong(recording, index + 2L, index + 100L, false, listOf(version), version.id)
+        }
+        val partial = BackupDocument(songs = songs).select(BackupOptions(LyricsBackupMode.FULL, false, true, false))
+        assertEquals(4, repository.restore(partial))
+        assertEquals(2, repository.entries.first().size)
+        songs.forEach { song ->
+            val row = requireNotNull(db.libraryDao().recording(song.recording.id))
+            assertEquals(song.plays, row.playCount)
+            assertEquals(song.lastPlayed, row.lastPlayedAtMs)
+            assertEquals(song.selected, repository.selectedVersion(song.recording.id)?.id)
+        }
+        val after = repository.exportBackup()
+        assertEquals(0, repository.restore(partial))
+        assertEquals(after, repository.exportBackup())
+    }
+    @Test fun fullRestoreCannotFuzzyMatchRowsCreatedByTheSameImport() = runTest {
+        val songs = listOf("first", "second").map { id ->
+            BackupSong(Recording(id, "Same title", listOf("Artist"), null, null), 1, 100, false, emptyList(), null)
+        }
+        val backup = BackupDocument(songs = songs)
+        assertEquals(2, repository.restore(backup))
+        assertEquals(setOf("first", "second"), repository.entries.first().map { it.recording.id }.toSet())
+        assertEquals(0, repository.restore(backup))
+        assertEquals(2, repository.entries.first().size)
+    }
+    @Test fun fullRestoreClaimsPreexistingMatchesOnlyOnceAndRemainsIdempotent() = runTest {
+        val existing = repository.resolveRecording(Recording("raw", "Same title", listOf("Artist"), null, null))
+        val backup = BackupDocument(songs = listOf("first", "second").mapIndexed { index, id ->
+            BackupSong(Recording(id, "Same title", listOf("Artist"), null, null), index + 1L, 100, false, emptyList(), null)
+        })
+        assertEquals(1, repository.restore(backup))
+        assertEquals(setOf(existing.id, "second"), repository.entries.first().map { it.recording.id }.toSet())
+        val after = repository.exportBackup()
+        assertEquals(0, repository.restore(backup))
+        assertEquals(after, repository.exportBackup())
+    }
+    @Test fun metadataOnlyRestoreRetainsLinksWithoutClaimingLyricsAndIsIdempotent() = runTest {
+        val recording = Recording("linked", "Linked song", listOf("Artist"), "Album", 123000)
+        val version = LyricVersion("linked-version", recording.id, "content", LyricOrigin.PROVIDER,
+            listOf(LyricLine("line", null, "Original words")), "Provider", "https://example.com/song", MatchConfidence.CONFIDENT)
+        val backup = BackupDocument(songs = listOf(BackupSong(recording, 3, 100, true, listOf(version), version.id)))
+            .select(BackupOptions(LyricsBackupMode.LINKS_METADATA))
+        assertEquals(2, repository.restore(backup))
+        assertEquals(0, repository.restore(backup))
+        val entry = repository.entries.first().single()
+        assertFalse(entry.hasLyrics)
+        assertEquals(3L, entry.playCount)
+        assertTrue(repository.versions(recording.id).isEmpty())
+        assertNull(repository.selectedVersion(recording.id))
+        assertEquals("https://example.com/song", repository.lyricReferences(recording.id).single().sourceUrl)
+        val exported = repository.exportBackup(backup.options)
+        assertEquals(backup, exported)
+    }
+    @Test fun omittedSectionsPreserveExistingHistoryMetadataLyricsAndSelection() = runTest {
+        val song = repository.resolveRecording(Recording("raw", "Selective fixture", listOf("Artist"), "Album", 200000))
+        repository.recordQualifiedPlay(song.id, "play", 100)
+        repository.favorite(song.id, true)
+        val personal = com.kmab.singalong.editor.LyricsEditor.import(song.id, "My words")
+        repository.savePersonal(personal)
+        repository.adjust(AdjustmentEntity(personal.id, 150))
+        val before = repository.exportBackup()
+        val metadata = before.select(BackupOptions(LyricsBackupMode.NONE, true, false, false))
+        assertEquals(0, repository.restore(metadata))
+        val lyrics = before.select(BackupOptions(LyricsBackupMode.FULL, false, false, false))
+        assertEquals(0, repository.restore(lyrics))
+        assertEquals(before, repository.exportBackup())
+        val settingsOnly = BackupDocument(songs = emptyList(), preferences = mapOf("theme" to "dark"),
+            options = BackupOptions(LyricsBackupMode.NONE, false, false, true))
+        assertEquals(0, repository.restore(settingsOnly))
+        assertEquals(before, repository.exportBackup())
+    }
+    @Test fun referenceFailureRollsBackRecordingAndHistoryChanges() = runTest {
+        val before = repository.exportBackup()
+        val recording = Recording("rollback-reference", "Reference fixture", emptyList(), null, null)
+        val reference = LyricReference("reference", recording.id, "hash", LyricOrigin.PROVIDER, "Source",
+            "https://example.com/lyrics", MatchConfidence.CONFIDENT)
+        val backup = BackupDocument(songs = listOf(BackupSong(recording, 1, 1, false, emptyList(), null, lyricReferences = listOf(reference))),
+            options = BackupOptions(lyrics = LyricsBackupMode.LINKS_METADATA))
+        db.openHelper.writableDatabase.execSQL("CREATE TRIGGER fail_reference BEFORE INSERT ON lyric_references BEGIN SELECT RAISE(ABORT, 'injected restore failure'); END")
+        try { repository.restore(backup); fail("Expected injected failure") } catch (_: android.database.sqlite.SQLiteException) { }
+        assertEquals(before, repository.exportBackup())
+    }
+    @Test fun fullMetadataEnrichesEarlierLinksOnlyRestoreWithoutReplacingPresentValues() = runTest {
+        val recording = Recording("enriched", "Song", listOf("Artist"), "Original album", 123000,
+            versionLabel = "Original label", fileName = "original.mp3")
+        val version = LyricVersion("enriched-lyrics", recording.id, "hash", LyricOrigin.PROVIDER,
+            listOf(LyricLine("line", null, "Original words")), "Source", "https://example.com/song", MatchConfidence.CONFIDENT)
+        val source = BackupDocument(songs = listOf(BackupSong(recording, 4, 100, false, listOf(version), version.id)))
+        repository.restore(source.select(BackupOptions(LyricsBackupMode.LINKS_METADATA, false, false, false)))
+        assertNull(repository.recording(recording.id)?.album)
+        val row = requireNotNull(db.libraryDao().recording(recording.id))
+        db.libraryDao().upsert(row.copy(fileName = "current.mp3", versionLabel = "Current label"))
+        val full = source.select(BackupOptions(LyricsBackupMode.FULL, true, false, false))
+        repository.restore(full)
+        assertEquals("Original album", repository.recording(recording.id)?.album)
+        assertEquals(123000L, repository.recording(recording.id)?.durationMs)
+        assertEquals("current.mp3", repository.recording(recording.id)?.fileName)
+        assertEquals("Current label", repository.recording(recording.id)?.versionLabel)
+        val after = repository.exportBackup()
+        assertEquals(0, repository.restore(full))
+        assertEquals(after, repository.exportBackup())
+    }
     @Test fun lateTranslationAndAdjustmentAfterClearingDownloadsAreDiscarded() = runTest {
         val song = repository.resolveRecording(Recording("raw", "Song", listOf("Artist"), null, null))
         val version = LyricVersion("provider", song.id, "hash", LyricOrigin.PROVIDER,

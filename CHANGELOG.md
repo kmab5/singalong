@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0-rc.1 — awaiting phone testing
+
+- Add floating text alignment and independent current/other-line sizes.
+- Highlight supplied word timing in floating lyrics without glow, with an independent off switch.
+- Add selective ZIP backups with separate lyric files, source metadata, song metadata, history and settings.
+- Keep legacy JSON restores and retain links-only references without creating empty lyrics. Allow optional reading-settings restore.
+
 ## 1.2.2 — prepared
 
 - Add arm64-v8a, armeabi-v7a, x86 and x86_64 APKs alongside the universal APK in one release.

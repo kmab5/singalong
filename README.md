@@ -14,10 +14,10 @@ For a shortcut, expand Quick Settings, open **Edit**, and add **Singalong** besi
 
 ## Features
 
-- Floating lyrics in compact, expanded or minimal mode.
+- Floating lyrics in compact, expanded or minimal mode, with alignment and separate current/other-line sizes.
 - Synced lyrics, word highlighting where available, timing adjustments and manual reading.
 - Offline library, favorites, history, folder lookup and TXT/LRC import.
-- Personal edits and JSON backup/restore.
+- Personal edits and selective ZIP backups; older JSON backups can still be restored.
 - Custom lyric cards with local artwork, palettes, fonts and PNG sharing.
 - Optional English translation and a Google Translate shortcut.
 

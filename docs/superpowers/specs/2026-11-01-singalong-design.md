@@ -36,7 +36,7 @@ Compact, expanded and minimal modes share the same live song state. Keep drag, r
 
 Manual close/minimize persists through song changes. Automatic pause docking after 15 seconds can restore on resume. Missing-lyrics docking can recover when lyrics arrive, unless the user manually changed visibility. Closing the panel doesn’t disable background tracking.
 
-Use semantic dark kmab tokens, Inter for reading/UI and PT Mono for utility text. Original lyrics stay primary; English subtext is secondary. Support 48 dp touch targets, scalable text, RTL, TalkBack and reduced motion. Now-reader styling and floating size/opacity are independent.
+Use semantic dark kmab tokens, Inter for reading/UI and PT Mono for utility text. Original lyrics stay primary; English subtext is secondary. Support 48 dp touch targets, scalable text, RTL, TalkBack and reduced motion. Now-reader styling and floating appearance are independent. Floating lyrics offer alignment, separate current/other-line sizes and optional supplied-timestamp word highlighting without glow.
 
 ## Library, edits and recovery
 
@@ -44,7 +44,7 @@ Keep favorites, versions and play history local. Support TXT/LRC import, simple 
 
 Save edits as personal versions; preserve provider originals and explicit selection. Discard stale word timing for changed text and invalidate translations tied to old content.
 
-Backups are versioned JSON. Validate before transactional merge; reject malformed or unsupported schemas without mutation. Deduplicate repeated restores and retain distinct personal versions. Keep existing explicit selections, favorites and preferences on conflicts; merge overlapping history counts by maximum rather than addition. Exclude permissions, process authorization, credentials and transient artwork. Restore must not activate tracking.
+Backups are selective ZIP archives with separate JSON sections and individual lyric files. Keep legacy JSON imports. Validate before transactional library merge; reject malformed or unsupported schemas without mutation. Deduplicate repeated restores and retain distinct recordings and personal versions. Keep existing explicit selections and favorites on conflicts; merge overlapping history counts by maximum rather than addition. Reading-settings restore is optional and applied separately. Exclude permissions, process authorization, credentials, audio files and transient artwork. Restore must not activate tracking or translation consent. See [backup contents](../../BACKUPS.md).
 
 ## Translation and cards
 

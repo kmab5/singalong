@@ -92,35 +92,69 @@ class LibraryRepository(private val database: LibraryDatabase) : LyricsStore, Re
             dao.lookupStatus(recording.id, if (remaining.isEmpty()) "not_requested" else "available")
         }
     }
-    suspend fun exportBackup(): BackupDocument = database.withTransaction {
+    suspend fun lyricReferences(recordingId: String): List<LyricReference> = dao.references(recordingId).map { json.decodeFromString(it.contentJson) }
+
+    suspend fun exportBackup(options: BackupOptions = BackupOptions()): BackupDocument = database.withTransaction {
+        require(options.hasContent) { "Choose at least one backup section." }
+        if (options.lyrics == LyricsBackupMode.NONE && !options.songMetadata && !options.history)
+            return@withTransaction BackupDocument(songs = emptyList(), options = options)
+        val fullLyrics = options.lyrics == LyricsBackupMode.FULL
         BackupDocument(songs = dao.allRecordings().map { r ->
-            val versions = versions(r.id)
-            BackupSong(r.toModel(), r.playCount, r.lastPlayedAtMs, r.favorite, versions, dao.selected(r.id)?.id,
-                versions.map { adjustment(it.id) }.map { BackupAdjustment(it.versionId, it.delayMs, it.allowUncertainSync) }, versions.mapNotNull { translation(it.id) })
-        })
+            val versions = if (options.lyrics != LyricsBackupMode.NONE) versions(r.id) else emptyList()
+            BackupSong(r.toModel(), r.playCount, r.lastPlayedAtMs, r.favorite, versions, if (fullLyrics) dao.selected(r.id)?.id else null,
+                if (fullLyrics) versions.map { adjustment(it.id) }.map { BackupAdjustment(it.versionId, it.delayMs, it.allowUncertainSync) } else emptyList(),
+                if (fullLyrics) versions.mapNotNull { translation(it.id) } else emptyList(),
+                if (options.lyrics != LyricsBackupMode.NONE) lyricReferences(r.id).filter { ref -> versions.none { LyricReference.from(it) == ref } } else emptyList())
+        }).select(options)
     }
     /** Validate before opening the transaction. Existing selections and adjustments always win. */
     suspend fun restore(document: BackupDocument): Int {
         BackupCodec.validate(document)
         return database.withTransaction {
             var added = 0
+            val preexistingIds = dao.allRecordings().mapTo(mutableSetOf()) { it.id }
+            val sourceIds = document.songs.mapTo(mutableSetOf()) { it.recording.id }
+            val claimedTargets = mutableSetOf<String>()
             document.songs.forEach { song ->
                 val originalId = song.recording.id
                 val byId = dao.recording(originalId)
-                val matching = if (byId == null) dao.candidates(RecordingIdentity.normalize(song.recording.title)).filter { RecordingIdentity.compatible(it.toModel(), song.recording) }.singleOrNull() else null
+                // Partial identities lack the album/duration needed for a safe fuzzy match. Full
+                // imports may reuse only unclaimed rows from before this transaction, reserving
+                // every incoming stable ID for its own recording even if it appears later.
+                val matching = if (byId == null && document.options.songMetadata)
+                    dao.candidates(RecordingIdentity.normalize(song.recording.title)).filter {
+                        it.id in preexistingIds && it.id !in sourceIds && it.id !in claimedTargets &&
+                            RecordingIdentity.compatible(it.toModel(), song.recording)
+                    }.singleOrNull() else null
                 val targetId = matching?.id ?: if (byId != null && !RecordingIdentity.compatible(byId.toModel(), song.recording))
                     UUID.nameUUIDFromBytes(json.encodeToString(song.recording).toByteArray()).toString() else originalId
+                claimedTargets.add(targetId)
                 val existing = dao.recording(targetId)
                 if (existing == null) added++
                 val model = song.recording.copy(id = targetId)
-                val row = existing ?: model.toEntity(null)
-                dao.upsert(row.copy(playCount = maxOf(row.playCount, song.plays),
-                    lastPlayedAtMs = listOfNotNull(row.lastPlayedAtMs, song.lastPlayed).maxOrNull(), favorite = if (existing != null) row.favorite else song.favorite))
+                val row = if (existing != null && document.options.songMetadata) existing.copy(
+                    album = existing.album?.takeIf { it.isNotBlank() } ?: model.album,
+                    durationMs = existing.durationMs ?: model.durationMs,
+                    versionLabel = existing.versionLabel?.takeIf { it.isNotBlank() } ?: model.versionLabel,
+                    fileName = existing.fileName?.takeIf { it.isNotBlank() } ?: model.fileName,
+                ) else existing ?: model.toEntity(null)
+                dao.upsert(row.copy(playCount = if (document.options.history) maxOf(row.playCount, song.plays) else row.playCount,
+                    lastPlayedAtMs = if (document.options.history) listOfNotNull(row.lastPlayedAtMs, song.lastPlayed).maxOrNull() else row.lastPlayedAtMs,
+                    favorite = if (existing != null || !document.options.songMetadata) row.favorite else song.favorite))
+                song.lyricReferences.forEach { source ->
+                    var reference = source.copy(recordingId = targetId)
+                    val conflict = dao.reference(reference.id)
+                    val fullConflict = dao.version(reference.id)?.let { LyricReference.from(json.decodeFromString<LyricVersion>(it.contentJson)) != reference } ?: false
+                    if (fullConflict || (conflict != null && json.decodeFromString<LyricReference>(conflict.contentJson) != reference))
+                        reference = reference.copy(id = UUID.nameUUIDFromBytes(json.encodeToString(reference).toByteArray(Charsets.UTF_8)).toString())
+                    if (dao.insertReference(LyricReferenceEntity(reference.id, targetId, json.encodeToString(reference))) != -1L) added++
+                }
                 val mapped = mutableMapOf<String, String>()
                 song.versions.forEach { source ->
                     var version = source.copy(recordingId = targetId)
                     val conflict = dao.version(version.id)
-                    if (conflict != null && json.decodeFromString<LyricVersion>(conflict.contentJson) != version)
+                    val referenceConflict = dao.reference(version.id)?.let { json.decodeFromString<LyricReference>(it.contentJson) != LyricReference.from(version) } ?: false
+                    if (referenceConflict || (conflict != null && json.decodeFromString<LyricVersion>(conflict.contentJson) != version))
                         version = version.copy(id = UUID.nameUUIDFromBytes(json.encodeToString(version).toByteArray()).toString())
                     mapped[source.id] = version.id
                     if (dao.version(version.id) == null) { dao.upsertLyrics(LyricEntity(version.id, targetId, json.encodeToString(version))); added++ }

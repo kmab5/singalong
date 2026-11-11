@@ -26,6 +26,9 @@ data class OccurrenceEntity(@PrimaryKey val id: String, val recordingId: String)
 @Entity(tableName = "lyrics", foreignKeys = [ForeignKey(entity = RecordingEntity::class, parentColumns = ["id"], childColumns = ["recordingId"], onDelete = ForeignKey.CASCADE)], indices = [Index("recordingId")])
 data class LyricEntity(@PrimaryKey val id: String, val recordingId: String, val contentJson: String)
 
+@Entity(tableName = "lyric_references", foreignKeys = [ForeignKey(entity = RecordingEntity::class, parentColumns = ["id"], childColumns = ["recordingId"], onDelete = ForeignKey.CASCADE)], indices = [Index("recordingId")])
+data class LyricReferenceEntity(@PrimaryKey val id: String, val recordingId: String, val contentJson: String)
+
 @Entity(tableName = "selections", foreignKeys = [
     ForeignKey(entity = RecordingEntity::class, parentColumns = ["id"], childColumns = ["recordingId"], onDelete = ForeignKey.CASCADE),
     ForeignKey(entity = LyricEntity::class, parentColumns = ["id"], childColumns = ["versionId"], onDelete = ForeignKey.CASCADE),
@@ -59,6 +62,9 @@ interface LibraryDao {
     suspend fun incrementPlay(id: String, at: Long)
     @Query("UPDATE recordings SET lookupStatus = :status WHERE id = :id") suspend fun lookupStatus(id: String, status: String)
     @Upsert suspend fun upsertLyrics(value: LyricEntity)
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertReference(value: LyricReferenceEntity): Long
+    @Query("SELECT * FROM lyric_references WHERE recordingId = :id ORDER BY id") suspend fun references(id: String): List<LyricReferenceEntity>
+    @Query("SELECT * FROM lyric_references WHERE id = :id") suspend fun reference(id: String): LyricReferenceEntity?
     @Query("SELECT * FROM lyrics WHERE recordingId = :id ORDER BY id") suspend fun versions(id: String): List<LyricEntity>
     @Query("SELECT l.* FROM lyrics l INNER JOIN selections s ON s.versionId = l.id WHERE s.recordingId = :id") suspend fun selected(id: String): LyricEntity?
     @Query("SELECT * FROM lyrics WHERE id = :id") suspend fun version(id: String): LyricEntity?
@@ -67,17 +73,23 @@ interface LibraryDao {
     @Upsert suspend fun adjust(value: AdjustmentEntity)
 }
 
-@Database(entities = [RecordingEntity::class, OccurrenceEntity::class, LyricEntity::class, SelectionEntity::class, AdjustmentEntity::class, TranslationEntity::class], version = 3, exportSchema = true)
+@Database(entities = [RecordingEntity::class, OccurrenceEntity::class, LyricEntity::class, LyricReferenceEntity::class, SelectionEntity::class, AdjustmentEntity::class, TranslationEntity::class], version = 4, exportSchema = true)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
     companion object {
         fun open(context: Context) = Room.databaseBuilder(context.applicationContext, LibraryDatabase::class.java, "singalong.db").addMigrations(object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) { db.execSQL("ALTER TABLE recordings ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0"); db.execSQL("CREATE TABLE IF NOT EXISTS translations (versionId TEXT NOT NULL PRIMARY KEY, contentJson TEXT NOT NULL, FOREIGN KEY(versionId) REFERENCES lyrics(id) ON DELETE CASCADE)") }
-        }, FILE_NAME_MIGRATION).build()
+        }, FILE_NAME_MIGRATION, LYRIC_REFERENCES_MIGRATION).build()
 
         val FILE_NAME_MIGRATION = object : androidx.room.migration.Migration(2, 3) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE recordings ADD COLUMN fileName TEXT")
+            }
+        }
+        val LYRIC_REFERENCES_MIGRATION = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS lyric_references (id TEXT NOT NULL PRIMARY KEY, recordingId TEXT NOT NULL, contentJson TEXT NOT NULL, FOREIGN KEY(recordingId) REFERENCES recordings(id) ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_lyric_references_recordingId ON lyric_references (recordingId)")
             }
         }
     }

@@ -1,9 +1,9 @@
-# Singalong 1.2.2
+# Singalong 1.3.0-rc.1
 
-This release adds smaller APK downloads for individual Android architectures alongside the universal `singalong.apk`. All five APKs belong to one release and use the existing signing key.
+Testing candidate on the feature branch; not published or merged.
 
-Choose the universal APK if you’re unsure which architecture your device uses. The website offers available architecture downloads automatically.
+Floating lyrics now have alignment, separate sizes for the current and other lines, and optional word highlights using supplied timestamps. Floating word highlights have no glow or drift.
 
-The Singalong Quick Settings tile from 1.2.1 still toggles tracking; the existing notification is unchanged. Expand Quick Settings, open **Edit**, and add **Singalong**.
+Backups are now ZIP files with separate sections. Choose full lyrics or source references, song metadata, play history and reading settings. Older JSON backups can still be restored. Audio files are not copied, and links-only backups do not preserve lyric text.
 
-Requires Android 12 or newer. Install over the existing release to preserve your library.
+Requires Android 12 or newer. The signed candidate uses the existing release key and can update the installed release.

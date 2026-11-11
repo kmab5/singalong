@@ -79,7 +79,8 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
                     }
                 }.clickable(onClickLabel = "Show floating controls", onClick = onReveal)) {
                 LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.fillMaxSize(),
-                    compact = true, textSize = settings.textSizeSp, translationSize = settings.translationSizeSp,
+                    compact = true, translationSize = settings.translationSizeSp,
+                    floatingAppearance = settings.floating,
                     onFollow = onFollow, onRetry = onRetry, minimal = true, shadowText = settings.opacity < .85f)
             } else {
             Column(Modifier.fillMaxSize()) {
@@ -94,7 +95,8 @@ fun FloatingLyricsPanel(panel: OverlayState, settings: AppSettings, reader: Read
                 Box(Modifier.weight(1f).fillMaxWidth().clickable(onClickLabel = "Open Singalong", onClick = onOpenApp)) {
                     if (reader.version == null) FloatingEmptyState(reader, onRetry, onOpenApp)
                     else LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null),
-                        Modifier.fillMaxSize(), compact = !panel.expanded, textSize = settings.textSizeSp,
+                        Modifier.fillMaxSize(), compact = !panel.expanded,
+                        floatingAppearance = settings.floating,
                         translationSize = settings.translationSizeSp, onFollow = onFollow, onRetry = onRetry, shadowText = settings.opacity < .85f,
                         onLineLongPress = onLineLongPress, onLineClick = onOpenApp)
                 }

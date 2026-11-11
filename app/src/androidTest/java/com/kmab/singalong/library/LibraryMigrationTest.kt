@@ -31,4 +31,20 @@ class LibraryMigrationTest {
             close()
         }
     }
+    @Test fun referencesMigrationPreservesExistingLyricsAndAddsIndependentProvenance() {
+        helper.createDatabase("references-migration", 3).apply {
+            execSQL("INSERT INTO recordings (id, title, normalizedTitle, artistsJson, playCount, lookupStatus, favorite) VALUES ('song', 'Song', 'song', '[]', 2, 'available', 0)")
+            execSQL("INSERT INTO lyrics (id, recordingId, contentJson) VALUES ('lyrics', 'song', 'original')")
+            execSQL("INSERT INTO selections (recordingId, versionId) VALUES ('song', 'lyrics')")
+            close()
+        }
+        helper.runMigrationsAndValidate("references-migration", 4, true, LibraryDatabase.LYRIC_REFERENCES_MIGRATION).apply {
+            execSQL("INSERT INTO lyric_references (id, recordingId, contentJson) VALUES ('reference', 'song', 'provenance')")
+            query("SELECT l.contentJson, r.playCount FROM lyrics l JOIN recordings r ON r.id = l.recordingId JOIN selections s ON s.versionId = l.id").use {
+                assertTrue(it.moveToFirst()); assertEquals("original", it.getString(0)); assertEquals(2, it.getInt(1))
+            }
+            query("SELECT contentJson FROM lyric_references").use { assertTrue(it.moveToFirst()); assertEquals("provenance", it.getString(0)) }
+            close()
+        }
+    }
 }

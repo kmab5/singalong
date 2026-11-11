@@ -11,9 +11,10 @@ import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 
 @Serializable data class BackupSong(val recording: Recording, val plays: Long, val lastPlayed: Long?, val favorite: Boolean,
-    val versions: List<LyricVersion>, val selected: String?, val adjustments: List<BackupAdjustment> = emptyList(), val translations: List<TranslationRecord> = emptyList())
+    val versions: List<LyricVersion>, val selected: String?, val adjustments: List<BackupAdjustment> = emptyList(), val translations: List<TranslationRecord> = emptyList(),
+    val lyricReferences: List<LyricReference> = emptyList())
 @Serializable data class BackupAdjustment(val versionId: String, val delayMs: Long, val allowUncertainSync: Boolean)
-@Serializable data class BackupDocument(val schema: Int = 1, val songs: List<BackupSong>, val preferences: Map<String, String> = emptyMap())
+@Serializable data class BackupDocument(val schema: Int = 1, val songs: List<BackupSong>, val preferences: Map<String, String> = emptyMap(), val options: BackupOptions = BackupOptions())
 
 object BackupCodec {
     const val MAX_BYTES = 50 * 1024 * 1024
@@ -36,15 +37,31 @@ object BackupCodec {
     }
     fun validate(document: BackupDocument) {
         require(document.schema == 1) { "Unsupported backup version. Update Singalong before restoring." }
+        require(document.options.hasContent)
+        require(document.options.settings || document.preferences.isEmpty())
+        require(document.options.songMetadata || document.options.history || document.options.lyrics != LyricsBackupMode.NONE || document.songs.isEmpty())
         require(document.songs.size <= 20_000 && document.songs.map { it.recording.id }.distinct().size == document.songs.size) { "Duplicate or excessive recordings." }
         require(document.preferences.size <= 50 && document.preferences.all { it.key.length <= 100 && it.value.length <= 1000 })
         val ids = mutableSetOf<String>()
+        val referenceIds = mutableSetOf<String>()
         document.songs.forEach { song ->
             val r = song.recording
             require(r.id.isNotBlank() && r.id.length <= 200 && r.title.isNotBlank() && r.title.length <= 4096 && r.artists.size <= 100 && r.artists.all { it.length <= 4096 } && (r.album?.length ?: 0) <= 4096)
             require(song.plays >= 0 && (song.lastPlayed ?: 0) >= 0 && (r.durationMs ?: 0) >= 0)
             require((r.fileName?.length ?: 0) <= 4096)
             require(song.versions.size <= 500)
+            require(document.options.history || (song.plays == 0L && song.lastPlayed == null))
+            require(document.options.songMetadata || (!song.favorite && r == r.identityOnly()))
+            require(document.options.lyrics == LyricsBackupMode.FULL ||
+                (song.versions.isEmpty() && song.selected == null && song.adjustments.isEmpty() && song.translations.isEmpty()))
+            require(document.options.lyrics != LyricsBackupMode.NONE || song.lyricReferences.isEmpty())
+            require(song.lyricReferences.size <= 500)
+            song.lyricReferences.forEach { ref ->
+                require(referenceIds.add(ref.id) && ref.id.isNotBlank() && ref.id.length <= 512 && ref.recordingId == r.id)
+                require(ref.contentHash.length <= 4096 && (ref.providerDurationMs ?: 0) >= 0)
+                require(listOf(ref.sourceName, ref.sourceUrl, ref.providerId, ref.attribution, ref.retention).all { (it?.length ?: 0) <= 16_384 })
+                require(song.versions.none { it.id == ref.id && LyricReference.from(it) != ref }) { "Conflicting lyric provenance." }
+            }
             song.versions.forEach { v ->
                 require((v.providerDurationMs ?: 0) >= 0)
                 require(ids.add(v.id) && v.id.isNotBlank() && v.id.length <= 512 && v.recordingId == r.id)

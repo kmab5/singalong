@@ -1,6 +1,6 @@
 # Releasing
 
-`version.properties` is the source of the Android version name and code. Each distributed app change needs a new name and a higher code. Current source targets **1.2.2 (22)**.
+`version.properties` is the source of the Android version name and code. Each distributed app change needs a new name and a higher code. Current feature-branch source targets **1.3.0-rc.1 (23)**. It must remain unmerged and untagged until phone testing is confirmed.
 
 For the next release, use `python tools/release_version.py set VERSION --code CODE` with a later version and code. Don’t rerun the command with the current version.
 

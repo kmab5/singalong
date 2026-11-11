@@ -21,7 +21,6 @@ data class AppSettings(
     val allowedPlayers: Set<String> = emptySet(),
     val wifiOnly: Boolean = false,
     val notificationRequested: Boolean = false,
-    val textSizeSp: Float = 22f,
     val opacity: Float = .85f,
     val widthDp: Float = 344f,
     val heightDp: Float = 260f,
@@ -30,6 +29,7 @@ data class AppSettings(
     val minimalMode: Boolean = false,
     val minimalHeightDp: Float = 88f,
     val now: NowAppearance = NowAppearance(),
+    val floating: FloatingAppearance = FloatingAppearance(),
     val librarySort: com.kmab.singalong.library.LibrarySort = com.kmab.singalong.library.LibrarySort.TITLE,
 )
 
@@ -60,13 +60,18 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
         val nowDim = booleanPreferencesKey("now_dim_inactive")
         val nowTap = booleanPreferencesKey("now_tap_focus")
         val nowWords = booleanPreferencesKey("now_word_tracking")
+        val floatingCurrentSize = floatPreferencesKey("floating_current_text_size")
+        val floatingOtherSize = floatPreferencesKey("floating_other_text_size")
+        val floatingAlignment = stringPreferencesKey("floating_alignment")
+        val floatingWords = booleanPreferencesKey("floating_word_tracking")
     }
-    val state = store.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map { p ->
-        AppSettings(
+    val state = store.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map(::readSettings).stateIn(scope, SharingStarted.Eagerly, AppSettings())
+
+    private fun readSettings(p: Preferences) = AppSettings(
             ready = true, translationEnabled = p[Keys.translation] == true && p[Keys.translationConsent] == true, translationSizeSp = (p[Keys.translationSize] ?: 16f).safe(10f, 22f, 16f), trackingEnabled = p[Keys.tracking] ?: false,
             allowedPlayers = p[Keys.allowed].orEmpty(), wifiOnly = p[Keys.wifi] ?: false,
             notificationRequested = p[Keys.notification] ?: false,
-            textSizeSp = (p[Keys.size] ?: 22f).safe(12f, 32f, 22f),
             opacity = (p[Keys.opacity] ?: .85f).safe(.20f, .96f, .85f),
             widthDp = (p[Keys.width] ?: 344f).safe(160f, 560f, 344f),
             heightDp = (p[Keys.height] ?: 260f).safe(120f, 640f, 260f),
@@ -74,6 +79,12 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
             yFraction = (p[Keys.y] ?: 0.2f).safe(0f, 1f, 0.2f),
             minimalMode = p[Keys.minimal] ?: false,
             minimalHeightDp = (p[Keys.minimalHeight] ?: 88f).safe(56f, 240f, 88f),
+            floating = FloatingAppearance(
+                currentTextSizeSp = p[Keys.floatingCurrentSize] ?: p[Keys.size] ?: 22f,
+                otherTextSizeSp = p[Keys.floatingOtherSize] ?: 14f,
+                alignment = LyricAlignment.entries.firstOrNull { it.name == p[Keys.floatingAlignment] } ?: LyricAlignment.START,
+                wordTrackingEnabled = p[Keys.floatingWords] ?: true,
+            ).sanitized(),
             now = NowAppearance(p[Keys.nowSize] ?: p[Keys.size] ?: 22f,
                 LyricAlignment.entries.firstOrNull { it.name == p[Keys.nowAlignment] } ?: LyricAlignment.START,
                 LyricAnimation.entries.firstOrNull { it.name == p[Keys.nowAnimation] } ?: LyricAnimation.FOCUS,
@@ -82,7 +93,22 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
                 p[Keys.nowWords] ?: true).sanitized(),
             librarySort = com.kmab.singalong.library.LibrarySort.entries.firstOrNull { it.name == p[Keys.librarySort] } ?: com.kmab.singalong.library.LibrarySort.TITLE,
         )
-    }.stateIn(scope, SharingStarted.Eagerly, AppSettings())
+
+    /** Merge against the current DataStore transaction, never a potentially stale UI snapshot. */
+    suspend fun restorePreferences(values: Map<String, String>) { store.edit { p ->
+        val v = SettingsBackup.merge(readSettings(p), values)
+        p[Keys.wifi] = v.wifiOnly; p[Keys.translationSize] = v.translationSizeSp
+        p[Keys.floatingCurrentSize] = v.floating.currentTextSizeSp; p[Keys.floatingOtherSize] = v.floating.otherTextSizeSp
+        p[Keys.floatingAlignment] = v.floating.alignment.name; p[Keys.floatingWords] = v.floating.wordTrackingEnabled
+        p[Keys.opacity] = v.opacity; p[Keys.width] = v.widthDp; p[Keys.height] = v.heightDp
+        p[Keys.x] = v.xFraction; p[Keys.y] = v.yFraction
+        p[Keys.minimal] = v.minimalMode; p[Keys.minimalHeight] = v.minimalHeightDp
+        p[Keys.nowSize] = v.now.textSizeSp; p[Keys.nowTimedSize] = v.now.timedTextSizeSp
+        p[Keys.nowAlignment] = v.now.alignment.name; p[Keys.nowAnimation] = v.now.animation.name
+        p[Keys.nowSpacing] = v.now.lineSpacing; p[Keys.nowDim] = v.now.dimInactive
+        p[Keys.nowTap] = v.now.tapToFocus; p[Keys.nowWords] = v.now.wordTrackingEnabled
+        p[Keys.librarySort] = v.librarySort.name
+    } }
 
     suspend fun translation(enabled: Boolean) { store.edit { it[Keys.translation] = enabled; it[Keys.translationConsent] = enabled } }
     suspend fun librarySort(value: com.kmab.singalong.library.LibrarySort) { store.edit { it[Keys.librarySort] = value.name } }
@@ -92,6 +118,10 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
         it[Keys.nowWords] = v.wordTrackingEnabled
     } }
     suspend fun translationSize(value: Float) { store.edit { it[Keys.translationSize] = value.safe(10f, 22f, 16f) } }
+    suspend fun floatingAppearance(value: FloatingAppearance) { val v = value.sanitized(); store.edit {
+        it[Keys.floatingCurrentSize] = v.currentTextSizeSp; it[Keys.floatingOtherSize] = v.otherTextSizeSp
+        it[Keys.floatingAlignment] = v.alignment.name; it[Keys.floatingWords] = v.wordTrackingEnabled
+    } }
     suspend fun minimal(enabled: Boolean) { store.edit { it[Keys.minimal] = enabled } }
     suspend fun minimalHeight(value: Float) { store.edit { it[Keys.minimalHeight] = value.safe(56f, 240f, 88f) } }
     suspend fun tracking(enabled: Boolean) { store.edit { it[Keys.tracking] = enabled } }
@@ -100,7 +130,6 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
     suspend fun allowPlayer(packageName: String, allowed: Boolean) { store.edit {
         it[Keys.allowed] = if (allowed) it[Keys.allowed].orEmpty() + packageName else it[Keys.allowed].orEmpty() - packageName
     } }
-    suspend fun textSize(value: Float) { store.edit { it[Keys.size] = value.safe(12f, 32f, 22f) } }
     suspend fun opacity(value: Float) { store.edit { it[Keys.opacity] = value.safe(.20f, .96f, .85f) } }
     suspend fun geometry(x: Float, y: Float, width: Float, height: Float) { store.edit {
         it[Keys.x] = x.safe(0f, 1f, 0f); it[Keys.y] = y.safe(0f, 1f, 0.2f)

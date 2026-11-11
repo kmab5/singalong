@@ -29,3 +29,5 @@ The app keeps one bounded Java/Kotlin crash log in private no-backup storage. It
 The website uses GitHub Pages and requests public GitHub release metadata. It has no app analytics or third-party fonts. The feedback form is a separate service; you choose attachments and submit the report yourself.
 
 Use **Settings → Library & backup** to export or clear supported data. Clearing Android app storage removes local settings and content. Save any backup you want to keep first.
+
+ZIP backups contain only the sections you choose: full lyrics (including edits, timing and saved translations), source links/metadata, song metadata, play history and reading settings. Song titles and artists accompany lyrics and history for matching; full song metadata also includes saved filenames. Audio files and album-art images are not copied. Backups are not encrypted; the destination you choose controls who can access them. Restoring reading settings is optional and never grants permissions, starts tracking or enables translation consent.

@@ -127,7 +127,7 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                             }
                             GlassPanel(Modifier.weight(1f).fillMaxWidth()) {
                                 LyricsReader(reader.copy(translation = if (settings.translationEnabled) reader.translation else null), Modifier.fillMaxSize(),
-                                    textSize = settings.textSizeSp, translationSize = settings.translationSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request,
+                                    translationSize = settings.translationSizeSp, onFollow = container.reader::follow, onRetry = container.reader::request,
                                     appearance = settings.now, onLineLongPress = { version, index ->
                                         container.openCard(reader.snapshot?.recording, version, index, reader.snapshot?.sessionId)
                                     })
@@ -147,7 +147,7 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
                             Text(savedRecording?.artists?.joinToString().orEmpty(), color = SingalongColors.Muted)
                             GlassPanel(Modifier.weight(1f).fillMaxWidth()) {
                                 LyricsReader(ReaderState(status = savedStatus, version = savedVersion, translation = if (settings.translationEnabled) savedTranslation else null),
-                                    Modifier.fillMaxSize(), textSize = settings.textSizeSp, translationSize = settings.translationSizeSp,
+                                    Modifier.fillMaxSize(), textSize = settings.floating.currentTextSizeSp, translationSize = settings.translationSizeSp,
                                     onLineLongPress = { version, index -> container.openCard(savedRecording, version, index) }, onRetry = {
                                         val id = savedId
                                         if (id != null) scope.launch {

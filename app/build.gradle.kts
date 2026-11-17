@@ -8,8 +8,10 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val playBundle = providers.gradleProperty("playBundle").map(String::toBoolean).getOrElse(false)
+val signingPropertiesPath = if (playBundle) ".signing/upload-signing.properties" else "signing.properties"
 val releaseSigning = Properties().apply {
-    val credentials = rootProject.file("signing.properties")
+    val credentials = rootProject.file(signingPropertiesPath)
     if (credentials.exists()) credentials.inputStream().use { load(it) }
 }
 val appVersion = Properties().apply { rootProject.file("version.properties").inputStream().use { load(it) } }
@@ -17,7 +19,10 @@ val bundleReleaseNotes by tasks.registering(Sync::class) {
     from(rootProject.file("docs/releases.json"))
     into(layout.buildDirectory.dir("generated/releaseNotesAssets"))
 }
-fun signingValue(key: String, environment: String): String? = System.getenv(environment)?.takeIf { it.isNotBlank() } ?: releaseSigning.getProperty(key)
+fun signingValue(key: String, environment: String): String? {
+    val variable = if (playBundle) "PLAY_$environment" else environment
+    return System.getenv(variable)?.takeIf { it.isNotBlank() } ?: releaseSigning.getProperty(key)
+}
 
 android {
     namespace = "com.kmab.singalong"
@@ -33,7 +38,7 @@ android {
     buildFeatures { compose = true; buildConfig = true }
     splits {
         abi {
-            isEnable = !providers.gradleProperty("playBundle").map(String::toBoolean).getOrElse(false)
+            isEnable = !playBundle
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
             isUniversalApk = true
@@ -72,7 +77,7 @@ val verifyReleaseSigning by tasks.registering {
     doLast {
         check(mapOf("storeFile" to "SINGALONG_KEYSTORE_PATH", "storePassword" to "ANDROID_KEYSTORE_PASSWORD", "keyAlias" to "ANDROID_KEY_ALIAS", "keyPassword" to "ANDROID_KEY_PASSWORD").all { (key, env) ->
             !signingValue(key, env).isNullOrBlank()
-        }) { "Release signing requires local signing.properties. See docs/BUILDING.md." }
+        }) { "Release signing requires $signingPropertiesPath or the matching environment variables. See docs/BUILDING.md." }
         check(rootProject.file(requireNotNull(signingValue("storeFile", "SINGALONG_KEYSTORE_PATH"))).isFile) { "Release keystore is missing. Restore the existing key; do not replace it." }
     }
 }

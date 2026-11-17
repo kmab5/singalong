@@ -31,3 +31,5 @@ Release builds use shrinking and optimization. Preserve the matching mapping for
 ## Google Play bundle
 
 Use `./gradlew :app:bundleRelease -PplayBundle=true` with the configured JDK and existing signing credentials. This disables ABI APK splits for the invocation; ordinary GitHub release builds still produce universal and architecture APKs. Output is `app/build/outputs/bundle/release/app-release.aab`. Google Play's app-signing certificate must match the existing release identity to preserve updates from GitHub installs; the upload certificate alone is insufficient.
+
+Play bundle builds use `.signing/upload-signing.properties` (the separate upload key). Ordinary APK builds use `signing.properties` (the original app-signing key). The Play property selects both bundle packaging and upload signing. Optional Play CI overrides use `PLAY_SINGALONG_KEYSTORE_PATH`, `PLAY_ANDROID_KEYSTORE_PASSWORD`, `PLAY_ANDROID_KEY_ALIAS` and `PLAY_ANDROID_KEY_PASSWORD`; APK signing variables cannot override the Play upload identity.

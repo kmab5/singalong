@@ -13,3 +13,5 @@
 /signing.properties
 feedback/
 **/__pycache__/
+
+/play-release-checklist.md

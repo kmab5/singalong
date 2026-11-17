@@ -1,4 +1,6 @@
-# Privacy
+# Privacy policy
+
+Effective 17 November 2026. Singalong is developed by Samuel (kmab). Contact me through the [Singalong feedback form](https://kmab5.github.io/kmab-feedback/?product=singalong) for privacy questions or deletion requests about feedback you submitted.
 
 Singalong reads metadata and playback position from music apps you select. It doesn’t record the microphone or capture playback audio. Lyrics, translations, history, favorites and edits stay in the app’s local database. Android backup is disabled; exporting a backup is your choice.
 
@@ -20,7 +22,7 @@ Optional English translation sends lyric text to MyMemory after consent. MyMemor
 
 **Open in Google Translate** copies the full original lyrics to the clipboard, replacing its contents, and attempts to prefill a browser with English output. Long text or receivers that ignore the link may require manual paste. Text can appear in browser or clipboard history and follows your device’s clipboard-sharing settings. This action uses Google’s terms and is separate from Singalong’s Wi-Fi-only lookup setting. Results aren’t saved back automatically.
 
-ML Kit identifies language on the device. Google states that input and results are processed locally, but the SDK may contact Google for updates and send usage/performance metrics. See [ML Kit terms and privacy](https://developers.google.com/ml-kit/terms). Singalong has no separate app analytics service.
+ML Kit identifies language on the device. Google states that input and results are processed locally, but the SDK may contact Google for updates and sends diagnostics and usage analytics, including device/app information, installation identifiers, performance and event/error information, and identified languages. See [ML Kit terms and privacy](https://developers.google.com/ml-kit/terms). Singalong has no separate app analytics service.
 
 ## Diagnostics and deletion
 
@@ -31,3 +33,12 @@ The website uses GitHub Pages and requests public GitHub release metadata. It ha
 Use **Settings → Library & backup** to export or clear supported data. Clearing Android app storage removes local settings and content. Save any backup you want to keep first.
 
 ZIP backups contain only the sections you choose: full lyrics (including edits, timing and saved translations), source links/metadata, song metadata, play history and all saved settings (including selected music apps, tracking and translation choices). Song titles and artists accompany lyrics and history for matching; full song metadata also includes saved filenames. Audio files and album-art images are not copied. Backups are not encrypted; the destination you choose controls who can access them. Restoring settings is optional; current tracking and translation-consent choices are retained and Android permissions are never granted by restoring a file.
+
+
+## Retention and your choices
+
+Local library data stays until you delete it or clear app storage. Exported backups and PNGs remain wherever you saved or shared them until you remove them there. The app retains only its latest bounded crash report. Feedback you submit is handled separately; use the contact form to request deletion and identify your submission without including passwords. Third-party services control their own retention and requests must also be directed to them where appropriate.
+
+Network requests use HTTPS. Singalong has no accounts, advertising or sale of personal data. Selected player packages and listening history stay local except for the search details described above or files you explicitly export. Notification access is used to identify music sessions and observe their metadata and playback position. Overlay access displays lyrics over other apps. Both can be revoked in Android settings. Permission grants do not mean that you consent to optional translation.
+
+Review the [Terms of use](https://kmab5.github.io/singalong/terms.html) for third-party content and service conditions. Material changes will be reflected in this policy's effective date.

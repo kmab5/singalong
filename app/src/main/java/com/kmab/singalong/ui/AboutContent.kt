@@ -35,6 +35,8 @@ fun AboutContent(openLink: (String) -> Unit) {
         AboutSection("Experimental sync", "Untimed lyrics can follow an estimated reading pace. This is an optional approximation, not audio recognition or word-level timing. Original text and timestamps are preserved.")
         AboutSection("Credits", "Design by kmab. Inter and PT Mono fonts use the SIL Open Font License. Built with Kotlin, Jetpack Compose, Room, OkHttp and ML Kit. This personal app is independent of music players and lyric providers; source attribution is kept with each saved version.")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionButton(onClick = { openLink("https://kmab5.github.io/singalong/privacy.html") }) { Text("Privacy policy") }
+            ActionButton(onClick = { openLink("https://kmab5.github.io/singalong/terms.html") }) { Text("Terms of use") }
             ActionButton(onClick = { openLink("https://developers.google.com/ml-kit/terms") }) { Text("ML Kit privacy") }
             ActionButton(onClick = { openLink("https://github.com/kmab5/singalong") }) { Text("Source code & licenses") }
             ActionButton(onClick = { openLink("https://mymemory.translated.net/terms-and-conditions") }) { Text("Translation terms") }

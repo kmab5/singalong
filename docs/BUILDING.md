@@ -26,3 +26,8 @@ python3 tools/package_release.py
 The universal release build is `app/build/outputs/apk/release/app-universal-release.apk`. Packaging writes five APKs to `artifacts/release/apks/` and matching metadata, checksums and R8 mapping to `artifacts/release/diagnostics/`. It verifies versions, ABI contents, certificates, mapping and 16 KB ZIP alignment.
 
 Release builds use shrinking and optimization. Preserve the matching mapping for crash investigation. See [releasing](RELEASING.md) for distribution and [testing](TESTING.md) for checks that need a phone.
+
+
+## Google Play bundle
+
+Use `./gradlew :app:bundleRelease -PplayBundle=true` with the configured JDK and existing signing credentials. This disables ABI APK splits for the invocation; ordinary GitHub release builds still produce universal and architecture APKs. Output is `app/build/outputs/bundle/release/app-release.aab`. Google Play's app-signing certificate must match the existing release identity to preserve updates from GitHub installs; the upload certificate alone is insufficient.

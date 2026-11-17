@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1 — 2026-11-17
+
+- Add first-launch terms agreement and policy links in About.
+- Publish dedicated privacy and terms pages and prepare Play listing graphics.
+
+
 ## 1.3.0 — 2026-11-11
 
 - Add floating alignment, separate current/other-line sizes and optional supplied-timestamp word highlighting without glow.

@@ -34,6 +34,7 @@ data class FoundationActions(val musicAccess: () -> Unit, val overlayAccess: () 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, actions: FoundationActions) {
+    if (!TermsAgreement(actions.openLink)) return
     val scope = rememberCoroutineScope()
     val state by container.state.collectAsStateWithLifecycle()
     val settings by container.settings.state.collectAsStateWithLifecycle()

@@ -33,7 +33,7 @@ android {
     buildFeatures { compose = true; buildConfig = true }
     splits {
         abi {
-            isEnable = true
+            isEnable = !providers.gradleProperty("playBundle").map(String::toBoolean).getOrElse(false)
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
             isUniversalApk = true

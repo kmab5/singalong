@@ -56,6 +56,7 @@ class AppContainer(private val context: Context) {
             }
         }
     }
+    fun keepScreenOn(enabled: Boolean) { scope.launch { settings.keepScreenOn(enabled) } }
     fun nowAppearance(value: com.kmab.singalong.settings.NowAppearance) { scope.launch { settings.nowAppearance(value) } }
     fun floatingAppearance(value: com.kmab.singalong.settings.FloatingAppearance) { scope.launch { settings.floatingAppearance(value) } }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, error ->

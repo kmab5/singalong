@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2 — 2026-11-20
+
+- Add an opt-in keep-screen-on setting for foreground lyric reading.
+
+
 ## 1.3.1 — 2026-11-17
 
 - Add first-launch terms agreement and policy links in About.

@@ -27,6 +27,7 @@ fun signingValue(key: String, environment: String): String? {
 android {
     namespace = "com.kmab.singalong"
     compileSdk = 36
+    ndkVersion = "28.2.13676358"
     defaultConfig {
         applicationId = "com.kmab.singalong"
         minSdk = 31
@@ -55,6 +56,7 @@ android {
     buildTypes {
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
+            ndk { debugSymbolLevel = "FULL" }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))

@@ -118,6 +118,7 @@ fun ColumnScope.SettingsScreen(container: AppContainer, permissions: PermissionS
                     item { Text("Motion follows Android's animation settings.", style = MaterialTheme.typography.labelMedium, color = SingalongColors.Muted) }
                 }
                 "now" -> {
+                    item { ToggleSetting("Keep screen on", "Prevent sleep while reading lyrics in the app. Applies to Now and saved lyrics while Singalong is in the foreground.", settings.keepScreenOn) { value -> container.keepScreenOn(value) } }
                     item { Text("Personalize the full reader independently of floating lyrics.", color = SingalongColors.Muted) }
                     item { SettingSlider("Now lyric size", settings.now.textSizeSp, 12f..40f, "${settings.now.textSizeSp.roundToInt()} sp") { container.nowAppearance(settings.now.copy(textSizeSp = it)) } }
                     item { SettingSlider("Current timed-line size", settings.now.timedTextSizeSp, 12f..56f, "${settings.now.timedTextSizeSp.roundToInt()} sp") { container.nowAppearance(settings.now.copy(timedTextSizeSp = it)) } }

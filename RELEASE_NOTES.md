@@ -1,7 +1,4 @@
-# Singalong 1.3.1
+# Singalong 1.3.2
 
-- Review terms and privacy information on first launch.
-- Open dedicated privacy and terms pages from About.
-- Prepare a signed App Bundle for Google Play testing using the existing release key.
-
-Android 12 or newer. Provider availability and content rights remain subject to applicable terms.
+- Optional Keep screen on setting for Now and saved lyrics while reading in the foreground. Find it in Settings → Now-tab lyrics.
+- Screen sleep returns when leaving the reader or switching away from the app.

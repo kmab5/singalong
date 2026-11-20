@@ -1,6 +1,22 @@
 {
   "releases": [
     {
+      "version": "1.3.2",
+      "title": "Read at your own pace",
+      "summary": "Keep your screen awake while reading lyrics.",
+      "sections": [
+        {
+          "kind": "new",
+          "items": [
+            {
+              "title": "Keep screen on",
+              "body": "Enable Keep screen on in Settings \u2192 Now-tab lyrics to prevent sleep while viewing Now or saved lyrics in the foreground."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.3.1",
       "title": "Ready for your next step",
       "summary": "Clearer privacy and service terms for Singalong.",

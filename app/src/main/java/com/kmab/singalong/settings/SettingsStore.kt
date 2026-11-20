@@ -15,6 +15,7 @@ private val Context.singalongSettings by preferencesDataStore(
 
 data class AppSettings(
     val ready: Boolean = false,
+    val keepScreenOn: Boolean = false,
     val translationEnabled: Boolean = false,
     val translationSizeSp: Float = 16f,
     val trackingEnabled: Boolean = false,
@@ -37,6 +38,7 @@ data class AppSettings(
 class SettingsStore(context: Context, scope: CoroutineScope) {
     private val store = context.applicationContext.singalongSettings
     private object Keys {
+        val keepScreenOn = booleanPreferencesKey("keep_screen_on_reading")
         val translation = booleanPreferencesKey("translation_enabled")
         val translationConsent = booleanPreferencesKey("mymemory_consent")
         val translationSize = floatPreferencesKey("translation_size")
@@ -71,6 +73,7 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
         .map(::readSettings).stateIn(scope, SharingStarted.Eagerly, AppSettings())
 
     private fun readSettings(p: Preferences) = AppSettings(
+            keepScreenOn = p[Keys.keepScreenOn] ?: false,
             ready = true, translationEnabled = p[Keys.translation] == true && p[Keys.translationConsent] == true, translationSizeSp = (p[Keys.translationSize] ?: 16f).safe(10f, 22f, 16f), trackingEnabled = p[Keys.tracking] ?: false,
             allowedPlayers = p[Keys.allowed].orEmpty(), wifiOnly = p[Keys.wifi] ?: false,
             notificationRequested = p[Keys.notification] ?: false,
@@ -136,6 +139,7 @@ class SettingsStore(context: Context, scope: CoroutineScope) {
     } }
 
     suspend fun translation(enabled: Boolean) { store.edit { it[Keys.translation] = enabled; it[Keys.translationConsent] = enabled } }
+    suspend fun keepScreenOn(enabled: Boolean) { store.edit { it[Keys.keepScreenOn] = enabled } }
     suspend fun librarySort(value: com.kmab.singalong.library.LibrarySort) { store.edit { it[Keys.librarySort] = value.name } }
     suspend fun nowAppearance(value: NowAppearance) { val v = value.sanitized(); store.edit {
         it[Keys.nowSize] = v.textSizeSp; it[Keys.nowTimedSize] = v.timedTextSizeSp; it[Keys.nowAlignment] = v.alignment.name; it[Keys.nowAnimation] = v.animation.name

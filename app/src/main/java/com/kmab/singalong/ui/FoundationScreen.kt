@@ -57,6 +57,8 @@ fun FoundationScreen(container: AppContainer, permissions: PermissionStatus, act
     var controlTab by rememberSaveable { mutableStateOf(true) }
     var folderScanOpen by rememberSaveable { mutableStateOf(false) }
     val folderScan by container.folderScan.state.collectAsStateWithLifecycle()
+    KeepReadingScreenOn(settings.keepScreenOn && !tools &&
+        ((savedId != null && savedVersion != null) || (savedId == null && destination == "now" && reader.version != null)))
     val openNow by container.openNowRequested.collectAsStateWithLifecycle()
     LaunchedEffect(openNow) { if (openNow) { destination = "now"; savedId = null; tools = false; container.openedNow() } }
     fun acceptsSavedTranslation(id: String, version: LyricVersion) = savedId == id && !tools && settings.translationEnabled &&

@@ -2,6 +2,10 @@
 
 Automated checks verify logic and build output. They don’t establish phone compatibility, battery use or overlay behavior on every player.
 
+## 1.3.2 local checks
+
+Debug unit tests passed: 204 tests, zero failures/errors. Debug lint reported zero errors and 35 warnings. Debug and release APK builds passed; all five release APKs verified against the existing certificate, version 1.3.2 (28), ABI contents, R8 mapping and 16 KB ZIP alignment. The installed NDK produced the native-symbols archive for supplied ML Kit metadata. Keep-screen-on behavior is implemented with a reader/lifecycle-scoped view flag; physical timeout, background/resume and navigation checks remain with the maintainer.
+
 ## Recorded baseline
 
 For **1.3.0 (25)**, local debug and release runs each passed **204 unit tests**. Coverage includes preferred-version export and attachments, unlimited/large backups, ZIP64 reading, complete preference snapshots, pre-restore validation, floating word-tracking eligibility and shared release-note parsing. Debug lint reported **0 errors / 31 warnings**; release lint reported **0 errors / 33 warnings**. Debug and signed release builds passed.
